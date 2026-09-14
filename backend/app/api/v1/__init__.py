@@ -1,0 +1,64 @@
+from fastapi import APIRouter
+
+from app.api.v1 import (
+    accounts,
+    ai,
+    alerts,
+    allocations,
+    analytics,
+    auth,
+    automation,
+    billing,
+    budgets,
+    businesses,
+    calendar,
+    categories,
+    export,
+    funds,
+    goals,
+    health,
+    households,
+    imports,
+    income,
+    invites,
+    members,
+    obligations,
+    overview,
+    recurring,
+    safe_to_spend,
+    simulations,
+    support,
+    transactions,
+    wealth,
+)
+
+api_router = APIRouter(prefix="/api/v1")
+api_router.include_router(health.router)
+api_router.include_router(auth.router)
+api_router.include_router(households.router)
+api_router.include_router(members.router)
+api_router.include_router(accounts.router)
+api_router.include_router(categories.router)
+api_router.include_router(income.router)
+api_router.include_router(transactions.router)
+api_router.include_router(overview.router)
+api_router.include_router(budgets.router)
+api_router.include_router(recurring.router)
+api_router.include_router(alerts.router)
+api_router.include_router(obligations.router)
+api_router.include_router(funds.router)
+api_router.include_router(calendar.router)
+api_router.include_router(allocations.router)
+api_router.include_router(safe_to_spend.router)
+api_router.include_router(wealth.router)
+api_router.include_router(goals.router)
+api_router.include_router(businesses.router)
+api_router.include_router(analytics.router)
+api_router.include_router(simulations.router)
+api_router.include_router(automation.router)
+api_router.include_router(ai.router)
+api_router.include_router(imports.router)
+api_router.include_router(export.router)
+api_router.include_router(invites.router)
+api_router.include_router(billing.router)
+api_router.include_router(support.router)

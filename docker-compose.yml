@@ -1,0 +1,43 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: familyos
+      POSTGRES_PASSWORD: familyos_dev_only
+      POSTGRES_DB: familyos
+    ports:
+      - "5433:5432"
+    volumes:
+      - familyos_pg:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U familyos -d familyos"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  backend:
+    build:
+      context: ./backend
+    environment:
+      DATABASE_URL: postgresql+psycopg://familyos:familyos_dev_only@postgres:5432/familyos
+      SECRET_KEY: local-dev-only-not-for-production
+      CORS_ORIGINS: http://localhost:3000
+      COOKIE_SECURE: "false"
+    ports:
+      - "8000:8000"
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  frontend:
+    build:
+      context: ./frontend
+    environment:
+      NEXT_PUBLIC_API_URL: http://localhost:8000
+    ports:
+      - "3000:3000"
+    depends_on:
+      - backend
+
+volumes:
+  familyos_pg:
