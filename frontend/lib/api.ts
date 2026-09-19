@@ -692,6 +692,7 @@ export type Invite = {
   email: string;
   role: string;
   token: string | null;
+  invitation_url?: string | null;
   status: string;
   expires_at: string;
 };
