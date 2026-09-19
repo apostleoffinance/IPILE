@@ -35,7 +35,7 @@ jobs:
         with:
           node-version: "22"
       - name: Install
-        run: npm install
+        run: npm ci
       - name: Dependency audit
         run: npm audit --omit=dev --audit-level=high
       - name: Typecheck
