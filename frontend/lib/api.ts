@@ -1,4 +1,16 @@
-const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000";
+const API_URL = (
+  process.env.NEXT_PUBLIC_API_URL ??
+  (process.env.NODE_ENV === "development" ? "http://localhost:8000" : "")
+).replace(/\/$/, "");
+
+function requireApiUrl() {
+  if (!API_URL) {
+    throw new Error(
+      "The production API URL is missing. Set NEXT_PUBLIC_API_URL in Vercel and redeploy.",
+    );
+  }
+  return API_URL;
+}
 
 export type User = {
   id: string;
@@ -437,7 +449,7 @@ async function ensureCsrfToken(): Promise<string> {
     csrfToken = fromCookie;
     return fromCookie;
   }
-  const response = await fetch(`${API_URL}/api/v1/auth/csrf`, { credentials: "include" });
+  const response = await fetch(`${requireApiUrl()}/api/v1/auth/csrf`, { credentials: "include" });
   const data = (await response.json()) as { csrf_token?: string };
   if (!response.ok || !data.csrf_token) {
     throw new Error("Unable to establish CSRF protection.");
@@ -451,6 +463,7 @@ export function clearCsrfToken() {
 }
 
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
+  const apiUrl = requireApiUrl();
   const method = (init?.method ?? "GET").toUpperCase();
   const headers: Record<string, string> = {
     "Content-Type": "application/json",
@@ -461,17 +474,24 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
     headers["X-CSRF-Token"] = await ensureCsrfToken();
   }
 
-  const response = await fetch(`${API_URL}${path}`, {
-    ...init,
-    method,
-    credentials: "include",
-    headers,
-  });
+  let response: Response;
+  try {
+    response = await fetch(`${apiUrl}${path}`, {
+      ...init,
+      method,
+      credentials: "include",
+      headers,
+    });
+  } catch {
+    throw new Error(
+      `Unable to reach the IPÌLẸ̀ API at ${apiUrl}. Check backend availability and CORS settings.`,
+    );
+  }
 
   if (response.status === 403 && ["POST", "PUT", "PATCH", "DELETE"].includes(method)) {
     clearCsrfToken();
     headers["X-CSRF-Token"] = await ensureCsrfToken();
-    const retry = await fetch(`${API_URL}${path}`, {
+    const retry = await fetch(`${apiUrl}${path}`, {
       ...init,
       method,
       credentials: "include",
