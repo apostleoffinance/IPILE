@@ -176,7 +176,11 @@ def create_giving(
     account = _account(db, ctx.household.id, payload.account_id)
     policy = None
     if payload.policy_id:
-        policy = _policies(db, ctx.household.id).filter(GivingPolicy.id == payload.policy_id).first()
+        policy = (
+            _policies(db, ctx.household.id)
+            .filter(GivingPolicy.id == payload.policy_id)
+            .first()
+        )
         if policy is None:
             raise HTTPException(status_code=404, detail="Giving policy not found.")
     kind = policy.kind if policy else payload.kind

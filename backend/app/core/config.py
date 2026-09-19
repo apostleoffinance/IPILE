@@ -16,7 +16,7 @@ class Settings(BaseSettings):
     session_idle_hours: int = 12
     session_absolute_days: int = 7
     cookie_secure: bool = False
-    # lax for same-site; none requires HTTPS (cookie_secure=true) for cross-origin (e.g. Vercel + API)
+    # Same-site uses lax; cross-origin HTTPS uses none with secure cookies.
     cookie_samesite: str = "lax"
     seed_on_start: bool = True
     billing_webhook_secret: str = ""

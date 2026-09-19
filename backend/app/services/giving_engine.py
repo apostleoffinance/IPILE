@@ -60,18 +60,30 @@ def limit_warning_for(
     projected_month = money(monthly_used + amount)
     projected_year = money(annual_used + amount)
     warnings: list[str] = []
-    if policy and policy.monthly_limit is not None and projected_month > money(policy.monthly_limit):
+    if (
+        policy
+        and policy.monthly_limit is not None
+        and projected_month > money(policy.monthly_limit)
+    ):
         warnings.append(
-            f"Monthly limit exceeded: {projected_month} / {money(policy.monthly_limit)} for {policy.name}."
+            f"Monthly limit exceeded: {projected_month} / "
+            f"{money(policy.monthly_limit)} for {policy.name}."
         )
-    if policy and policy.annual_limit is not None and projected_year > money(policy.annual_limit):
+    if (
+        policy
+        and policy.annual_limit is not None
+        and projected_year > money(policy.annual_limit)
+    ):
         warnings.append(
-            f"Annual limit exceeded: {projected_year} / {money(policy.annual_limit)} for {policy.name}."
+            f"Annual limit exceeded: {projected_year} / "
+            f"{money(policy.annual_limit)} for {policy.name}."
         )
     return " ".join(warnings) if warnings else None
 
 
-def serialize_policy(db: Session, policy: GivingPolicy, today: date | None = None) -> GivingPolicyOut:
+def serialize_policy(
+    db: Session, policy: GivingPolicy, today: date | None = None
+) -> GivingPolicyOut:
     today = today or date.today()
     monthly_used = sum_for_policy(
         db, policy.household_id, policy.id, policy.kind, year=today.year, month=today.month

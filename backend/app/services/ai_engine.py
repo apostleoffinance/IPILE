@@ -49,7 +49,7 @@ def flatten_allowed_numbers(payload: dict[str, Any]) -> set[str]:
             return
         if isinstance(value, bool):
             return
-        if isinstance(value, (int, float, Decimal)):
+        if isinstance(value, int | float | Decimal):
             amount = quantize_money(Decimal(str(value)))
             allowed.add(format_money(amount))
             allowed.add(str(amount))

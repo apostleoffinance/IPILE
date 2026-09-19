@@ -172,9 +172,15 @@ def change_password(
     session_token: str | None = Cookie(default=None, alias=COOKIE),
 ) -> None:
     if not verify_password(payload.current_password, user.password_hash):
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Current password is incorrect.")
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Current password is incorrect.",
+        )
     if payload.current_password == payload.new_password:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="New password must differ.")
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="New password must differ.",
+        )
     user.password_hash = hash_password(payload.new_password)
     db.add(user)
     # Revoke other sessions; keep current

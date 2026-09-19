@@ -58,7 +58,11 @@ class CsrfMiddleware(BaseHTTPMiddleware):
         if request.method.upper() in UNSAFE and not csrf_exempt(request.url.path):
             cookie_token = request.cookies.get(settings.csrf_cookie_name)
             header_token = request.headers.get("x-csrf-token")
-            if not cookie_token or not header_token or not secrets.compare_digest(cookie_token, header_token):
+            if (
+                not cookie_token
+                or not header_token
+                or not secrets.compare_digest(cookie_token, header_token)
+            ):
                 return Response(
                     content='{"detail":"CSRF validation failed."}',
                     status_code=403,
