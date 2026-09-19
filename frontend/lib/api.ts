@@ -691,7 +691,7 @@ export type Invite = {
   household_id: string;
   email: string;
   role: string;
-  token: string;
+  token: string | null;
   status: string;
   expires_at: string;
 };
@@ -708,8 +708,24 @@ export function revokeInvite(id: string) {
   return request<void>(`/api/v1/invites/${id}`, { method: "DELETE" });
 }
 
+export function resendInvite(id: string) {
+  return request<Invite>(`/api/v1/invites/${id}/resend`, { method: "POST" });
+}
+
+export function previewInvite(token: string) {
+  return request<{
+    id: string;
+    household_id: string;
+    household_name: string;
+    email: string;
+    role: string;
+    status: string;
+    expires_at: string;
+  }>(`/api/v1/invites/preview/${encodeURIComponent(token)}`);
+}
+
 export function acceptInvite(token: string) {
-  return request<{ id: string; role: string }>("/api/v1/invites/accept", {
+  return request<{ id: string; household_id: string; role: string }>("/api/v1/invites/accept", {
     method: "POST",
     body: JSON.stringify({ token }),
   });
@@ -1170,6 +1186,14 @@ export const api = {
     relationship: string;
     member_type: string;
   }) => request<Member>("/api/v1/members", { method: "POST", body: JSON.stringify(body) }),
+  updateMember: (id: string, body: { display_name?: string; role?: string; relationship?: string; member_type?: string }) =>
+    request<Member>(`/api/v1/members/${id}`, { method: "PATCH", body: JSON.stringify(body) }),
+  deleteMember: (id: string) => request<void>(`/api/v1/members/${id}`, { method: "DELETE" }),
+  transferOwnership: (member_id: string) =>
+    request<HouseholdMembership>("/api/v1/households/current/transfer-ownership", {
+      method: "POST",
+      body: JSON.stringify({ member_id }),
+    }),
   accounts: () => request<Account[]>("/api/v1/accounts"),
   createAccount: (body: {
     name: string;
