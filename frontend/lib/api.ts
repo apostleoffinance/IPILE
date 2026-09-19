@@ -1,14 +1,10 @@
 const API_URL = (
-  process.env.NEXT_PUBLIC_API_URL ??
-  (process.env.NODE_ENV === "development" ? "http://localhost:8000" : "")
+  process.env.NODE_ENV === "production"
+    ? ""
+    : process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000"
 ).replace(/\/$/, "");
 
 function requireApiUrl() {
-  if (!API_URL) {
-    throw new Error(
-      "The production API URL is missing. Set NEXT_PUBLIC_API_URL in Vercel and redeploy.",
-    );
-  }
   return API_URL;
 }
 
