@@ -1,10 +1,16 @@
 "use client";
 
 import { FormEvent, useEffect, useState } from "react";
+import { ContentContainer } from "@/components/layouts/ContentContainer";
+import { PageHeader } from "@/components/layouts/PageHeader";
+import { SectionHeader } from "@/components/layouts/SectionHeader";
 import { AppShell } from "@/components/shared/AppShell";
 import { EmptyState } from "@/components/shared/EmptyState";
 import { ErrorState } from "@/components/shared/ErrorState";
 import { LoadingState } from "@/components/shared/LoadingState";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Select } from "@/components/ui/select";
 import { GoalProgress } from "@/components/wealth/GoalProgress";
 import {
   contributeToGoal,
@@ -85,13 +91,11 @@ export default function GoalsPage() {
 
   return (
     <AppShell>
-      <div className="space-y-8 pb-16">
-        <div>
-          <p className="text-sm text-muted">Are we getting closer?</p>
-          <h1 className="mt-1 text-3xl font-medium">Goals</h1>
-        </div>
+      <ContentContainer>
+        <PageHeader eyebrow="Wealth" title="Goals" description="Are we getting closer?" />
         {error ? <ErrorState message={error} /> : null}
         {!loaded && !error ? <LoadingState /> : null}
+        <SectionHeader title="Progress" />
         {!rows.length && loaded ? (
           <EmptyState title="No goals yet" body="Name a target, a deadline, and fund it from an account." />
         ) : (
@@ -112,15 +116,13 @@ export default function GoalsPage() {
           </div>
         )}
         <form onSubmit={onCreate} className="grid gap-3 rounded-md border border-line bg-surface p-5 md:grid-cols-3">
-          <input
-            className="rounded-md border border-line bg-canvas px-3 py-2"
+          <Input
             placeholder="Goal name"
             value={name}
             onChange={(event) => setName(event.target.value)}
             required
           />
-          <select
-            className="rounded-md border border-line bg-canvas px-3 py-2"
+          <Select
             value={type}
             onChange={(event) => setType(event.target.value)}
           >
@@ -132,34 +134,31 @@ export default function GoalsPage() {
             <option value="business">Business</option>
             <option value="emergency">Emergency</option>
             <option value="other">Other</option>
-          </select>
-          <input
-            className="rounded-md border border-line bg-canvas px-3 py-2"
+          </Select>
+          <Input
             placeholder="Target amount"
             value={target}
             onChange={(event) => setTarget(event.target.value)}
             required
           />
-          <input
-            className="rounded-md border border-line bg-canvas px-3 py-2"
+          <Input
             placeholder="Current amount"
             value={current}
             onChange={(event) => setCurrent(event.target.value)}
           />
-          <input
+          <Input
             type="date"
             className="rounded-md border border-line bg-canvas px-3 py-2"
             value={deadline}
             onChange={(event) => setDeadline(event.target.value)}
           />
-          <button type="submit" disabled={pending} className="rounded-md bg-ink px-4 py-2 text-canvas">
+          <Button type="submit" disabled={pending}>
             Add goal
-          </button>
+          </Button>
         </form>
         {rows.some((row) => row.status !== "completed" && row.status !== "cancelled") ? (
           <form onSubmit={onContribute} className="grid gap-3 rounded-md border border-line bg-surface p-5 md:grid-cols-4">
-            <select
-              className="rounded-md border border-line bg-canvas px-3 py-2"
+            <Select
               value={goalId}
               onChange={(event) => setGoalId(event.target.value)}
             >
@@ -170,9 +169,8 @@ export default function GoalsPage() {
                     {row.name}
                   </option>
                 ))}
-            </select>
-            <select
-              className="rounded-md border border-line bg-canvas px-3 py-2"
+            </Select>
+            <Select
               value={accountId}
               onChange={(event) => setAccountId(event.target.value)}
             >
@@ -181,20 +179,19 @@ export default function GoalsPage() {
                   {account.name}
                 </option>
               ))}
-            </select>
-            <input
-              className="rounded-md border border-line bg-canvas px-3 py-2"
+            </Select>
+            <Input
               placeholder="Contribution amount"
               value={amount}
               onChange={(event) => setAmount(event.target.value)}
               required
             />
-            <button type="submit" disabled={pending} className="rounded-md bg-ink px-4 py-2 text-canvas">
+            <Button type="submit" disabled={pending}>
               Contribute
-            </button>
+            </Button>
           </form>
         ) : null}
-      </div>
+      </ContentContainer>
     </AppShell>
   );
 }

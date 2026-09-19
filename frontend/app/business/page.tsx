@@ -2,10 +2,16 @@
 
 import { FormEvent, useEffect, useState } from "react";
 import { MoneyAmount } from "@/components/financial/MoneyAmount";
+import { ContentContainer } from "@/components/layouts/ContentContainer";
+import { PageHeader } from "@/components/layouts/PageHeader";
+import { SectionHeader } from "@/components/layouts/SectionHeader";
 import { AppShell } from "@/components/shared/AppShell";
 import { EmptyState } from "@/components/shared/EmptyState";
 import { ErrorState } from "@/components/shared/ErrorState";
 import { LoadingState } from "@/components/shared/LoadingState";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Select } from "@/components/ui/select";
 import {
   addBusinessEmployee,
   createBusiness,
@@ -100,21 +106,20 @@ export default function BusinessPage() {
 
   return (
     <AppShell>
-      <div className="space-y-8 pb-16">
-        <div>
-          <p className="text-sm text-muted">How much has the family invested?</p>
-          <h1 className="mt-1 text-3xl font-medium">Business</h1>
-        </div>
+      <ContentContainer>
+        <PageHeader
+          eyebrow="Business"
+          title="Businesses"
+          description="How much has the family invested? Capital is not lifestyle spend."
+        />
         {error ? <ErrorState message={error} /> : null}
         {!loaded && !error ? <LoadingState /> : null}
         {!rows.length && loaded ? (
-          <EmptyState title="No business yet" body="Add the salon or any family venture. Capital is not lifestyle spend." />
+          <EmptyState title="No business yet" body="Add a family venture. Capital is not lifestyle spend." />
         ) : null}
         {salon ? (
           <>
-            <p className="text-sm text-muted">
-              {salon.name} · Has the business generated a return?
-            </p>
+            <SectionHeader title={salon.name} description="Has the business generated a return?" />
             <div className="grid gap-3 md:grid-cols-4">
               <Metric label="Family invested" amount={salon.pnl.family_invested} />
               <Metric label="Withdrawn" amount={salon.pnl.family_withdrawn} />
@@ -161,8 +166,7 @@ export default function BusinessPage() {
               )}
             </section>
             <form onSubmit={onTx} className="grid gap-3 rounded-md border border-line bg-surface p-5 md:grid-cols-4">
-              <select
-                className="rounded-md border border-line bg-canvas px-3 py-2"
+              <Select
                 value={txType}
                 onChange={(event) => setTxType(event.target.value)}
               >
@@ -171,10 +175,9 @@ export default function BusinessPage() {
                 <option value="revenue">Revenue</option>
                 <option value="expense">Expense</option>
                 <option value="payroll">Payroll</option>
-              </select>
+              </Select>
               {(txType === "capital_contribution" || txType === "withdrawal") && (
-                <select
-                  className="rounded-md border border-line bg-canvas px-3 py-2"
+                <Select
                   value={accountId}
                   onChange={(event) => setAccountId(event.target.value)}
                 >
@@ -183,55 +186,52 @@ export default function BusinessPage() {
                       {account.name}
                     </option>
                   ))}
-                </select>
+                </Select>
               )}
-              <input
-                className="rounded-md border border-line bg-canvas px-3 py-2"
+              <Input
                 placeholder="Amount"
                 value={amount}
                 onChange={(event) => setAmount(event.target.value)}
                 required
               />
-              <button type="submit" disabled={pending} className="rounded-md bg-ink px-4 py-2 text-canvas">
+              <Button type="submit" disabled={pending}>
                 Record
-              </button>
+              </Button>
             </form>
             <form onSubmit={onStaff} className="grid gap-3 rounded-md border border-line bg-surface p-5 md:grid-cols-2">
-              <input
-                className="rounded-md border border-line bg-canvas px-3 py-2"
+              <Input
                 placeholder="Employee name"
                 value={staffName}
                 onChange={(event) => setStaffName(event.target.value)}
                 required
               />
-              <button type="submit" disabled={pending} className="rounded-md bg-ink px-4 py-2 text-canvas">
+              <Button type="submit" disabled={pending}>
                 Add employee
-              </button>
+              </Button>
             </form>
           </>
         ) : null}
         {!salon && loaded ? (
           <form onSubmit={onCreate} className="grid gap-3 rounded-md border border-line bg-surface p-5 md:grid-cols-2">
-            <input
-              className="rounded-md border border-line bg-canvas px-3 py-2"
+            <Input
               placeholder="Business name"
               value={name}
               onChange={(event) => setName(event.target.value)}
               required
             />
-            <button type="submit" disabled={pending} className="rounded-md bg-ink px-4 py-2 text-canvas">
+            <Button type="submit" disabled={pending}>
               Add business
-            </button>
+            </Button>
           </form>
         ) : null}
-      </div>
+      </ContentContainer>
     </AppShell>
   );
 }
 
 function Metric({ label, amount }: { label: string; amount: string }) {
   return (
-    <div className="rounded-md border border-line bg-surface p-4">
+    <div className="border border-line bg-surface p-4">
       <p className="text-xs uppercase tracking-wide text-muted">{label}</p>
       <p className="mt-2 text-xl">
         <MoneyAmount amount={amount} />

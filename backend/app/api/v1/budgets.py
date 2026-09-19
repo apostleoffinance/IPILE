@@ -1,4 +1,4 @@
-from datetime import UTC, datetime
+from datetime import UTC, date, datetime, timedelta
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException, status
@@ -12,8 +12,27 @@ from app.schemas.budget import BudgetCreate, BudgetOut, BudgetUpdate
 from app.services.budgets import current_month_bounds, evaluate_budget_alerts, serialize_budget
 
 router = APIRouter(tags=["budget"])
-PERIOD_TYPES = {"monthly", "quarterly", "annual"}
+PERIOD_TYPES = {"monthly", "quarterly", "annual", "weekly", "custom"}
 BUDGET_STATUSES = {"draft", "active", "closed"}
+
+
+def _budget_period_bounds(payload: BudgetCreate) -> tuple[date, date]:
+    today = date.today()
+    if payload.period_type == "weekly":
+        start = payload.start_date or today
+        end = payload.end_date or (start + timedelta(days=6))
+        return start, end
+    if payload.period_type == "custom":
+        if payload.start_date is None or payload.end_date is None:
+            raise HTTPException(
+                status_code=400,
+                detail="Custom budgets require start_date and end_date.",
+            )
+        if payload.end_date < payload.start_date:
+            raise HTTPException(status_code=400, detail="end_date must be on or after start_date.")
+        return payload.start_date, payload.end_date
+    start, end = current_month_bounds()
+    return payload.start_date or start, payload.end_date or end
 
 
 def _active_budgets(db: Session, household_id: UUID):
@@ -91,13 +110,13 @@ def create_budget(
         )
         if member is None:
             raise HTTPException(status_code=404, detail="Member not found.")
-    start, end = current_month_bounds()
+    start, end = _budget_period_bounds(payload)
     budget = Budget(
         household_id=ctx.household.id,
         name=payload.name,
         period_type=payload.period_type,
-        start_date=payload.start_date or start,
-        end_date=payload.end_date or end,
+        start_date=start,
+        end_date=end,
         member_id=payload.member_id,
         status=payload.status,
     )

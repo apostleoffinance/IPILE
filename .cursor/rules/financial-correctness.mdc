@@ -1,0 +1,16 @@
+---
+description: Deterministic decimal financial math and engine isolation
+globs: backend/**/*.py
+alwaysApply: false
+---
+
+# Financial correctness
+
+- Store and compute money as `Decimal` / `DECIMAL(18,2)`. Never `float` for money.
+- API money fields are string decimals plus ISO currency.
+- Engines are pure services over typed inputs. They do not touch HTTP.
+- Amounts on transactions are `>= 0`; direction comes from `type`.
+- Protected funds and emergency balances are excluded from Current Safe to Spend.
+- Capital contribution to a business is not household lifestyle spend.
+- Every new engine formula needs a unit test before it is wired to an endpoint.
+- AI (Phase 11+) may only narrate numbers already produced by an engine.

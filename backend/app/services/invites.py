@@ -10,7 +10,7 @@ from app.models.public import HouseholdInvite
 from app.models.user import User
 from app.services.audit import write_audit
 
-INVITE_ROLES = frozenset({"partner", "member", "viewer"})
+INVITE_ROLES = frozenset({"partner", "member", "viewer", "advisor"})
 INVITE_DAYS = 14
 
 

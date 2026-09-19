@@ -114,6 +114,18 @@ def test_investment_buy_updates_value(client: TestClient) -> None:
     assert nw["net_worth"] == "500000.00"
 
 
+def test_crypto_investment_type_accepted(client: TestClient) -> None:
+    register(client, "nw-crypto@example.com")
+    created = client.post(
+        "/api/v1/investments",
+        json={"name": "BTC wallet", "type": "crypto", "current_value": "150000.00"},
+    )
+    assert created.status_code == 201, created.text
+    assert created.json()["type"] == "crypto"
+    listed = client.get("/api/v1/investments").json()
+    assert listed[0]["type"] == "crypto"
+
+
 def test_seed_identifies_emergency_and_exposes_wealth(client: TestClient) -> None:
     db = TestingSessionLocal()
     try:

@@ -1,6 +1,9 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import { ContentContainer } from "@/components/layouts/ContentContainer";
+import { PageHeader } from "@/components/layouts/PageHeader";
+import { SectionHeader } from "@/components/layouts/SectionHeader";
 import { AppShell } from "@/components/shared/AppShell";
 import { ConfirmationDialog } from "@/components/shared/ConfirmationDialog";
 import { EmptyState } from "@/components/shared/EmptyState";
@@ -62,11 +65,12 @@ export default function TransactionsPage() {
 
   return (
     <AppShell>
-      <div className="space-y-6 pb-16">
-        <div>
-          <p className="text-sm text-muted">What moved?</p>
-          <h1 className="mt-1 text-3xl font-medium">Transactions</h1>
-        </div>
+      <ContentContainer>
+        <PageHeader
+          eyebrow="Money"
+          title="Transactions"
+          description="What moved? Record income, spending, transfers, and giving."
+        />
         {error ? <ErrorState message={error} /> : null}
         {accounts.length === 0 ? (
           <EmptyState
@@ -76,14 +80,18 @@ export default function TransactionsPage() {
             actionHref="/money/accounts"
           />
         ) : (
-          <TransactionForm
-            accounts={accounts}
-            categories={filteredCategories}
-            members={members}
-            onSubmit={onSubmit}
-            pending={pending}
-          />
+          <>
+            <SectionHeader title="Record" description="Validated before it hits balances." />
+            <TransactionForm
+              accounts={accounts}
+              categories={filteredCategories}
+              members={members}
+              onSubmit={onSubmit}
+              pending={pending}
+            />
+          </>
         )}
+        <SectionHeader title="Activity" />
         <TransactionFilters
           accounts={accounts}
           type={type}
@@ -96,7 +104,7 @@ export default function TransactionsPage() {
         ) : (
           <TransactionTable transactions={transactions} accounts={accounts} onVoid={setVoidId} />
         )}
-      </div>
+      </ContentContainer>
       {voidId ? (
         <ConfirmationDialog
           title="Void this transaction?"

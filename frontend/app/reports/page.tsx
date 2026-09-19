@@ -2,9 +2,14 @@
 
 import { useEffect, useState } from "react";
 import { MoneyAmount } from "@/components/financial/MoneyAmount";
+import { ContentContainer } from "@/components/layouts/ContentContainer";
+import { PageHeader } from "@/components/layouts/PageHeader";
+import { SectionHeader } from "@/components/layouts/SectionHeader";
 import { AppShell } from "@/components/shared/AppShell";
 import { ErrorState } from "@/components/shared/ErrorState";
 import { LoadingState } from "@/components/shared/LoadingState";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { useHouseholdCurrency } from "@/hooks/useHouseholdCurrency";
 import {
   getAnnualReport,
   getGivingReport,
@@ -20,6 +25,7 @@ export default function ReportsPage() {
   const [report, setReport] = useState<Report | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [pending, setPending] = useState(true);
+  const currency = useHouseholdCurrency();
 
   useEffect(() => {
     setPending(true);
@@ -40,34 +46,34 @@ export default function ReportsPage() {
 
   return (
     <AppShell>
-      <div className="space-y-8 pb-16">
-        <div>
-          <p className="text-sm text-muted">What should we remember?</p>
-          <h1 className="mt-1 text-3xl font-medium">Reports</h1>
-        </div>
-        <div className="flex flex-wrap gap-2">
+      <ContentContainer>
+        <PageHeader
+          eyebrow="Intelligence"
+          title="Reports"
+          description="What should we remember? Period reviews from engine snapshots."
+        />
+        <Tabs value={kind} onValueChange={(value) => setKind(value as (typeof kinds)[number])}>
+          <TabsList>
+            {kinds.map((row) => (
+              <TabsTrigger key={row} value={row} className="capitalize">
+                {row}
+              </TabsTrigger>
+            ))}
+          </TabsList>
           {kinds.map((row) => (
-            <button
-              key={row}
-              type="button"
-              onClick={() => setKind(row)}
-              className={`rounded-md px-3 py-1.5 text-sm capitalize ${
-                kind === row ? "bg-ink text-canvas" : "border border-line bg-surface text-muted"
-              }`}
-            >
-              {row}
-            </button>
+            <TabsContent key={row} value={row}>
+              {pending ? <LoadingState /> : null}
+              {error ? <ErrorState message={error} /> : null}
+              {report && !pending && kind === row ? <ReportBody report={report} currency={currency} /> : null}
+            </TabsContent>
           ))}
-        </div>
-        {pending ? <LoadingState /> : null}
-        {error ? <ErrorState message={error} /> : null}
-        {report && !pending ? <ReportBody report={report} /> : null}
-      </div>
+        </Tabs>
+      </ContentContainer>
     </AppShell>
   );
 }
 
-function ReportBody({ report }: { report: Report }) {
+function ReportBody({ report, currency }: { report: Report; currency?: string }) {
   const payload = report.payload;
   const moneyKeys = [
     "income",
@@ -84,17 +90,20 @@ function ReportBody({ report }: { report: Report }) {
     "vs_limit",
   ];
   return (
-    <article className="space-y-6 rounded-md border border-line bg-surface p-6">
+    <article className="space-y-6 border border-line bg-surface p-6">
       <div>
         <p className="text-xs uppercase tracking-wide text-muted">{String(payload.title ?? report.kind)}</p>
-        <h2 className="mt-1 text-2xl">{String(payload.period_label ?? report.period_start)}</h2>
+        <h2 className="mt-1 font-display text-3xl text-ink">
+          {String(payload.period_label ?? report.period_start)}
+        </h2>
       </div>
+      <SectionHeader title="Figures" />
       <div className="grid gap-3 md:grid-cols-2">
         {moneyKeys.map((key) =>
           typeof payload[key] === "string" ? (
-            <div key={key} className="flex justify-between text-sm">
+            <div key={key} className="flex justify-between border-b border-line py-2 text-sm last:border-0">
               <span className="capitalize text-muted">{key.replaceAll("_", " ")}</span>
-              <MoneyAmount amount={payload[key] as string} currency="NGN" />
+              <MoneyAmount amount={payload[key] as string} currency={currency ?? "NGN"} />
             </div>
           ) : null,
         )}
@@ -108,7 +117,7 @@ function ReportBody({ report }: { report: Report }) {
       {payload.top_overspend && typeof payload.top_overspend === "object" ? (
         <p className="text-sm text-muted">
           Top overspend {(payload.top_overspend as { category: string }).category}{" "}
-          <MoneyAmount amount={(payload.top_overspend as { amount: string }).amount} currency="NGN" />
+          <MoneyAmount amount={(payload.top_overspend as { amount: string }).amount} currency={currency ?? "NGN"} />
         </p>
       ) : null}
       {typeof payload.best_improvement === "string" ? (
@@ -119,9 +128,6 @@ function ReportBody({ report }: { report: Report }) {
           Upcoming risk {(payload.upcoming_risk as { title: string }).title} on{" "}
           {(payload.upcoming_risk as { date: string }).date}
         </p>
-      ) : null}
-      {typeof payload.shock === "string" && payload.shock ? (
-        <p className="text-sm text-muted">Pilot shock: {payload.shock}</p>
       ) : null}
     </article>
   );

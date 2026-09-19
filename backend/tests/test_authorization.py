@@ -78,6 +78,47 @@ def test_partner_can_write_and_viewer_cannot(client: TestClient) -> None:
     assert blocked.status_code == 403
 
 
+def test_advisor_can_read_cannot_write(client: TestClient) -> None:
+    register(client, "owner-advisor@example.com", "Owner")
+    household = client.get("/api/v1/households/current").json()
+    account = client.post("/api/v1/accounts", json={"name": "Main", "type": "bank"}).json()
+    _logout(client)
+
+    register(client, "advisor-roles@example.com", "Advisor")
+    _logout(client)
+
+    login(client, "owner-advisor@example.com")
+    assert (
+        client.post(
+            "/api/v1/members",
+            json={
+                "display_name": "Advisor",
+                "role": "advisor",
+                "relationship": "other",
+                "email": "advisor-roles@example.com",
+            },
+        ).status_code
+        == 201
+    )
+    _logout(client)
+
+    headers = {"X-Household-Id": household["id"]}
+    login(client, "advisor-roles@example.com")
+    readable = client.get("/api/v1/accounts", headers=headers)
+    assert readable.status_code == 200
+    blocked = client.post(
+        "/api/v1/transactions",
+        headers=headers,
+        json={
+            "account_id": account["id"],
+            "amount": "10.00",
+            "type": "expense",
+            "date": date.today().isoformat(),
+        },
+    )
+    assert blocked.status_code == 403
+
+
 def test_member_cannot_write_for_someone_else(client: TestClient) -> None:
     register(client, "owner-member@example.com", "Owner")
     household = client.get("/api/v1/households/current").json()

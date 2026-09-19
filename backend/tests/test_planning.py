@@ -203,3 +203,46 @@ def test_budget_tenancy_and_no_safe_to_spend(client: TestClient) -> None:
     listed = client.get("/api/v1/budget").json()
     assert listed == []
     assert "safe_to_spend" not in created.json()
+
+
+def test_budget_weekly_and_custom_period_types(client: TestClient) -> None:
+    register(client, "budget-periods@example.com")
+    food_id = _categories(client)["Food"]["id"]
+    weekly = client.post(
+        "/api/v1/budget",
+        json={
+            "name": "Weekly food",
+            "period_type": "weekly",
+            "start_date": "2026-09-14",
+            "categories": [{"category_id": food_id, "allocated_amount": "25000.00"}],
+        },
+    )
+    assert weekly.status_code == 201, weekly.text
+    assert weekly.json()["period_type"] == "weekly"
+    assert weekly.json()["start_date"] == "2026-09-14"
+    assert weekly.json()["end_date"] == "2026-09-20"
+
+    custom = client.post(
+        "/api/v1/budget",
+        json={
+            "name": "Custom sprint",
+            "period_type": "custom",
+            "start_date": "2026-09-01",
+            "end_date": "2026-09-10",
+            "categories": [{"category_id": food_id, "allocated_amount": "40000.00"}],
+        },
+    )
+    assert custom.status_code == 201, custom.text
+    assert custom.json()["period_type"] == "custom"
+    assert custom.json()["start_date"] == "2026-09-01"
+    assert custom.json()["end_date"] == "2026-09-10"
+
+    missing = client.post(
+        "/api/v1/budget",
+        json={
+            "name": "Broken custom",
+            "period_type": "custom",
+            "categories": [{"category_id": food_id, "allocated_amount": "1000.00"}],
+        },
+    )
+    assert missing.status_code == 400

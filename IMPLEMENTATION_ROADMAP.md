@@ -425,6 +425,36 @@ If a later phase's entity is required as a foreign key, add a **minimal stub tab
 
 ---
 
+### Phase 15 — Foundation completion
+
+**Depends on:** Phase 14.
+
+**Build**
+
+- Security: password change, CSRF double-submit, cookie SameSite for cross-origin deploy
+- Giving module: policies, records, summary, dual approval, `/family/giving`
+- Cash-flow statement API + `/money/cash-flow`
+- Expanded financial calendar + month-grid UI
+- Budget `weekly` / `custom` periods
+- Investment type `crypto`
+- Debt snowball/avalanche strategies
+- Insights structured pattern library
+- Forecast UI surface + purchase check from +Add
+- Nested Money/Plan/Family/Wealth nav; Home allocated/emergency/debt strip
+- Onboarding income amount + light constitution priorities
+- Advisor role (read-only professional)
+- Billing webhook stub + `docs/BILLING.md` (PSP wiring later)
+
+**Do not build:** open banking, FX conversion, Family Office tax/estate modules, live payment processor.
+
+**Definition of done**
+
+- All Phase 15 scope above shipped with tests
+- Backend suite green; frontend typecheck green
+- Spec bumped; `PHASE_STATUS.md` evidence recorded
+
+---
+
 ## 4. What "complete" means
 
 A phase is complete only if all of the following are true:

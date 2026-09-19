@@ -8,6 +8,7 @@ from app.models.budget import Budget, BudgetCategory
 from app.models.business import Business, BusinessEmployee, BusinessTransaction
 from app.models.category import Category
 from app.models.fund import FundContribution, SinkingFund
+from app.models.giving import GivingPolicy, GivingRecord
 from app.models.goal import Goal, GoalContribution
 from app.models.household import Household
 from app.models.imports import ImportJob
@@ -41,6 +42,8 @@ __all__ = [
     "BusinessTransaction",
     "Category",
     "FundContribution",
+    "GivingPolicy",
+    "GivingRecord",
     "Goal",
     "GoalContribution",
     "Household",

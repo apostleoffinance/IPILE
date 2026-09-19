@@ -54,7 +54,7 @@ export function PurchaseCheckModal({
             disabled={pending}
             className="rounded-md bg-ink px-4 py-2 text-canvas disabled:opacity-50"
           >
-            {pending ? "Checking…" : "Check affordability"}
+            {pending ? "Checking..." : "Check affordability"}
           </button>
         </form>
         {result ? (

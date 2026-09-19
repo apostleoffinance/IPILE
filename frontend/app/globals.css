@@ -2,23 +2,64 @@
 @tailwind components;
 @tailwind utilities;
 
-:root {
-  /* IPÌLẸ̀ brand — forest green + gold; light app canvas for finance readability */
-  --color-bg-canvas: #f3f6f4;
+:root,
+[data-theme="light"] {
+  /* IPÌLẸ̀ brand tokens (Phase 0) — see docs/DESIGN_TOKENS.md */
+  --color-near-black: #050807;
+  --color-deep-forest: #003d35;
+  --color-champagne-gold: #c9a45c;
+  --color-warm-white: #f7f6f2;
+
+  --color-bg-canvas: #f7f6f2;
   --color-bg-surface: #ffffff;
-  --color-bg-subtle: #e6eee9;
-  --color-bg-brand: #050805;
-  --color-text-primary: #0c1a14;
-  --color-text-secondary: #4a6358;
-  --color-accent-primary: #0b3d32;
-  --color-accent-deep: #062820;
-  --color-accent-gold: #c6a35a;
-  --color-accent-gold-bright: #e0c078;
-  --color-status-healthy: #0b3d32;
+  --color-bg-subtle: #ebe8e1;
+  --color-bg-brand: #050807;
+  --color-text-primary: #050807;
+  --color-text-secondary: #4a5c56;
+  --color-text-inverse: #f7f6f2;
+  --color-accent-primary: #003d35;
+  --color-accent-deep: #002922;
+  --color-accent-gold: #c9a45c;
+  --color-accent-gold-bright: #dbc07a;
+  --color-status-healthy: #003d35;
   --color-status-warning: #b45309;
   --color-status-critical: #b42318;
   --color-status-neutral: #6b6b6b;
-  --color-border: #d5e0da;
+  --color-status-info: #1d4e63;
+  --color-border: #d8d4cb;
+  --color-input-bg: #ffffff;
+  --radius-md: 12px;
+  --shadow-sm: 0 1px 2px rgb(5 8 7 / 0.04);
+  --font-display: "Cormorant Garamond", "Times New Roman", serif;
+  --font-sans: "Source Sans 3", "Segoe UI", ui-sans-serif, system-ui, sans-serif;
+}
+
+[data-theme="dark"] {
+  --color-near-black: #050807;
+  --color-deep-forest: #0a5c50;
+  --color-champagne-gold: #c9a45c;
+  --color-warm-white: #f7f6f2;
+
+  --color-bg-canvas: #050807;
+  --color-bg-surface: #0c1410;
+  --color-bg-subtle: #121a16;
+  --color-bg-brand: #050807;
+  --color-text-primary: #f7f6f2;
+  --color-text-secondary: #9fb8ad;
+  --color-text-inverse: #050807;
+  --color-accent-primary: #0a5c50;
+  --color-accent-deep: #003d35;
+  --color-accent-gold: #c9a45c;
+  --color-accent-gold-bright: #dbc07a;
+  --color-status-healthy: #3d8f72;
+  --color-status-warning: #d97706;
+  --color-status-critical: #e11d48;
+  --color-status-neutral: #8a9a90;
+  --color-status-info: #5b9bb5;
+  --color-border: #1c332a;
+  --color-input-bg: #080f0c;
+  --radius-md: 12px;
+  --shadow-sm: 0 1px 2px rgb(0 0 0 / 0.35);
   --font-display: "Cormorant Garamond", "Times New Roman", serif;
   --font-sans: "Source Sans 3", "Segoe UI", ui-sans-serif, system-ui, sans-serif;
 }
@@ -36,6 +77,30 @@ body {
 
 .tabular {
   font-variant-numeric: tabular-nums;
+}
+
+:focus-visible {
+  outline: 2px solid var(--color-accent-gold);
+  outline-offset: 2px;
+}
+
+button:focus:not(:focus-visible),
+a:focus:not(:focus-visible),
+input:focus:not(:focus-visible),
+select:focus:not(:focus-visible),
+textarea:focus:not(:focus-visible) {
+  outline: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
 }
 
 .gold-rule {
@@ -56,4 +121,25 @@ body {
   background: radial-gradient(circle at 30% 30%, #f0e0a8, var(--color-accent-gold) 55%, #8a6a2e);
   vertical-align: super;
   margin-left: 0.02em;
+}
+
+.eyebrow {
+  font-size: 0.68rem;
+  font-weight: 600;
+  letter-spacing: 0.2em;
+  line-height: 1.4;
+  text-transform: uppercase;
+}
+
+.landing-reveal {
+  animation: landing-rise 700ms ease-out both;
+}
+
+.landing-delay {
+  animation-delay: 120ms;
+}
+
+@keyframes landing-rise {
+  from { opacity: 0; transform: translateY(14px); }
+  to { opacity: 1; transform: translateY(0); }
 }

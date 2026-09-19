@@ -1,8 +1,11 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { RecurringForm } from "@/components/plan/RecurringForm";
 import { MoneyAmount } from "@/components/financial/MoneyAmount";
+import { ContentContainer } from "@/components/layouts/ContentContainer";
+import { PageHeader } from "@/components/layouts/PageHeader";
+import { SectionHeader } from "@/components/layouts/SectionHeader";
+import { RecurringForm } from "@/components/plan/RecurringForm";
 import { AppShell } from "@/components/shared/AppShell";
 import { EmptyState } from "@/components/shared/EmptyState";
 import { ErrorState } from "@/components/shared/ErrorState";
@@ -40,14 +43,12 @@ export default function RecurringPage() {
 
   return (
     <AppShell>
-      <div className="space-y-8 pb-16">
-        <div>
-          <p className="text-sm text-muted">What repeats?</p>
-          <h1 className="mt-1 text-3xl font-medium">Recurring</h1>
-        </div>
+      <ContentContainer>
+        <PageHeader eyebrow="Plan" title="Recurring" description="What repeats?" />
         {error ? <ErrorState message={error} /> : null}
         {!loaded && !error ? <LoadingState /> : null}
 
+        <SectionHeader title="Add template" />
         {accounts.length === 0 ? (
           <EmptyState title="Add an account first" body="Recurring transactions need a household account." />
         ) : (
@@ -71,10 +72,11 @@ export default function RecurringPage() {
           />
         )}
 
+        <SectionHeader title="Templates" />
         {loaded && items.length === 0 ? (
           <EmptyState title="No recurring templates" body="Add a repeating income, expense, or transfer." />
         ) : (
-          <div className="overflow-x-auto rounded-md border border-line bg-surface">
+          <div className="overflow-x-auto border border-line bg-surface">
             <table className="w-full text-left text-sm">
               <thead className="border-b border-line text-xs uppercase tracking-wide text-muted">
                 <tr>
@@ -121,7 +123,7 @@ export default function RecurringPage() {
             </table>
           </div>
         )}
-      </div>
+      </ContentContainer>
     </AppShell>
   );
 }

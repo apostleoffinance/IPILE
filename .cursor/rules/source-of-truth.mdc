@@ -1,0 +1,17 @@
+---
+description: PRODUCT_SPEC.md is the source of truth for IPÌLẸ̀
+alwaysApply: true
+---
+
+# Source of truth
+
+- Treat `PRODUCT_SPEC.md` as the complete product. Do not invent a smaller MVP or a rewrite-later architecture.
+- If code and spec disagree, change the code, or bump the spec version and add tests. Do not silently diverge.
+- Product: **IPÌLẸ̀** — configurable financial OS for households. Journey: Family Finance → Family Wealth → Family Office.
+- Founding / seed household is Tenant #1 dogfood, never hard-coded product behavior.
+- Litmus: if a feature works only for the founding family, it is configuration — not a product feature.
+- Household is the tenant. Multi-household from day one. No mock-mode flag.
+- Rules are data. Never hardcode tithe, Christianity, "baby", salon, or other household-specific concepts.
+- Bank balance ≠ available money. Safe to Spend is a first-class concept when its phase is active.
+- Intellectual property is the deterministic Household Financial Intelligence Engine, not dashboard chrome.
+- Do not silently rewrite a household's Family Financial Constitution (allocation rules / policies).

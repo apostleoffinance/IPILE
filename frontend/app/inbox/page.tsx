@@ -1,11 +1,14 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { ContentContainer } from "@/components/layouts/ContentContainer";
+import { PageHeader } from "@/components/layouts/PageHeader";
 import { AlertList } from "@/components/plan/AlertList";
 import { AppShell } from "@/components/shared/AppShell";
 import { EmptyState } from "@/components/shared/EmptyState";
 import { ErrorState } from "@/components/shared/ErrorState";
 import { LoadingState } from "@/components/shared/LoadingState";
+import { Button } from "@/components/ui/button";
 import {
   getNotifications,
   markNotificationRead,
@@ -62,28 +65,24 @@ export default function InboxPage() {
 
   return (
     <AppShell>
-      <div className="space-y-8 pb-16">
-        <div className="flex flex-wrap items-end justify-between gap-4">
-          <div>
-            <p className="text-sm text-muted">What needs attention?</p>
-            <h1 className="mt-1 text-3xl font-medium">Inbox</h1>
-          </div>
-          <button
-            type="button"
-            disabled={pending}
-            onClick={onTick}
-            className="rounded-md border border-line bg-surface px-4 py-2 text-sm disabled:opacity-50"
-          >
-            {pending ? "Running…" : "Run daily automation"}
-          </button>
-        </div>
+      <ContentContainer>
+        <PageHeader
+          eyebrow="Automation"
+          title="Inbox"
+          description="What needs attention?"
+          actions={
+            <Button type="button" variant="outline" disabled={pending} onClick={onTick}>
+              {pending ? "Running..." : "Run daily automation"}
+            </Button>
+          }
+        />
         {!loaded && !error ? <LoadingState /> : null}
         {error ? <ErrorState message={error} /> : null}
         {loaded && !rows.length ? (
           <EmptyState title="Inbox clear" body="Alerts from budgets and obligations appear here." />
         ) : null}
         {rows.length ? <AlertList alerts={alerts} onRead={onRead} /> : null}
-      </div>
+      </ContentContainer>
     </AppShell>
   );
 }

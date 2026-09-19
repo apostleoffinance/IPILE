@@ -27,6 +27,8 @@ from app.models import (  # noqa: F401
     FinancialScore,
     FinancialSnapshot,
     FundContribution,
+    GivingPolicy,
+    GivingRecord,
     Goal,
     GoalContribution,
     Household,
@@ -61,6 +63,25 @@ engine = create_engine(
 TestingSessionLocal = sessionmaker(bind=engine, autoflush=False, autocommit=False)
 
 
+class CsrfTestClient(TestClient):
+    """Inject double-submit CSRF header on unsafe methods for cookie auth."""
+
+    def request(self, method: str, url: str, **kwargs):  # type: ignore[override]
+        upper = method.upper()
+        if upper in {"POST", "PUT", "PATCH", "DELETE"}:
+            headers = dict(kwargs.get("headers") or {})
+            lowered = {k.lower() for k in headers}
+            if "x-csrf-token" not in lowered:
+                token = self.cookies.get("ffos_csrf")
+                if not token:
+                    super().request("GET", "/api/v1/auth/csrf")
+                    token = self.cookies.get("ffos_csrf")
+                if token:
+                    headers["X-CSRF-Token"] = token
+                kwargs["headers"] = headers
+        return super().request(method, url, **kwargs)
+
+
 @pytest.fixture(autouse=True)
 def _reset_limits() -> None:
     reset_rate_limits()
@@ -78,7 +99,7 @@ def client() -> Iterator[TestClient]:
             db.close()
 
     app.dependency_overrides[get_db] = override_get_db
-    with TestClient(app) as test_client:
+    with CsrfTestClient(app) as test_client:
         yield test_client
     app.dependency_overrides.clear()
     Base.metadata.drop_all(bind=engine)

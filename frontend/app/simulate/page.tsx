@@ -1,13 +1,24 @@
 "use client";
 
 import { FormEvent, useEffect, useState } from "react";
+import { DecisionCard } from "@/components/financial/DecisionCard";
 import { MoneyAmount } from "@/components/financial/MoneyAmount";
+import { MoneyChange } from "@/components/financial/MoneyChange";
+import { ContentContainer } from "@/components/layouts/ContentContainer";
+import { PageHeader } from "@/components/layouts/PageHeader";
+import { SectionHeader } from "@/components/layouts/SectionHeader";
 import { AppShell } from "@/components/shared/AppShell";
 import { ErrorState } from "@/components/shared/ErrorState";
 import { LoadingState } from "@/components/shared/LoadingState";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Select } from "@/components/ui/select";
+import { useHouseholdCurrency } from "@/hooks/useHouseholdCurrency";
 import { api, runSimulation, type Obligation, type SimulationRun } from "@/lib/api";
 
 export default function SimulatePage() {
+  const currency = useHouseholdCurrency();
   const [obligations, setObligations] = useState<Obligation[]>([]);
   const [incomeRate, setIncomeRate] = useState("-0.20");
   const [unexpected, setUnexpected] = useState("300000.00");
@@ -54,35 +65,37 @@ export default function SimulatePage() {
 
   return (
     <AppShell>
-      <div className="space-y-8 pb-16">
-        <div>
-          <p className="text-sm text-muted">What happens if?</p>
-          <h1 className="mt-1 text-3xl font-medium">Simulator</h1>
-          <p className="mt-2 text-sm text-muted">
-            Runs on a cloned household. Live balances do not move.
-          </p>
-        </div>
-        <form onSubmit={onSubmit} className="grid gap-4 rounded-md border border-line bg-surface p-5 md:grid-cols-2">
-          <label className="block text-sm">
-            <span className="text-xs uppercase tracking-wide text-muted">Income change rate</span>
-            <input
-              className="mt-1 w-full rounded-md border border-line bg-canvas px-3 py-2"
+      <ContentContainer>
+        <PageHeader
+          eyebrow="Intelligence"
+          title="Simulator"
+          description="What happens if? Runs on a cloned household. Live balances do not move."
+        />
+        <SectionHeader title="Scenario" />
+        <form onSubmit={onSubmit} className="grid gap-4 border border-line bg-surface p-5 md:grid-cols-2">
+          <div>
+            <Label htmlFor="sim-income">Income change rate</Label>
+            <Input
+              id="sim-income"
+              className="mt-1"
               value={incomeRate}
               onChange={(event) => setIncomeRate(event.target.value)}
             />
-          </label>
-          <label className="block text-sm">
-            <span className="text-xs uppercase tracking-wide text-muted">Unexpected expense</span>
-            <input
-              className="mt-1 w-full rounded-md border border-line bg-canvas px-3 py-2"
+          </div>
+          <div>
+            <Label htmlFor="sim-unexpected">Unexpected expense</Label>
+            <Input
+              id="sim-unexpected"
+              className="mt-1 tabular"
               value={unexpected}
               onChange={(event) => setUnexpected(event.target.value)}
             />
-          </label>
-          <label className="block text-sm">
-            <span className="text-xs uppercase tracking-wide text-muted">Obligation</span>
-            <select
-              className="mt-1 w-full rounded-md border border-line bg-canvas px-3 py-2"
+          </div>
+          <div>
+            <Label htmlFor="sim-obligation">Obligation</Label>
+            <Select
+              id="sim-obligation"
+              className="mt-1"
               value={feeId}
               onChange={(event) => setFeeId(event.target.value)}
             >
@@ -91,64 +104,78 @@ export default function SimulatePage() {
                   {row.name}
                 </option>
               ))}
-            </select>
-          </label>
-          <label className="block text-sm">
-            <span className="text-xs uppercase tracking-wide text-muted">Obligation change rate</span>
-            <input
-              className="mt-1 w-full rounded-md border border-line bg-canvas px-3 py-2"
+            </Select>
+          </div>
+          <div>
+            <Label htmlFor="sim-fee">Obligation change rate</Label>
+            <Input
+              id="sim-fee"
+              className="mt-1"
               value={feeRate}
               onChange={(event) => setFeeRate(event.target.value)}
             />
-          </label>
-          <label className="block text-sm">
-            <span className="text-xs uppercase tracking-wide text-muted">Horizon (months)</span>
-            <input
-              className="mt-1 w-full rounded-md border border-line bg-canvas px-3 py-2"
+          </div>
+          <div>
+            <Label htmlFor="sim-horizon">Horizon (months)</Label>
+            <Input
+              id="sim-horizon"
+              className="mt-1"
               value={horizon}
               onChange={(event) => setHorizon(event.target.value)}
             />
-          </label>
+          </div>
           <div className="flex items-end">
-            <button type="submit" disabled={pending} className="rounded-md bg-ink px-4 py-2 text-canvas disabled:opacity-50">
-              {pending ? "Running…" : "Run simulation"}
-            </button>
+            <Button type="submit" disabled={pending}>
+              {pending ? "Running..." : "Run simulation"}
+            </Button>
           </div>
         </form>
         {error ? <ErrorState message={error} /> : null}
         {pending && !result ? <LoadingState /> : null}
         {result ? (
-          <section className="space-y-4">
+          <section className="space-y-6">
+            <SectionHeader title="Outcome" description={result.name} />
             <div className="grid gap-3 md:grid-cols-3">
               <Status label="Cash flow" value={result.summary.cash_flow} />
               <Status label="Obligations" value={result.summary.obligations} />
               <Status label="Emergency" value={result.summary.emergency_fund} />
               <Status label="Investments" value={result.summary.investments_status} />
               <Status label="Safe to Spend" value={result.summary.safe_to_spend} />
-              <div className="rounded-md border border-line bg-surface p-4">
+              <div className="border border-line bg-surface p-4">
                 <p className="text-xs uppercase tracking-wide text-muted">Net worth delta</p>
                 <p className="mt-2">
-                  <MoneyAmount amount={result.summary.net_worth_delta} currency="NGN" />
+                  <MoneyChange amount={result.summary.net_worth_delta} currency={currency ?? "NGN"} />
                 </p>
               </div>
             </div>
+            {(result.summary.cash_flow === "critical" ||
+              result.summary.obligations === "unfunded" ||
+              result.summary.safe_to_spend === "critical") && (
+              <DecisionCard
+                title="This scenario stresses the household"
+                body="Review obligations and Safe to Spend before acting on a similar change in real life."
+                href="/overview"
+                severity="warning"
+              />
+            )}
+            <SectionHeader title="Month path" />
             <div className="space-y-2">
               {result.months.map((row) => (
                 <div
                   key={row.month_index}
-                  className="flex flex-wrap justify-between gap-2 rounded-md border border-line bg-surface px-4 py-3 text-sm"
+                  className="flex flex-wrap justify-between gap-2 border border-line bg-surface px-4 py-3 text-sm"
                 >
                   <span>Month {row.month_index}</span>
                   <span className="tabular">
-                    Income <MoneyAmount amount={row.income} currency="NGN" /> · surplus{" "}
-                    <MoneyAmount amount={row.surplus} currency="NGN" /> · {row.cash_flow}
+                    Income <MoneyAmount amount={row.income} currency={currency ?? "NGN"} /> · surplus{" "}
+                    <MoneyAmount amount={row.surplus} currency={currency ?? "NGN"} /> · {row.cash_flow}
                   </span>
                 </div>
               ))}
             </div>
           </section>
         ) : null}
-      </div>
+      </ContentContainer>
     </AppShell>
   );
 }
@@ -161,7 +188,7 @@ function Status({ label, value }: { label: string; value: string }) {
         ? "text-warning"
         : "text-healthy";
   return (
-    <div className="rounded-md border border-line bg-surface p-4">
+    <div className="border border-line bg-surface p-4">
       <p className="text-xs uppercase tracking-wide text-muted">{label}</p>
       <p className={`mt-2 capitalize ${tone}`}>{value.replaceAll("_", " ")}</p>
     </div>

@@ -4,13 +4,20 @@ import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import { AllocationBar } from "@/components/allocation/AllocationBar";
 import { PurchaseCheckModal } from "@/components/allocation/PurchaseCheckModal";
+import { DecisionCard } from "@/components/financial/DecisionCard";
+import { MoneyAmount } from "@/components/financial/MoneyAmount";
+import { ObligationCard } from "@/components/financial/ObligationCard";
+import { SafeToSpend } from "@/components/financial/SafeToSpend";
+import { TransactionRow } from "@/components/financial/TransactionRow";
 import { HealthScore } from "@/components/health/HealthScore";
 import { WhyHealthModal } from "@/components/health/WhyHealthModal";
+import { ContentContainer } from "@/components/layouts/ContentContainer";
+import { PageHeader } from "@/components/layouts/PageHeader";
 import { AppShell } from "@/components/shared/AppShell";
 import { EmptyState } from "@/components/shared/EmptyState";
 import { ErrorState } from "@/components/shared/ErrorState";
 import { LoadingState } from "@/components/shared/LoadingState";
-import { MoneyAmount } from "@/components/financial/MoneyAmount";
+import { Button } from "@/components/ui/button";
 import { api, getOverview, type HouseholdOverview } from "@/lib/api";
 
 export default function OverviewPage() {
@@ -27,8 +34,12 @@ export default function OverviewPage() {
 
   const attention = useMemo(() => {
     if (!data) return [];
-    const items: { title: string; body: string; href: string; severity: "warning" | "neutral" }[] =
-      [];
+    const items: {
+      title: string;
+      body: string;
+      href: string;
+      severity: "warning" | "neutral" | "info";
+    }[] = [];
     for (const event of data.upcoming_obligations ?? []) {
       if (event.coverage_label && event.coverage_label !== "funded") {
         items.push({
@@ -59,7 +70,7 @@ export default function OverviewPage() {
         title: `Your foundation is ${Math.round((data.foundation.completed / data.foundation.total) * 100)}% complete`,
         body: "Continue setup: accounts, income, obligations, money plan, and goals.",
         href: "/onboarding?continue=1",
-        severity: "neutral",
+        severity: "info",
       });
     }
     return items.slice(0, 4);
@@ -77,35 +88,39 @@ export default function OverviewPage() {
       {!data && !error ? <LoadingState /> : null}
       {error ? <ErrorState message={error} /> : null}
       {data ? (
-        <div className="space-y-10 pb-20">
-          <header>
-            <p className="text-sm text-muted">{today}</p>
-            <h1 className="mt-1 font-display text-4xl text-ink">Good day, {greetingName}</h1>
-            <p className="mt-2 text-sm text-muted">Here&apos;s how your household is doing.</p>
-          </header>
+        <ContentContainer>
+          <PageHeader
+            eyebrow={today}
+            title={`Good day, ${greetingName}`}
+            description="Here's how your household is doing."
+            actions={
+              <Button type="button" variant="outline" size="sm" onClick={() => setCheckOpen(true)}>
+                Check a purchase
+              </Button>
+            }
+          />
 
-          <section className="border border-accent/20 bg-accent text-white px-6 py-8 md:px-10">
-            <p className="text-xs uppercase tracking-[0.25em] text-gold-bright">Safe to spend</p>
-            <p className="mt-3 font-display text-5xl tabular md:text-6xl">
-              <MoneyAmount
-                amount={data.safe_to_spend?.current ?? "0.00"}
-                currency={data.currency}
-              />
-            </p>
-            <p className="mt-3 max-w-xl text-sm text-white/80">
-              You can safely spend this without affecting commitments IPÌLẸ̀ already knows about.
-            </p>
-            <button
-              type="button"
-              className="mt-5 text-sm text-gold-bright underline"
-              onClick={() => setCheckOpen(true)}
-            >
-              View calculation / check a purchase →
-            </button>
-          </section>
+          {data.safe_to_spend ? (
+            <SafeToSpend
+              snapshot={data.safe_to_spend}
+              currency={data.currency}
+              onInspect={() => setCheckOpen(true)}
+            />
+          ) : (
+            <section className="border border-line bg-surface px-6 py-8">
+              <p className="text-xs uppercase tracking-[0.25em] text-muted">Safe to spend</p>
+              <p className="mt-3 font-display text-3xl text-ink">Not ready yet</p>
+              <p className="mt-2 max-w-xl text-sm text-muted">
+                Add accounts, income, and obligations so IPÌLẸ̀ can compute Safe to Spend from real data.
+              </p>
+            </section>
+          )}
 
-          <section className="grid gap-4 md:grid-cols-3">
+          <section className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
             <Metric label="Income this month" amount={data.period_income} currency={data.currency} />
+            {data.allocated_total != null ? (
+              <Metric label="Allocated" amount={data.allocated_total} currency={data.currency} />
+            ) : null}
             <Metric label="Cash" amount={data.cash_total} currency={data.currency} />
             <Metric
               label="Net worth"
@@ -113,6 +128,14 @@ export default function OverviewPage() {
               currency={data.currency}
             />
           </section>
+
+          {data.wealth ? (
+            <section className="grid gap-3 md:grid-cols-3">
+              <Metric label="Emergency" amount={data.wealth.emergency_fund} currency={data.currency} />
+              <Metric label="Debt" amount={data.wealth.debt} currency={data.currency} />
+              <Metric label="Investments" amount={data.wealth.investments} currency={data.currency} />
+            </section>
+          ) : null}
 
           <section>
             {data.health_ready && data.health ? (
@@ -138,18 +161,13 @@ export default function OverviewPage() {
                 </p>
               ) : (
                 attention.map((item) => (
-                  <Link
+                  <DecisionCard
                     key={item.title}
+                    title={item.title}
+                    body={item.body}
                     href={item.href}
-                    className={`block border px-4 py-3 ${
-                      item.severity === "warning"
-                        ? "border-warning/40 bg-surface"
-                        : "border-line bg-surface"
-                    }`}
-                  >
-                    <p className="text-sm font-medium text-ink">{item.title}</p>
-                    <p className="mt-1 text-sm text-muted">{item.body}</p>
-                  </Link>
+                    severity={item.severity}
+                  />
                 ))
               )}
             </div>
@@ -197,7 +215,7 @@ export default function OverviewPage() {
             {!data.allocation?.lines.length ? (
               <EmptyState
                 title="How should income be distributed?"
-                body="Tell IPÌLẸ̀ where money should go when it arrives — giving, obligations, essentials, protection, goals."
+                body="Tell IPÌLẸ̀ where money should go when it arrives: giving, obligations, essentials, protection, goals."
                 actionLabel="Set money plan"
                 actionHref="/plan/allocation"
               />
@@ -218,19 +236,7 @@ export default function OverviewPage() {
             ) : (
               <div className="space-y-3">
                 {data.upcoming_obligations.map((event) => (
-                  <div
-                    key={event.id}
-                    className="flex items-baseline justify-between border border-line bg-surface px-4 py-3"
-                  >
-                    <div>
-                      <p className="text-sm">{event.title}</p>
-                      <p className="mt-1 text-xs capitalize text-muted">
-                        {event.date} · {event.status}
-                        {event.coverage_label ? ` · ${event.coverage_label}` : ""}
-                      </p>
-                    </div>
-                    <MoneyAmount amount={event.amount} currency={data.currency} />
-                  </div>
+                  <ObligationCard key={event.id} event={event} currency={data.currency} />
                 ))}
               </div>
             )}
@@ -253,18 +259,7 @@ export default function OverviewPage() {
             ) : (
               <div className="space-y-2">
                 {data.recent_transactions.slice(0, 5).map((tx) => (
-                  <div
-                    key={tx.id}
-                    className="flex items-baseline justify-between border border-line bg-surface px-4 py-3 text-sm"
-                  >
-                    <div>
-                      <p>{tx.description || tx.merchant || tx.type}</p>
-                      <p className="mt-1 text-xs text-muted">
-                        {tx.date} · {tx.type}
-                      </p>
-                    </div>
-                    <MoneyAmount amount={tx.amount} currency={tx.currency} />
-                  </div>
+                  <TransactionRow key={tx.id} transaction={tx} />
                 ))}
               </div>
             )}
@@ -280,7 +275,7 @@ export default function OverviewPage() {
           {whyOpen && data.health ? (
             <WhyHealthModal fallback={data.health} onClose={() => setWhyOpen(false)} />
           ) : null}
-        </div>
+        </ContentContainer>
       ) : null}
     </AppShell>
   );

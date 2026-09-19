@@ -8,21 +8,41 @@ import { LoadingState } from "@/components/shared/LoadingState";
 import {
   acceptInvite,
   api,
+  createAllocationRule,
   createGoal,
   createInvite,
   getAccounts,
+  getAllocationRules,
   onboardHousehold,
   setHouseholdId,
 } from "@/lib/api";
+import { moneyString } from "@/lib/forms";
+import { Button } from "@/components/ui/button";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Input } from "@/components/ui/input";
 
 const STEPS = [
   { label: "Welcome", title: "Welcome to IPÌLẸ̀.", body: "Let's build your household's financial foundation." },
   { label: "Together", title: "Who are you building this with?", body: "You can invite others later." },
-  { label: "Income", title: "What does your household earn?", body: "We'll refine amounts on Home." },
-  { label: "Money", title: "Where does your money live?", body: "Start with one account — add more anytime." },
-  { label: "Prepare", title: "What must your household prepare for?", body: "Rent, school fees, debt, family support…" },
-  { label: "Build", title: "What are you building toward?", body: "Emergency fund, home, education, investments…" },
+  { label: "Income", title: "What does your household earn?", body: "A monthly figure helps IPÌLẸ̀ allocate with you." },
+  { label: "Money", title: "Where does your money live?", body: "Start with one account. Add more anytime." },
+  {
+    label: "Priorities",
+    title: "What should happen first when money comes in?",
+    body: "Pick what matters. We'll start with a surplus rule you can refine later.",
+  },
+  { label: "Prepare", title: "What must your household prepare for?", body: "Rent, school fees, debt, family support..." },
+  { label: "Build", title: "What are you building toward?", body: "Emergency fund, home, education, investments..." },
   { label: "Ready", title: "Your foundation is taking shape.", body: "IPÌLẸ̀ will keep asking: Are we okay? What needs attention? What's next?" },
+];
+
+const DESTINATION_OPTIONS = [
+  { id: "giving", label: "Giving" },
+  { id: "obligations", label: "Obligations" },
+  { id: "essentials", label: "Essentials" },
+  { id: "protection", label: "Protection / buffer" },
+  { id: "goals", label: "Goals" },
+  { id: "surplus", label: "Surplus / flexible" },
 ];
 
 export default function OnboardingPage() {
@@ -32,10 +52,14 @@ export default function OnboardingPage() {
   const [householdName, setHouseholdName] = useState("");
   const [partnerEmail, setPartnerEmail] = useState("");
   const [incomeHint, setIncomeHint] = useState("salary");
+  const [incomeAmount, setIncomeAmount] = useState("");
   const [accountName, setAccountName] = useState("Household current");
   const [accountBalance, setAccountBalance] = useState("0.00");
+  const [priorities, setPriorities] = useState<string[]>(["surplus"]);
   const [obligationName, setObligationName] = useState("");
+  const [obligationAmount, setObligationAmount] = useState("");
   const [goalName, setGoalName] = useState("Emergency fund");
+  const [goalTarget, setGoalTarget] = useState("");
   const [token, setToken] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [pending, setPending] = useState(false);
@@ -71,6 +95,39 @@ export default function OnboardingPage() {
     return household;
   }
 
+  async function ensureIncomeSource() {
+    if (!incomeAmount.trim()) return;
+    const sources = await api.incomeSources();
+    if (sources.length) return sources[0];
+    return api.createIncomeSource({
+      name: incomeHint.charAt(0).toUpperCase() + incomeHint.slice(1),
+      expected_amount: incomeAmount,
+      type: incomeHint,
+    });
+  }
+
+  async function maybeRecordIncome() {
+    if (!incomeAmount.trim()) return;
+    const accounts = await getAccounts();
+    if (!accounts.length) return;
+    const source = await ensureIncomeSource();
+    const existing = await api.income();
+    if (existing.length) return;
+    await api.recordIncome({
+      account_id: accounts[0].id,
+      amount: incomeAmount,
+      date: new Date().toISOString().slice(0, 10),
+      income_source_id: source?.id,
+      description: "Onboarding income",
+    });
+  }
+
+  function togglePriority(id: string) {
+    setPriorities((current) =>
+      current.includes(id) ? current.filter((value) => value !== id) : [...current, id],
+    );
+  }
+
   async function next(event?: FormEvent) {
     event?.preventDefault();
     setPending(true);
@@ -84,6 +141,11 @@ export default function OnboardingPage() {
         const invite = await createInvite({ email: partnerEmail.trim(), role: "partner" });
         setInviteTokenOut(invite.token);
       }
+      if (step === 2) {
+        await ensureHousehold();
+        await ensureIncomeSource();
+        await maybeRecordIncome();
+      }
       if (step === 3) {
         await ensureHousehold();
         const accounts = await getAccounts();
@@ -94,27 +156,46 @@ export default function OnboardingPage() {
             current_balance: accountBalance || "0.00",
           });
         }
+        await maybeRecordIncome();
       }
-      if (step === 4 && obligationName.trim()) {
+      if (step === 4) {
+        await ensureHousehold();
+        const rules = await getAllocationRules();
+        if (!rules.some((rule) => rule.type === "remainder")) {
+          await createAllocationRule({
+            name: "Household surplus",
+            type: "remainder",
+            basis: "remaining",
+            priority: 100,
+            mandatory: false,
+            destination_type: "account",
+          });
+        }
+        // Priorities are captured conversationally; surplus remainder is the light stub.
+        void priorities;
+      }
+      if (step === 5 && obligationName.trim() && obligationAmount.trim()) {
+        if (!moneyString.safeParse(obligationAmount).success) throw new Error("Enter a valid obligation amount.");
         await ensureHousehold();
         const due = new Date();
         due.setDate(due.getDate() + 30);
         await api.createObligation({
           name: obligationName.trim(),
-          amount: "100000.00",
+          amount: obligationAmount,
           frequency: "monthly",
           next_due_date: due.toISOString().slice(0, 10),
           priority: "high",
         });
       }
-      if (step === 5 && goalName.trim()) {
+      if (step === 6 && goalName.trim() && goalTarget.trim()) {
+        if (!moneyString.safeParse(goalTarget).success) throw new Error("Enter a valid goal target.");
         await ensureHousehold();
         const deadline = new Date();
         deadline.setFullYear(deadline.getFullYear() + 1);
         await createGoal({
           name: goalName.trim(),
           type: "emergency",
-          target_amount: "500000.00",
+          target_amount: goalTarget,
           current_amount: "0.00",
           deadline: deadline.toISOString().slice(0, 10),
         });
@@ -152,7 +233,7 @@ export default function OnboardingPage() {
 
   if (!ready) {
     return (
-      <main className="flex min-h-screen items-center justify-center bg-canvas">
+      <main id="main-content" tabIndex={-1} className="flex min-h-screen items-center justify-center bg-canvas outline-none">
         <LoadingState />
       </main>
     );
@@ -161,11 +242,21 @@ export default function OnboardingPage() {
   const current = STEPS[step];
 
   return (
-    <main className="mx-auto min-h-screen max-w-xl px-6 py-10">
+    <main id="main-content" tabIndex={-1} className="mx-auto min-h-screen max-w-xl px-6 py-10 outline-none">
       <Wordmark href="/" tone="light" size="sm" />
-      <p className="mt-8 text-xs uppercase tracking-[0.2em] text-muted">
-        Step {step + 1} of {STEPS.length} · {current.label}
-      </p>
+      <nav aria-label="Onboarding progress" className="mt-8">
+        <p className="text-xs uppercase tracking-[0.2em] text-muted">
+          Step {step + 1} of {STEPS.length} · {current.label}
+        </p>
+        <ol className="mt-3 flex gap-1" aria-hidden>
+          {STEPS.map((row, index) => (
+            <li
+              key={row.label}
+              className={`h-1 flex-1 ${index <= step ? "bg-accent" : "bg-subtle"}`}
+            />
+          ))}
+        </ol>
+      </nav>
       <h1 className="mt-2 font-display text-4xl text-ink">{current.title}</h1>
       <p className="mt-3 text-sm text-muted">{current.body}</p>
       {step === 0 ? (
@@ -200,8 +291,8 @@ export default function OnboardingPage() {
           ))}
           <label className="block text-sm">
             Household name
-            <input
-              className="mt-1 w-full border border-line bg-surface px-3 py-2"
+            <Input
+              className="mt-1"
               value={householdName}
               onChange={(e) => setHouseholdName(e.target.value)}
               required
@@ -216,9 +307,9 @@ export default function OnboardingPage() {
           <p className="text-sm text-muted">Invite a partner now, or skip for later.</p>
           <label className="block text-sm">
             Partner email (optional)
-            <input
+            <Input
               type="email"
-              className="mt-1 w-full border border-line bg-surface px-3 py-2"
+              className="mt-1"
               value={partnerEmail}
               onChange={(e) => setPartnerEmail(e.target.value)}
             />
@@ -245,6 +336,16 @@ export default function OnboardingPage() {
               {value}
             </label>
           ))}
+          <label className="block text-sm">
+            Typical monthly amount (optional)
+            <Input
+              className="mt-1"
+              placeholder="e.g. 2000000.00"
+              value={incomeAmount}
+              onChange={(e) => setIncomeAmount(e.target.value)}
+              inputMode="decimal"
+            />
+          </label>
           <PrimaryButton pending={pending}>Continue →</PrimaryButton>
         </form>
       ) : null}
@@ -253,8 +354,8 @@ export default function OnboardingPage() {
         <form className="mt-8 space-y-4" onSubmit={next}>
           <label className="block text-sm">
             Account name
-            <input
-              className="mt-1 w-full border border-line bg-surface px-3 py-2"
+            <Input
+              className="mt-1"
               value={accountName}
               onChange={(e) => setAccountName(e.target.value)}
               required
@@ -262,8 +363,8 @@ export default function OnboardingPage() {
           </label>
           <label className="block text-sm">
             Current balance
-            <input
-              className="mt-1 w-full border border-line bg-surface px-3 py-2"
+            <Input
+              className="mt-1"
               value={accountBalance}
               onChange={(e) => setAccountBalance(e.target.value)}
             />
@@ -274,15 +375,16 @@ export default function OnboardingPage() {
 
       {step === 4 ? (
         <form className="mt-8 space-y-4" onSubmit={next}>
-          <label className="block text-sm">
-            First obligation (optional)
-            <input
-              className="mt-1 w-full border border-line bg-surface px-3 py-2"
-              placeholder="Rent, school fees, family support…"
-              value={obligationName}
-              onChange={(e) => setObligationName(e.target.value)}
-            />
-          </label>
+          {DESTINATION_OPTIONS.map((option) => (
+            <label key={option.id} className="flex items-center gap-3 border border-line bg-surface px-3 py-3 text-sm">
+              <Checkbox
+                type="checkbox"
+                checked={priorities.includes(option.id)}
+                onChange={() => togglePriority(option.id)}
+              />
+              {option.label}
+            </label>
+          ))}
           <PrimaryButton pending={pending}>Continue →</PrimaryButton>
         </form>
       ) : null}
@@ -290,11 +392,22 @@ export default function OnboardingPage() {
       {step === 5 ? (
         <form className="mt-8 space-y-4" onSubmit={next}>
           <label className="block text-sm">
-            First goal
-            <input
-              className="mt-1 w-full border border-line bg-surface px-3 py-2"
-              value={goalName}
-              onChange={(e) => setGoalName(e.target.value)}
+            First obligation (optional)
+            <Input
+              className="mt-1"
+              placeholder="Rent, school fees, family support..."
+              value={obligationName}
+              onChange={(e) => setObligationName(e.target.value)}
+            />
+          </label>
+          <label className="block text-sm">
+            Amount (optional)
+            <Input
+              className="mt-1"
+              placeholder="150000.00"
+              value={obligationAmount}
+              onChange={(e) => setObligationAmount(e.target.value)}
+              inputMode="decimal"
             />
           </label>
           <PrimaryButton pending={pending}>Continue →</PrimaryButton>
@@ -302,32 +415,51 @@ export default function OnboardingPage() {
       ) : null}
 
       {step === 6 ? (
+        <form className="mt-8 space-y-4" onSubmit={next}>
+          <label className="block text-sm">
+            First goal
+            <Input
+              className="mt-1"
+              value={goalName}
+              onChange={(e) => setGoalName(e.target.value)}
+            />
+          </label>
+          <label className="block text-sm">
+            Target amount
+            <Input
+              className="mt-1"
+              placeholder="500000.00"
+              value={goalTarget}
+              onChange={(e) => setGoalTarget(e.target.value)}
+              inputMode="decimal"
+            />
+          </label>
+          <PrimaryButton pending={pending}>Continue →</PrimaryButton>
+        </form>
+      ) : null}
+
+      {step === 7 ? (
         <div className="mt-8 space-y-4">
           <p className="text-xs text-muted">
             You can refine income amounts, Money plan and more inside IPÌLẸ̀ whenever you&apos;re ready.
           </p>
-          <button
-            type="button"
-            disabled={pending}
-            className="bg-accent px-4 py-2.5 text-sm text-white disabled:opacity-50"
-            onClick={() => next()}
-          >
+          <Button type="button" disabled={pending} onClick={() => next()}>
             Enter IPÌLẸ̀ →
-          </button>
+          </Button>
         </div>
       ) : null}
 
       <form onSubmit={joinInvite} className="mt-10 border border-line bg-surface p-5">
         <h2 className="font-display text-xl">Or join with an invite</h2>
-        <input
-          className="mt-3 w-full border border-line bg-canvas px-3 py-2 font-mono text-xs"
+        <Input
+          className="mt-3 font-mono text-xs"
           value={token}
           onChange={(e) => setToken(e.target.value)}
           placeholder="Invite token"
         />
-        <button type="submit" className="mt-3 text-sm text-accent underline" disabled={pending}>
+        <Button type="submit" variant="link" size="sm" className="mt-3" disabled={pending}>
           Accept invite
-        </button>
+        </Button>
       </form>
     </main>
   );
@@ -335,12 +467,8 @@ export default function OnboardingPage() {
 
 function PrimaryButton({ children, pending }: { children: React.ReactNode; pending: boolean }) {
   return (
-    <button
-      type="submit"
-      disabled={pending}
-      className="bg-accent px-4 py-2.5 text-sm text-white disabled:opacity-50"
-    >
-      {pending ? "Working…" : children}
-    </button>
+    <Button type="submit" disabled={pending}>
+      {pending ? "Working..." : children}
+    </Button>
   );
 }

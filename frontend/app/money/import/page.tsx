@@ -1,10 +1,15 @@
 "use client";
 
 import { FormEvent, useEffect, useState } from "react";
+import { ContentContainer } from "@/components/layouts/ContentContainer";
+import { PageHeader } from "@/components/layouts/PageHeader";
 import { AppShell } from "@/components/shared/AppShell";
 import { EmptyState } from "@/components/shared/EmptyState";
 import { ErrorState } from "@/components/shared/ErrorState";
 import { LoadingState } from "@/components/shared/LoadingState";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Select } from "@/components/ui/select";
 import {
   getAccounts,
   importCsv,
@@ -69,11 +74,12 @@ export default function ImportPage() {
 
   return (
     <AppShell>
-      <div className="space-y-6 pb-16">
-        <div>
-          <p className="text-sm text-muted">Normalize into transactions</p>
-          <h1 className="mt-1 text-3xl font-medium">Import</h1>
-        </div>
+      <ContentContainer>
+        <PageHeader
+          eyebrow="Money"
+          title="Import"
+          description="Normalize CSV or statement text into household transactions."
+        />
         {error ? <ErrorState message={error} /> : null}
         {accounts.length === 0 ? (
           <EmptyState
@@ -84,8 +90,8 @@ export default function ImportPage() {
           <form className="max-w-2xl space-y-4" onSubmit={onSubmit}>
             <label className="block text-sm">
               <span className="text-muted">Account</span>
-              <select
-                className="mt-1 w-full border border-line bg-surface px-3 py-2"
+              <Select
+                className="mt-1"
                 value={accountId}
                 onChange={(e) => setAccountId(e.target.value)}
               >
@@ -94,7 +100,7 @@ export default function ImportPage() {
                     {account.name}
                   </option>
                 ))}
-              </select>
+              </Select>
             </label>
             <fieldset className="flex gap-4 text-sm">
               <label className="flex items-center gap-2">
@@ -119,8 +125,8 @@ export default function ImportPage() {
             <p className="text-sm text-muted">{source === "csv" ? CSV_HINT : STATEMENT_HINT}</p>
             <label className="block text-sm">
               <span className="text-muted">Filename (optional)</span>
-              <input
-                className="mt-1 w-full border border-line bg-surface px-3 py-2"
+              <Input
+                className="mt-1"
                 value={filename}
                 onChange={(e) => setFilename(e.target.value)}
                 placeholder={source === "csv" ? "sept.csv" : "statement.txt"}
@@ -135,13 +141,9 @@ export default function ImportPage() {
                 required
               />
             </label>
-            <button
-              type="submit"
-              disabled={pending}
-              className="bg-ink px-4 py-2 text-sm text-surface disabled:opacity-50"
-            >
-              {pending ? "Importing…" : "Import"}
-            </button>
+            <Button type="submit" disabled={pending}>
+              {pending ? "Importing..." : "Import"}
+            </Button>
           </form>
         )}
         {result ? (
@@ -159,7 +161,7 @@ export default function ImportPage() {
             ) : null}
           </div>
         ) : null}
-      </div>
+      </ContentContainer>
     </AppShell>
   );
 }

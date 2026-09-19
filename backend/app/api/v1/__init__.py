@@ -12,9 +12,12 @@ from app.api.v1 import (
     budgets,
     businesses,
     calendar,
+    cash_flow,
     categories,
+    debts,
     export,
     funds,
+    giving,
     goals,
     health,
     households,
@@ -47,6 +50,9 @@ api_router.include_router(recurring.router)
 api_router.include_router(alerts.router)
 api_router.include_router(obligations.router)
 api_router.include_router(funds.router)
+api_router.include_router(giving.router)
+api_router.include_router(cash_flow.router)
+api_router.include_router(debts.router)
 api_router.include_router(calendar.router)
 api_router.include_router(allocations.router)
 api_router.include_router(safe_to_spend.router)

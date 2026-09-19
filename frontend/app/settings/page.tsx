@@ -2,11 +2,18 @@
 
 import { FormEvent, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
+import { ContentContainer } from "@/components/layouts/ContentContainer";
+import { PageHeader } from "@/components/layouts/PageHeader";
 import { AppShell } from "@/components/shared/AppShell";
 import { ConfirmationDialog } from "@/components/shared/ConfirmationDialog";
 import { ErrorState } from "@/components/shared/ErrorState";
 import { LoadingState } from "@/components/shared/LoadingState";
+import { ThemeToggle } from "@/components/theme/ThemeToggle";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Select } from "@/components/ui/select";
 import {
+  api,
   changeBillingPlan,
   createInvite,
   createSupportTicket,
@@ -36,6 +43,8 @@ export default function SettingsPage() {
   const [subject, setSubject] = useState("");
   const [body, setBody] = useState("");
   const [ready, setReady] = useState(false);
+  const [currentPassword, setCurrentPassword] = useState("");
+  const [newPassword, setNewPassword] = useState("");
 
   async function refresh() {
     const [nextBilling, nextInvites, nextTickets] = await Promise.all([
@@ -136,13 +145,72 @@ export default function SettingsPage() {
 
   return (
     <AppShell>
-      <div className="space-y-10 pb-16">
-        <div>
-          <p className="text-sm text-muted">Household & data rights</p>
-          <h1 className="mt-1 text-3xl font-medium">Settings</h1>
-        </div>
+      <ContentContainer>
+        <PageHeader
+          eyebrow="Household"
+          title="Settings"
+          description="Household configuration, invites, billing, and data rights."
+        />
         {error ? <ErrorState message={error} /> : null}
         {message ? <p className="text-sm text-muted">{message}</p> : null}
+
+        <section className="max-w-xl space-y-3">
+          <h2 className="text-lg font-medium">Appearance</h2>
+          <p className="text-sm text-muted">Switch between light and dark across IPÌLẸ̀.</p>
+          <ThemeToggle />
+        </section>
+
+        <section className="max-w-xl space-y-3">
+          <h2 className="text-lg font-medium">Password</h2>
+          <form
+            className="space-y-3"
+            onSubmit={async (event) => {
+              event.preventDefault();
+              setPending(true);
+              setError(null);
+              try {
+                await api.changePassword({
+                  current_password: currentPassword,
+                  new_password: newPassword,
+                });
+                setCurrentPassword("");
+                setNewPassword("");
+                setMessage("Password updated. Other sessions were signed out.");
+              } catch (err) {
+                setError(err instanceof Error ? err.message : "Password change failed.");
+              } finally {
+                setPending(false);
+              }
+            }}
+          >
+            <label className="block text-sm">
+              Current password
+              <Input
+                type="password"
+                className="mt-1 w-full border border-line bg-surface px-3 py-2"
+                value={currentPassword}
+                onChange={(e) => setCurrentPassword(e.target.value)}
+                required
+                autoComplete="current-password"
+              />
+            </label>
+            <label className="block text-sm">
+              New password
+              <Input
+                type="password"
+                minLength={12}
+                className="mt-1 w-full border border-line bg-surface px-3 py-2"
+                value={newPassword}
+                onChange={(e) => setNewPassword(e.target.value)}
+                required
+                autoComplete="new-password"
+              />
+            </label>
+            <Button type="submit" disabled={pending}>
+              Change password
+            </Button>
+          </form>
+        </section>
 
         <section className="max-w-xl space-y-3">
           <h2 className="text-lg font-medium">Billing</h2>
@@ -154,11 +222,12 @@ export default function SettingsPage() {
               </p>
               <div className="flex flex-wrap gap-2">
                 {billing.plans.map((plan) => (
-                  <button
+                  <Button
                     key={plan.id}
                     type="button"
                     disabled={pending || plan.id === billing.plan}
-                    className="border border-line px-3 py-1.5 text-sm disabled:opacity-50"
+                    variant="outline"
+                    size="sm"
                     onClick={async () => {
                       setPending(true);
                       try {
@@ -172,7 +241,7 @@ export default function SettingsPage() {
                     }}
                   >
                     {plan.name}
-                  </button>
+                  </Button>
                 ))}
               </div>
             </>
@@ -184,7 +253,7 @@ export default function SettingsPage() {
           <form className="space-y-3" onSubmit={onInvite}>
             <label className="block text-sm">
               Email
-              <input
+              <Input
                 type="email"
                 className="mt-1 w-full border border-line bg-surface px-3 py-2"
                 value={inviteEmail}
@@ -194,23 +263,20 @@ export default function SettingsPage() {
             </label>
             <label className="block text-sm">
               Role
-              <select
-                className="mt-1 w-full border border-line bg-surface px-3 py-2"
+              <Select
+                className="mt-1"
                 value={inviteRole}
                 onChange={(e) => setInviteRole(e.target.value)}
               >
                 <option value="partner">Partner</option>
                 <option value="member">Member</option>
                 <option value="viewer">Viewer</option>
-              </select>
+                <option value="advisor">Advisor</option>
+              </Select>
             </label>
-            <button
-              type="submit"
-              disabled={pending}
-              className="bg-ink px-4 py-2 text-sm text-surface disabled:opacity-50"
-            >
+            <Button type="submit" disabled={pending}>
               Create invite
-            </button>
+            </Button>
           </form>
           <ul className="space-y-2 text-sm">
             {invites.map((invite) => (
@@ -219,16 +285,18 @@ export default function SettingsPage() {
                   {invite.email} · {invite.role}
                 </p>
                 <p className="mt-1 break-all font-mono text-xs text-muted">{invite.token}</p>
-                <button
+                <Button
                   type="button"
-                  className="mt-2 text-xs underline"
+                  variant="link"
+                  size="sm"
+                  className="mt-2"
                   onClick={async () => {
                     await revokeInvite(invite.id);
                     await refresh();
                   }}
                 >
                   Revoke
-                </button>
+                </Button>
               </li>
             ))}
           </ul>
@@ -239,7 +307,7 @@ export default function SettingsPage() {
           <form className="space-y-3" onSubmit={onSupport}>
             <label className="block text-sm">
               Subject
-              <input
+              <Input
                 className="mt-1 w-full border border-line bg-surface px-3 py-2"
                 value={subject}
                 onChange={(e) => setSubject(e.target.value)}
@@ -255,13 +323,9 @@ export default function SettingsPage() {
                 required
               />
             </label>
-            <button
-              type="submit"
-              disabled={pending}
-              className="border border-line px-4 py-2 text-sm disabled:opacity-50"
-            >
+            <Button type="submit" variant="outline" disabled={pending}>
               Open ticket
-            </button>
+            </Button>
           </form>
           <ul className="space-y-2 text-sm text-muted">
             {tickets.map((ticket) => (
@@ -274,14 +338,9 @@ export default function SettingsPage() {
 
         <section className="max-w-xl space-y-3">
           <h2 className="text-lg font-medium">Export household</h2>
-          <button
-            type="button"
-            disabled={pending}
-            className="bg-ink px-4 py-2 text-sm text-surface disabled:opacity-50"
-            onClick={onExport}
-          >
+          <Button type="button" disabled={pending} onClick={onExport}>
             Download export
-          </button>
+          </Button>
         </section>
 
         <section className="max-w-xl space-y-3">
@@ -290,16 +349,11 @@ export default function SettingsPage() {
             Soft-deletes this household. You can create another from onboarding. Seed households are
             not recreated after delete.
           </p>
-          <button
-            type="button"
-            disabled={pending}
-            className="border border-line px-4 py-2 text-sm disabled:opacity-50"
-            onClick={() => setConfirmDelete(true)}
-          >
+          <Button type="button" variant="outline" disabled={pending} onClick={() => setConfirmDelete(true)}>
             Delete current household
-          </button>
+          </Button>
         </section>
-      </div>
+      </ContentContainer>
       {confirmDelete ? (
         <ConfirmationDialog
           title="Delete this household?"

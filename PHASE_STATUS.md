@@ -1,8 +1,8 @@
 # Phase status
 
-**Current phase:** `14-public-product`  
+**Current phase:** `15-foundation-completion`  
 **Current status:** `complete`  
-**Spec version:** 1.1.0
+**Spec version:** 1.2.0
 
 Only the current phase may be implemented. Do not start the next phase until this file says `complete` for the current one.
 
@@ -24,8 +24,24 @@ Only the current phase may be implemented. Do not start the next phase until thi
 | 12 | Data Import | complete | 2026-09-14 |
 | 13 | Production Hardening | complete | 2026-09-14 |
 | 14 | Public Product | complete | 2026-09-14 |
+| 15 | Foundation completion | complete | 2026-09-18 |
 
 ## Evidence log
+
+
+### Phase 15
+
+- Security: `POST /auth/password/change`, `GET /auth/csrf`, CSRF middleware (`ffos_csrf` + `X-CSRF-Token`), `COOKIE_SAMESITE` / `COOKIE_SECURE`; Settings password UI; checklist §21–22
+- Giving: policies/records APIs, dual approval, `/family/giving`; migration `0015_phase15`
+- Cash flow: `GET /cash-flow` + `/money/cash-flow`
+- Calendar: expanded event kinds + `/calendar` month grid
+- Budgets: `weekly` / `custom` periods; Investments: `crypto`
+- Debt: `GET /debts/strategies` snowball/avalanche + Debts UI
+- Insights: structured `patterns[]`; Forecast: `/forecast` + Global Add purchase check
+- UX: nested Money/Plan/Family/Wealth nav; Home allocated + wealth strip
+- Onboarding: income amount + priority multi-select + remainder rule bootstrap
+- Advisor role (read-only); Billing webhook stub + `docs/BILLING.md`
+- Backend tests: **134 passed**; frontend typecheck ok
 
 ### spec
 

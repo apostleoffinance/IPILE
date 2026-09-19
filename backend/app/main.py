@@ -3,17 +3,19 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from app.api.v1 import api_router
 from app.core.config import get_settings
+from app.core.csrf import CsrfMiddleware
 from app.core.monitoring import RequestContextMiddleware
 
 settings = get_settings()
 
 app = FastAPI(title=settings.app_name, version="0.1.0")
 app.add_middleware(RequestContextMiddleware)
+app.add_middleware(CsrfMiddleware)
 app.add_middleware(
     CORSMiddleware,
     allow_origins=settings.cors_origin_list,
     allow_credentials=True,
     allow_methods=["*"],
-    allow_headers=["*"],
+    allow_headers=["*", "X-CSRF-Token", "X-Household-Id"],
 )
 app.include_router(api_router)

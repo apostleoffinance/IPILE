@@ -1,10 +1,18 @@
 "use client";
 
 import { FormEvent, useEffect, useState } from "react";
-import { MoneyAmount } from "@/components/financial/MoneyAmount";
+import { AccountSummary } from "@/components/financial/AccountSummary";
+import { ContentContainer } from "@/components/layouts/ContentContainer";
+import { PageHeader } from "@/components/layouts/PageHeader";
+import { SectionHeader } from "@/components/layouts/SectionHeader";
 import { AppShell } from "@/components/shared/AppShell";
 import { EmptyState } from "@/components/shared/EmptyState";
 import { ErrorState } from "@/components/shared/ErrorState";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Select } from "@/components/ui/select";
 import { api, type Account } from "@/lib/api";
 
 export default function AccountsPage() {
@@ -46,28 +54,26 @@ export default function AccountsPage() {
 
   return (
     <AppShell>
-      <div className="space-y-6 pb-16">
-        <div>
-          <p className="text-sm text-muted">Where does cash live?</p>
-          <h1 className="mt-1 text-3xl font-medium">Accounts</h1>
-        </div>
+      <ContentContainer>
+        <PageHeader
+          eyebrow="Money"
+          title="Accounts"
+          description="Where does cash live? Protected accounts stay out of Safe to Spend."
+        />
         {error ? <ErrorState message={error} /> : null}
-        <form onSubmit={onSubmit} className="grid gap-4 rounded-md border border-line bg-surface p-5 md:grid-cols-2">
-          <label className="block text-sm">
-            Name
-            <input
-              required
-              className="mt-1 w-full rounded-md border border-line bg-canvas px-3 py-2"
-              value={name}
-              onChange={(event) => setName(event.target.value)}
-            />
-          </label>
-          <label className="block text-sm">
-            Type
-            <select
-              className="mt-1 w-full rounded-md border border-line bg-canvas px-3 py-2"
+        <SectionHeader title="Add account" />
+        <form onSubmit={onSubmit} className="grid gap-4 border border-line bg-surface p-5 md:grid-cols-2">
+          <div>
+            <Label htmlFor="acc-name">Name</Label>
+            <Input id="acc-name" required className="mt-1" value={name} onChange={(e) => setName(e.target.value)} />
+          </div>
+          <div>
+            <Label htmlFor="acc-type">Type</Label>
+            <Select
+              id="acc-type"
+              className="mt-1 w-full border border-line bg-input px-3 py-2 text-sm"
               value={type}
-              onChange={(event) => setType(event.target.value)}
+              onChange={(e) => setType(e.target.value)}
             >
               <option value="bank">Bank</option>
               <option value="savings">Savings</option>
@@ -76,38 +82,39 @@ export default function AccountsPage() {
               <option value="investment">Investment</option>
               <option value="business">Business</option>
               <option value="credit">Credit</option>
-            </select>
-          </label>
-          <label className="block text-sm">
-            Institution
-            <input
-              className="mt-1 w-full rounded-md border border-line bg-canvas px-3 py-2"
+            </Select>
+          </div>
+          <div>
+            <Label htmlFor="acc-institution">Institution</Label>
+            <Input
+              id="acc-institution"
+              className="mt-1"
               value={institution}
-              onChange={(event) => setInstitution(event.target.value)}
+              onChange={(e) => setInstitution(e.target.value)}
             />
-          </label>
-          <label className="block text-sm">
-            Opening balance
-            <input
-              className="mt-1 w-full rounded-md border border-line bg-canvas px-3 py-2 tabular"
+          </div>
+          <div>
+            <Label htmlFor="acc-opening">Opening balance</Label>
+            <Input
+              id="acc-opening"
+              className="mt-1 tabular"
               value={opening}
-              onChange={(event) => setOpening(event.target.value)}
+              onChange={(e) => setOpening(e.target.value)}
             />
-          </label>
+          </div>
           <label className="flex items-center gap-2 text-sm md:col-span-2">
-            <input
+            <Checkbox
               type="checkbox"
               checked={protectedAccount}
-              onChange={(event) => setProtectedAccount(event.target.checked)}
+              onChange={(e) => setProtectedAccount(e.target.checked)}
             />
-            Protected (excluded from later Safe to Spend)
+            Protected (excluded from Safe to Spend)
           </label>
           <div>
-            <button type="submit" className="rounded-md bg-accent px-4 py-2 text-sm text-white">
-              Add account
-            </button>
+            <Button type="submit">Add account</Button>
           </div>
         </form>
+        <SectionHeader title="Balances" />
         {accounts.length === 0 ? (
           <EmptyState
             title="Let's find your money"
@@ -116,33 +123,13 @@ export default function AccountsPage() {
             actionHref="/money/accounts"
           />
         ) : (
-          <div className="overflow-x-auto rounded-md border border-line bg-surface">
-            <table className="w-full text-left text-sm">
-              <thead className="border-b border-line text-xs uppercase tracking-wide text-muted">
-                <tr>
-                  <th className="px-4 py-3 font-medium">Account</th>
-                  <th className="px-4 py-3 font-medium">Type</th>
-                  <th className="px-4 py-3 text-right font-medium">Balance</th>
-                </tr>
-              </thead>
-              <tbody>
-                {accounts.map((account) => (
-                  <tr key={account.id} className="border-b border-line last:border-0">
-                    <td className="px-4 py-3">
-                      {account.name}
-                      {account.is_protected ? <span className="ml-2 text-xs text-muted">protected</span> : null}
-                    </td>
-                    <td className="px-4 py-3 capitalize">{account.type}</td>
-                    <td className="px-4 py-3 text-right">
-                      <MoneyAmount amount={account.current_balance} currency={account.currency} />
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+          <div className="grid gap-3 md:grid-cols-2">
+            {accounts.map((account) => (
+              <AccountSummary key={account.id} account={account} />
+            ))}
           </div>
         )}
-      </div>
+      </ContentContainer>
     </AppShell>
   );
 }

@@ -59,6 +59,8 @@ def test_seed_snapshots_and_persisted_reports(client: TestClient) -> None:
     insights = client.get("/api/v1/insights").json()
     assert len(insights["cash_flow"]) == 6
     assert len(insights["net_worth"]) == 6
+    assert "patterns" in insights
+    assert isinstance(insights["patterns"], list)
     assert insights["health"]["components"][0]["inputs"]
     live_health = client.get("/api/v1/financial-health").json()
     assert live_health["score"] == insights["health"]["score"]

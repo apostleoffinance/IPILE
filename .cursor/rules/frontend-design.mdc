@@ -1,0 +1,15 @@
+---
+description: Calm financial UI, reusable components, MoneyAmount only
+globs: frontend/**/*.{ts,tsx}
+alwaysApply: false
+---
+
+# Frontend design
+
+- Calm, premium, financial. No noisy multi-color fintech dashboards.
+- Use design tokens from the spec. Semantic status only: healthy, warning, critical, neutral.
+- Format all money through `MoneyAmount`. No ad-hoc currency strings.
+- Every screen answers one decision (see spec §2).
+- Reuse `components/financial`, `transactions`, `dashboard`, `shared`. No page-only duplicates.
+- Desktop sidebar and mobile `Home | Money | Plan | Wealth | More`.
+- Never store session secrets or API keys in `localStorage`.

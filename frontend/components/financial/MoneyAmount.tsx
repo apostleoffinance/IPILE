@@ -1,4 +1,6 @@
+import * as React from "react";
 import { formatNaira } from "@/lib/money";
+import { cn } from "@/lib/utils";
 
 type MoneyAmountProps = {
   amount: string;
@@ -7,5 +9,5 @@ type MoneyAmountProps = {
 };
 
 export function MoneyAmount({ amount, currency = "NGN", className }: MoneyAmountProps) {
-  return <span className={`tabular ${className ?? ""}`}>{formatNaira(amount, currency)}</span>;
+  return <span className={cn("tabular", className)}>{formatNaira(amount, currency)}</span>;
 }

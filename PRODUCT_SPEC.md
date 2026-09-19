@@ -1,8 +1,8 @@
 # IPÌLẸ̀ — Product Specification
 
 **Status:** Source of truth  
-**Version:** 1.1.0  
-**Date:** 2026-09-14  
+**Version:** 1.2.0  
+**Date:** 2026-09-18  
 **Product name:** IPÌLẸ̀  
 **Tagline:** The financial foundation for households everywhere.  
 **Code / module name (legacy):** Family Finance OS
@@ -2143,5 +2143,6 @@ IPÌLẸ̀ must not silently rewrite the constitution. AI and insights explain v
 |---|---|---|
 | 1.0.0 | 2026-09-14 | Complete product specification. Implementation must phase from this document. |
 | 1.1.0 | 2026-09-14 | IPÌLẸ̀ brand; Tenant #1 ≠ product definition; litmus test; Family Financial Constitution; configurable giving kinds; Family Finance → Wealth → Family Office journey; decision-first UX principles. |
+| 1.2.0 | 2026-09-18 | Phase 15 foundation completion: CSRF + password change; giving policies/records; cash-flow statement; expanded calendar; weekly/custom budgets; crypto; debt strategies; insights patterns; forecast UI; advisor role; billing webhook stub. |
 
 Changes to financial formulas, tenancy, or security require a version bump and an update to engine tests before code changes land.

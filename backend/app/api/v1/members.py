@@ -12,7 +12,7 @@ from app.schemas.member import MemberCreate, MemberOut, MemberUpdate
 from app.services.audit import write_audit
 
 router = APIRouter(prefix="/members", tags=["members"])
-ROLES = {"owner", "partner", "member", "viewer"}
+ROLES = {"owner", "partner", "member", "viewer", "advisor"}
 RELATIONSHIPS = {"self", "spouse", "child", "parent", "sibling", "other"}
 MEMBER_TYPES = {"adult", "dependent"}
 

@@ -1,5 +1,13 @@
-import { FormEvent, useState } from "react";
+"use client";
+
+import { useEffect } from "react";
+import { useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
 import { CategorySelector } from "@/components/transactions/CategorySelector";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { recurringSchema, type RecurringFormValues } from "@/lib/forms";
 import type { Account, Category, Member } from "@/lib/api";
 
 export type RecurringDraft = {
@@ -27,65 +35,88 @@ export function RecurringForm({
   onSubmit: (draft: RecurringDraft) => Promise<void>;
   pending: boolean;
 }) {
-  const [type, setType] = useState("expense");
-  const [accountId, setAccountId] = useState(accounts[0]?.id ?? "");
-  const [counterpartyId, setCounterpartyId] = useState("");
-  const [amount, setAmount] = useState("");
-  const [frequency, setFrequency] = useState("monthly");
-  const [nextDate, setNextDate] = useState(new Date().toISOString().slice(0, 10));
-  const [categoryId, setCategoryId] = useState("");
-  const [memberId, setMemberId] = useState("");
-  const [description, setDescription] = useState("");
+  const {
+    register,
+    handleSubmit,
+    watch,
+    setValue,
+    reset,
+    formState: { errors },
+  } = useForm<RecurringFormValues>({
+    resolver: zodResolver(recurringSchema),
+    defaultValues: {
+      type: "expense",
+      amount: "",
+      account_id: accounts[0]?.id ?? "",
+      frequency: "monthly",
+      next_date: new Date().toISOString().slice(0, 10),
+      category_id: "",
+      member_id: "",
+      counterparty_account_id: "",
+      description: "",
+    },
+  });
 
-  async function handleSubmit(event: FormEvent) {
-    event.preventDefault();
-    await onSubmit({
-      account_id: accountId,
-      amount,
-      type,
-      frequency,
-      next_date: nextDate,
-      category_id: categoryId || undefined,
-      member_id: memberId || undefined,
-      counterparty_account_id: type === "transfer" ? counterpartyId : undefined,
-      description: description || undefined,
-    });
-    setAmount("");
-    setDescription("");
-  }
+  const type = watch("type");
+  const accountId = watch("account_id");
+  const categoryId = watch("category_id") ?? "";
+
+  useEffect(() => {
+    if (!accountId && accounts[0]?.id) setValue("account_id", accounts[0].id);
+  }, [accountId, accounts, setValue]);
 
   return (
-    <form onSubmit={handleSubmit} className="grid gap-4 rounded-md border border-line bg-surface p-5 md:grid-cols-2">
-      <label className="block text-sm">
-        Type
+    <form
+      onSubmit={handleSubmit(async (values) => {
+        await onSubmit({
+          account_id: values.account_id,
+          amount: values.amount,
+          type: values.type,
+          frequency: values.frequency,
+          next_date: values.next_date,
+          category_id: values.category_id || undefined,
+          member_id: values.member_id || undefined,
+          counterparty_account_id: values.type === "transfer" ? values.counterparty_account_id : undefined,
+          description: values.description || undefined,
+        });
+        reset({
+          type: values.type,
+          amount: "",
+          account_id: values.account_id,
+          frequency: values.frequency,
+          next_date: values.next_date,
+          category_id: "",
+          member_id: values.member_id ?? "",
+          counterparty_account_id: "",
+          description: "",
+        });
+      })}
+      className="grid gap-4 border border-line bg-surface p-5 md:grid-cols-2"
+    >
+      <div>
+        <Label htmlFor="recurring-type">Type</Label>
         <select
-          className="mt-1 w-full rounded-md border border-line bg-canvas px-3 py-2"
-          value={type}
-          onChange={(event) => setType(event.target.value)}
+          id="recurring-type"
+          className="mt-1 w-full border border-line bg-input px-3 py-2 text-sm"
+          {...register("type")}
         >
           <option value="expense">Expense</option>
           <option value="income">Income</option>
-          <option value="giving">Giving</option>
           <option value="transfer">Transfer</option>
+          <option value="giving">Giving</option>
         </select>
-      </label>
-      <label className="block text-sm">
-        Amount
-        <input
-          required
-          className="mt-1 w-full rounded-md border border-line bg-canvas px-3 py-2 tabular"
-          value={amount}
-          onChange={(event) => setAmount(event.target.value)}
-          placeholder="40000.00"
-        />
-      </label>
-      <label className="block text-sm">
-        Account
+      </div>
+      <div>
+        <Label htmlFor="recurring-amount">Amount</Label>
+        <Input id="recurring-amount" className="mt-1 tabular" placeholder="40000.00" {...register("amount")} />
+        {errors.amount ? <p className="mt-1 text-xs text-critical">{errors.amount.message}</p> : null}
+      </div>
+      <div>
+        <Label htmlFor="recurring-account">Account</Label>
         <select
-          required
-          className="mt-1 w-full rounded-md border border-line bg-canvas px-3 py-2"
-          value={accountId}
-          onChange={(event) => setAccountId(event.target.value)}
+          id="recurring-account"
+          className="mt-1 w-full border border-line bg-input px-3 py-2 text-sm"
+          {...register("account_id")}
         >
           {accounts.map((account) => (
             <option key={account.id} value={account.id}>
@@ -93,15 +124,15 @@ export function RecurringForm({
             </option>
           ))}
         </select>
-      </label>
+        {errors.account_id ? <p className="mt-1 text-xs text-critical">{errors.account_id.message}</p> : null}
+      </div>
       {type === "transfer" ? (
-        <label className="block text-sm">
-          To account
+        <div>
+          <Label htmlFor="recurring-counterparty">To account</Label>
           <select
-            required
-            className="mt-1 w-full rounded-md border border-line bg-canvas px-3 py-2"
-            value={counterpartyId}
-            onChange={(event) => setCounterpartyId(event.target.value)}
+            id="recurring-counterparty"
+            className="mt-1 w-full border border-line bg-input px-3 py-2 text-sm"
+            {...register("counterparty_account_id")}
           >
             <option value="">Select account</option>
             {accounts
@@ -112,19 +143,28 @@ export function RecurringForm({
                 </option>
               ))}
           </select>
-        </label>
+          {errors.counterparty_account_id ? (
+            <p className="mt-1 text-xs text-critical">{errors.counterparty_account_id.message}</p>
+          ) : null}
+        </div>
       ) : (
-        <label className="block text-sm">
-          Category
-          <CategorySelector categories={categories} value={categoryId} onChange={setCategoryId} />
-        </label>
+        <div>
+          <Label>Category</Label>
+          <div className="mt-1">
+            <CategorySelector
+              categories={categories}
+              value={categoryId}
+              onChange={(value) => setValue("category_id", value, { shouldValidate: true })}
+            />
+          </div>
+        </div>
       )}
-      <label className="block text-sm">
-        Frequency
+      <div>
+        <Label htmlFor="recurring-frequency">Frequency</Label>
         <select
-          className="mt-1 w-full rounded-md border border-line bg-canvas px-3 py-2"
-          value={frequency}
-          onChange={(event) => setFrequency(event.target.value)}
+          id="recurring-frequency"
+          className="mt-1 w-full border border-line bg-input px-3 py-2 text-sm"
+          {...register("frequency")}
         >
           <option value="weekly">Weekly</option>
           <option value="biweekly">Every two weeks</option>
@@ -132,48 +172,37 @@ export function RecurringForm({
           <option value="quarterly">Quarterly</option>
           <option value="annual">Annual</option>
         </select>
-      </label>
-      <label className="block text-sm">
-        Next date
-        <input
-          type="date"
-          required
-          className="mt-1 w-full rounded-md border border-line bg-canvas px-3 py-2"
-          value={nextDate}
-          onChange={(event) => setNextDate(event.target.value)}
-        />
-      </label>
-      <label className="block text-sm">
-        Member
-        <select
-          className="mt-1 w-full rounded-md border border-line bg-canvas px-3 py-2"
-          value={memberId}
-          onChange={(event) => setMemberId(event.target.value)}
-        >
-          <option value="">Household</option>
-          {members.map((member) => (
-            <option key={member.id} value={member.id}>
-              {member.display_name}
-            </option>
-          ))}
-        </select>
-      </label>
-      <label className="block text-sm">
-        Description
-        <input
-          className="mt-1 w-full rounded-md border border-line bg-canvas px-3 py-2"
-          value={description}
-          onChange={(event) => setDescription(event.target.value)}
-        />
-      </label>
+      </div>
+      <div>
+        <Label htmlFor="recurring-next">Next date</Label>
+        <Input id="recurring-next" type="date" className="mt-1" {...register("next_date")} />
+        {errors.next_date ? <p className="mt-1 text-xs text-critical">{errors.next_date.message}</p> : null}
+      </div>
+      {members.length > 0 ? (
+        <div>
+          <Label htmlFor="recurring-member">Member</Label>
+          <select
+            id="recurring-member"
+            className="mt-1 w-full border border-line bg-input px-3 py-2 text-sm"
+            {...register("member_id")}
+          >
+            <option value="">Household</option>
+            {members.map((member) => (
+              <option key={member.id} value={member.id}>
+                {member.display_name}
+              </option>
+            ))}
+          </select>
+        </div>
+      ) : null}
+      <div>
+        <Label htmlFor="recurring-description">Description</Label>
+        <Input id="recurring-description" className="mt-1" {...register("description")} />
+      </div>
       <div className="md:col-span-2">
-        <button
-          type="submit"
-          disabled={pending || !accountId}
-          className="rounded-md bg-accent px-4 py-2 text-sm text-white disabled:opacity-60"
-        >
-          {pending ? "Saving…" : "Add recurring"}
-        </button>
+        <Button type="submit" disabled={pending || !accounts.length}>
+          {pending ? "Saving..." : "Add recurring"}
+        </Button>
       </div>
     </form>
   );

@@ -116,3 +116,28 @@ def test_seed_login_still_works_when_present(client: TestClient) -> None:
         json={"email": SEED_OWNER_EMAIL, "password": SEED_OWNER_PASSWORD},
     )
     assert response.status_code == 200, response.text
+
+
+def test_billing_webhook_requires_secret(client: TestClient, monkeypatch) -> None:
+    from app.core.config import get_settings
+
+    monkeypatch.setenv("BILLING_WEBHOOK_SECRET", "")
+    get_settings.cache_clear()
+    try:
+        empty = client.post("/api/v1/billing/webhook", json={"event": "charge.success"})
+        assert empty.status_code == 503
+
+        monkeypatch.setenv("BILLING_WEBHOOK_SECRET", "psp-shared-secret")
+        get_settings.cache_clear()
+        denied = client.post("/api/v1/billing/webhook", json={"event": "charge.success"})
+        assert denied.status_code == 401
+        accepted = client.post(
+            "/api/v1/billing/webhook",
+            headers={"X-Billing-Secret": "psp-shared-secret"},
+            json={"event": "charge.success", "provider": "paystack", "id": "evt_1"},
+        )
+        assert accepted.status_code == 202, accepted.text
+        assert accepted.json()["status"] == "accepted"
+    finally:
+        monkeypatch.delenv("BILLING_WEBHOOK_SECRET", raising=False)
+        get_settings.cache_clear()

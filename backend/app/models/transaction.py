@@ -77,6 +77,16 @@ class Transaction(Base):
         ),
         nullable=True,
     )
+    giving_record_id: Mapped[uuid.UUID | None] = mapped_column(
+        Uuid,
+        ForeignKey(
+            "giving_records.id",
+            ondelete="SET NULL",
+            use_alter=True,
+            name="fk_transactions_giving_record_id",
+        ),
+        nullable=True,
+    )
     status: Mapped[str] = mapped_column(String(20), default="cleared")
     external_id: Mapped[str | None] = mapped_column(String(200), nullable=True)
     import_source: Mapped[str] = mapped_column(String(20), default="manual")

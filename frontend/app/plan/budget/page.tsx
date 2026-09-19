@@ -2,14 +2,18 @@
 
 import { Suspense, useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "next/navigation";
+import { MoneyAmount } from "@/components/financial/MoneyAmount";
+import { ContentContainer } from "@/components/layouts/ContentContainer";
+import { PageHeader } from "@/components/layouts/PageHeader";
+import { SectionHeader } from "@/components/layouts/SectionHeader";
 import { AlertList } from "@/components/plan/AlertList";
 import { BudgetForm } from "@/components/plan/BudgetForm";
 import { BudgetProgress } from "@/components/plan/BudgetProgress";
-import { MoneyAmount } from "@/components/financial/MoneyAmount";
 import { AppShell } from "@/components/shared/AppShell";
 import { EmptyState } from "@/components/shared/EmptyState";
 import { ErrorState } from "@/components/shared/ErrorState";
 import { LoadingState } from "@/components/shared/LoadingState";
+import { Select } from "@/components/ui/select";
 import { api, type Alert, type Budget, type Category, type Member } from "@/lib/api";
 
 export default function BudgetPage() {
@@ -63,17 +67,18 @@ function BudgetPageBody() {
   );
 
   return (
-    <div className="space-y-8 pb-16">
-      <div>
-        <p className="text-sm text-muted">Are we spending according to plan?</p>
-        <h1 className="mt-1 text-3xl font-medium">Budget</h1>
-      </div>
+    <ContentContainer>
+      <PageHeader
+        eyebrow="Plan"
+        title="Budget"
+        description="Are we spending according to plan?"
+      />
       {error ? <ErrorState message={error} /> : null}
       {!loaded && !error ? <LoadingState /> : null}
 
       {alerts.length > 0 ? (
         <section>
-          <h2 className="mb-3 text-sm uppercase tracking-wide text-muted">Alerts</h2>
+          <SectionHeader title="Alerts" />
           <AlertList
             alerts={alerts}
             onRead={async (id) => {
@@ -88,6 +93,7 @@ function BudgetPageBody() {
         </section>
       ) : null}
 
+      <SectionHeader title="Create budget" />
       <BudgetForm
         categories={categories}
         members={members}
@@ -110,8 +116,8 @@ function BudgetPageBody() {
       {periods.length > 1 ? (
         <label className="block max-w-xs text-sm">
           Period
-          <select
-            className="mt-1 w-full rounded-md border border-line bg-canvas px-3 py-2"
+          <Select
+            className="mt-1"
             value={period}
             onChange={(event) => setPeriod(event.target.value)}
           >
@@ -121,21 +127,22 @@ function BudgetPageBody() {
                 {value}
               </option>
             ))}
-          </select>
+          </Select>
         </label>
       ) : null}
 
+      <SectionHeader title="Plans" />
       {loaded && visible.length === 0 ? (
         <EmptyState title="No budgets yet" body="Create a household or member-scoped plan to track spend." />
       ) : (
         visible.map((budget) => (
-          <section key={budget.id} className="rounded-md border border-line bg-surface p-5">
+          <section key={budget.id} className="border border-line bg-surface p-5">
             <div className="flex flex-wrap items-baseline justify-between gap-3">
               <div>
-                <h2 className="text-lg font-medium">{budget.name}</h2>
+                <h2 className="font-display text-2xl text-ink">{budget.name}</h2>
                 <p className="mt-1 text-sm text-muted">
                   {budget.member_name ? `${budget.member_name} · ` : "Household · "}
-                  {budget.start_date} – {budget.end_date}
+                  {budget.start_date} to {budget.end_date}
                 </p>
               </div>
               <p className="text-sm text-muted">
@@ -159,6 +166,6 @@ function BudgetPageBody() {
           </section>
         ))
       )}
-    </div>
+    </ContentContainer>
   );
 }

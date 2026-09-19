@@ -1,16 +1,20 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
+import { NetWorthChart } from "@/components/charts/NetWorthChart";
+import { DecisionCard } from "@/components/financial/DecisionCard";
 import { MoneyAmount } from "@/components/financial/MoneyAmount";
+import { ContentContainer } from "@/components/layouts/ContentContainer";
+import { PageHeader } from "@/components/layouts/PageHeader";
+import { SectionHeader } from "@/components/layouts/SectionHeader";
 import { AppShell } from "@/components/shared/AppShell";
 import { EmptyState } from "@/components/shared/EmptyState";
 import { ErrorState } from "@/components/shared/ErrorState";
 import { LoadingState } from "@/components/shared/LoadingState";
-import {
-  explainWithAi,
-  getInsights,
-  type Insights,
-} from "@/lib/api";
+import { Button } from "@/components/ui/button";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { explainWithAi, getInsights, type Insights } from "@/lib/api";
+import { decisionHrefForPattern } from "@/lib/decision-routing";
 
 export default function InsightsPage() {
   const [data, setData] = useState<Insights | null>(null);
@@ -22,146 +26,211 @@ export default function InsightsPage() {
     getInsights().then(setData).catch((err: Error) => setError(err.message));
   }, []);
 
+  const patternSeverity = useMemo(() => {
+    return (severity: string) => {
+      if (severity === "critical") return "critical" as const;
+      if (severity === "warning") return "warning" as const;
+      if (severity === "info") return "info" as const;
+      return "neutral" as const;
+    };
+  }, []);
+
   return (
     <AppShell>
       {!data && !error ? <LoadingState /> : null}
-      {error ? <ErrorState message={error} /> : null}
+      {error ? (
+        <ContentContainer>
+          <ErrorState message={error} />
+        </ContentContainer>
+      ) : null}
       {data ? (
-        <div className="space-y-8 pb-16">
-          <div className="flex flex-wrap items-end justify-between gap-4">
-            <div>
-              <p className="text-sm text-muted">What is the pattern?</p>
-              <h1 className="mt-1 text-3xl font-medium">Insights</h1>
-            </div>
-            <button
-              type="button"
-              disabled={pending}
-              className="rounded-md border border-line bg-surface px-4 py-2 text-sm disabled:opacity-50"
-              onClick={async () => {
-                setPending(true);
-                setError(null);
-                try {
-                  const body = await explainWithAi();
-                  setExplanation(body.explanation);
-                } catch (err) {
-                  setError(err instanceof Error ? err.message : "AI explain failed.");
-                } finally {
-                  setPending(false);
-                }
-              }}
-            >
-              {pending ? "Explaining…" : "Explain with AI"}
-            </button>
-          </div>
+        <ContentContainer>
+          <PageHeader
+            eyebrow="Intelligence"
+            title="Insights"
+            description="What is the pattern? Deterministic figures first; AI only explains."
+            actions={
+              <Button
+                type="button"
+                variant="outline"
+                disabled={pending}
+                onClick={async () => {
+                  setPending(true);
+                  setError(null);
+                  try {
+                    const body = await explainWithAi();
+                    setExplanation(body.explanation);
+                  } catch (err) {
+                    setError(err instanceof Error ? err.message : "AI explain failed.");
+                  } finally {
+                    setPending(false);
+                  }
+                }}
+              >
+                {pending ? "Explaining..." : "Explain with AI"}
+              </Button>
+            }
+          />
           {explanation ? (
-            <p className="rounded-md border border-line bg-surface p-4 text-sm">{explanation}</p>
+            <p className="border border-gold/30 bg-surface p-4 text-sm text-ink">{explanation}</p>
           ) : null}
-          <section>
-            <h2 className="mb-3 text-sm uppercase tracking-wide text-muted">Health history</h2>
-            {!data.health_history.length ? (
-              <EmptyState title="No scores yet" body="Period scores appear after snapshots exist." />
-            ) : (
-              <TrendTable
-                rows={data.health_history.map((row) => [row.period_label, `${row.score} · ${row.label}`])}
-              />
-            )}
-          </section>
-          <section>
-            <h2 className="mb-3 text-sm uppercase tracking-wide text-muted">Cash-flow trend</h2>
-            {!data.cash_flow.length ? (
-              <EmptyState title="No cash-flow history" body="Freeze a period snapshot to start the series." />
-            ) : (
-              <div className="space-y-2">
-                {data.cash_flow.map((row) => (
-                  <div key={row.period_start} className="flex justify-between rounded-md border border-line bg-surface px-4 py-3 text-sm">
-                    <span>{row.period_label}</span>
-                    <span className="tabular">
-                      Income <MoneyAmount amount={row.income} currency="NGN" /> · surplus{" "}
-                      <MoneyAmount amount={row.surplus} currency="NGN" />
-                    </span>
+
+          <Tabs defaultValue="patterns">
+            <TabsList>
+              <TabsTrigger value="patterns">Patterns</TabsTrigger>
+              <TabsTrigger value="trends">Trends</TabsTrigger>
+              <TabsTrigger value="spend">Spend</TabsTrigger>
+              <TabsTrigger value="giving">Giving</TabsTrigger>
+            </TabsList>
+
+            <TabsContent value="patterns">
+              <SectionHeader title="Patterns" description="Flags from engines, not invented narrative." />
+              {!data.patterns?.length ? (
+                <EmptyState
+                  title="No patterns yet"
+                  body="IPÌLẸ̀ flags overspend, giving limits, constitution gaps, and streaks here."
+                />
+              ) : (
+                <div className="space-y-3">
+                  {data.patterns.map((pattern) => (
+                    <DecisionCard
+                      key={pattern.code + pattern.title}
+                      title={pattern.title}
+                      body={`${pattern.detail} · ${pattern.code}`}
+                      href={decisionHrefForPattern(pattern.code)}
+                      severity={patternSeverity(pattern.severity)}
+                    />
+                  ))}
+                </div>
+              )}
+            </TabsContent>
+
+            <TabsContent value="trends" className="space-y-8">
+              <section>
+                <SectionHeader title="Net worth" />
+                {!data.net_worth.length ? (
+                  <EmptyState title="No net-worth history" body="Snapshots carry net worth for the chart." />
+                ) : (
+                  <NetWorthChart
+                    points={data.net_worth.map((row) => ({
+                      label: row.period_label,
+                      net_worth: row.net_worth,
+                    }))}
+                  />
+                )}
+              </section>
+              <section>
+                <SectionHeader title="Cash-flow trend" />
+                {!data.cash_flow.length ? (
+                  <EmptyState title="No cash-flow history" body="Freeze a period snapshot to start the series." />
+                ) : (
+                  <div className="space-y-2">
+                    {data.cash_flow.map((row) => (
+                      <div
+                        key={row.period_start}
+                        className="flex justify-between border border-line bg-surface px-4 py-3 text-sm"
+                      >
+                        <span>{row.period_label}</span>
+                        <span className="tabular">
+                          Income <MoneyAmount amount={row.income} currency={data.currency ?? "NGN"} /> · surplus{" "}
+                          <MoneyAmount amount={row.surplus} currency={data.currency ?? "NGN"} />
+                        </span>
+                      </div>
+                    ))}
                   </div>
-                ))}
-              </div>
-            )}
-          </section>
-          <section>
-            <h2 className="mb-3 text-sm uppercase tracking-wide text-muted">Net-worth trend</h2>
-            {!data.net_worth.length ? (
-              <EmptyState title="No net-worth history" body="Snapshots carry net worth for the chart." />
-            ) : (
-              <div className="space-y-2">
-                {data.net_worth.map((row) => (
-                  <div key={row.period_start} className="flex justify-between rounded-md border border-line bg-surface px-4 py-3 text-sm">
-                    <span>{row.period_label}</span>
-                    <MoneyAmount amount={row.net_worth} currency="NGN" />
+                )}
+              </section>
+              <section>
+                <SectionHeader title="Health history" />
+                {!data.health_history.length ? (
+                  <EmptyState title="No scores yet" body="Period scores appear after snapshots exist." />
+                ) : (
+                  <div className="space-y-2">
+                    {data.health_history.map((row) => (
+                      <div
+                        key={row.period_start}
+                        className="flex justify-between border border-line bg-surface px-4 py-3 text-sm"
+                      >
+                        <span>{row.period_label}</span>
+                        <span className="tabular">
+                          {row.score} · {row.label}
+                        </span>
+                      </div>
+                    ))}
                   </div>
-                ))}
-              </div>
-            )}
-          </section>
-          <section>
-            <h2 className="mb-3 text-sm uppercase tracking-wide text-muted">Spending this period</h2>
-            {!data.spend.length ? (
-              <EmptyState title="No spend yet" body="Expense and giving categories will rank here." />
-            ) : (
-              <div className="space-y-2">
-                {data.top_categories.map((row) => (
-                  <div key={row.category} className="flex justify-between rounded-md border border-line bg-surface px-4 py-3 text-sm">
-                    <span>{row.category}</span>
-                    <MoneyAmount amount={row.amount} currency="NGN" />
+                )}
+              </section>
+            </TabsContent>
+
+            <TabsContent value="spend" className="space-y-8">
+              <section>
+                <SectionHeader title="Top categories" />
+                {!data.spend.length ? (
+                  <EmptyState title="No spend yet" body="Expense and giving categories will rank here." />
+                ) : (
+                  <div className="space-y-2">
+                    {data.top_categories.map((row) => (
+                      <div
+                        key={row.category}
+                        className="flex justify-between border border-line bg-surface px-4 py-3 text-sm"
+                      >
+                        <span>{row.category}</span>
+                        <MoneyAmount amount={row.amount} currency={data.currency ?? "NGN"} />
+                      </div>
+                    ))}
                   </div>
-                ))}
-              </div>
-            )}
-          </section>
-          <section>
-            <h2 className="mb-3 text-sm uppercase tracking-wide text-muted">Overspend</h2>
-            {!data.overspend.length ? (
-              <EmptyState title="No overspend" body="Categories over plan will appear here." />
-            ) : (
-              <div className="space-y-2">
-                {data.overspend.map((row) => (
-                  <div key={row.category} className="flex justify-between rounded-md border border-line bg-surface px-4 py-3 text-sm">
-                    <span>{row.category}</span>
-                    <MoneyAmount amount={row.amount} currency="NGN" />
+                )}
+              </section>
+              <section>
+                <SectionHeader title="Overspend" />
+                {!data.overspend.length ? (
+                  <EmptyState title="No overspend" body="Categories over plan will appear here." />
+                ) : (
+                  <div className="space-y-3">
+                    {data.overspend.map((row) => (
+                      <DecisionCard
+                        key={row.category}
+                        title={`${row.category} is over plan`}
+                        body={`Over by the recorded amount. Open Budget to adjust the plan.`}
+                        href="/plan/budget"
+                        severity="warning"
+                      />
+                    ))}
+                    {data.overspend.map((row) => (
+                      <div
+                        key={`${row.category}-amt`}
+                        className="flex justify-between border border-line bg-surface px-4 py-3 text-sm"
+                      >
+                        <span>{row.category}</span>
+                        <MoneyAmount amount={row.amount} currency={data.currency ?? "NGN"} />
+                      </div>
+                    ))}
                   </div>
-                ))}
+                )}
+              </section>
+            </TabsContent>
+
+            <TabsContent value="giving">
+              <SectionHeader title="Giving vs limit" />
+              <div className="grid gap-3 md:grid-cols-3">
+                <Metric label="Allocated" amount={data.giving.allocated} currency={data.currency} />
+                <Metric label="Actual" amount={data.giving.actual} currency={data.currency} />
+                <Metric label="Vs limit" amount={data.giving.vs_limit} currency={data.currency} />
               </div>
-            )}
-          </section>
-          <section>
-            <h2 className="mb-3 text-sm uppercase tracking-wide text-muted">Giving vs limit</h2>
-            <div className="grid gap-3 md:grid-cols-3">
-              <Metric label="Allocated" amount={data.giving.allocated} />
-              <Metric label="Actual" amount={data.giving.actual} />
-              <Metric label="Vs limit" amount={data.giving.vs_limit} />
-            </div>
-          </section>
-        </div>
+            </TabsContent>
+          </Tabs>
+        </ContentContainer>
       ) : null}
     </AppShell>
   );
 }
 
-function TrendTable({ rows }: { rows: [string, string][] }) {
+function Metric({ label, amount, currency = "NGN" }: { label: string; amount: string; currency?: string }) {
   return (
-    <div className="space-y-2">
-      {rows.map(([label, value]) => (
-        <div key={label} className="flex justify-between rounded-md border border-line bg-surface px-4 py-3 text-sm">
-          <span>{label}</span>
-          <span className="tabular">{value}</span>
-        </div>
-      ))}
-    </div>
-  );
-}
-
-function Metric({ label, amount }: { label: string; amount: string }) {
-  return (
-    <div className="rounded-md border border-line bg-surface p-4">
+    <div className="border border-line bg-surface p-4">
       <p className="text-xs uppercase tracking-wide text-muted">{label}</p>
       <p className="mt-2">
-        <MoneyAmount amount={amount} currency="NGN" />
+        <MoneyAmount amount={amount} currency={currency} />
       </p>
     </div>
   );

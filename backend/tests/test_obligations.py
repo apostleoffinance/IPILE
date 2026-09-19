@@ -131,3 +131,64 @@ def test_calendar_lists_obligation_due_dates(client: TestClient) -> None:
     else:
         assert overview["health"] is None
     assert overview["upcoming_obligations"][0]["title"] == "Parents' stipend"
+
+
+def test_calendar_includes_recurring_fund_liability_and_goal_kinds(client: TestClient) -> None:
+    register(client, "cal-kinds@example.com")
+    account = client.post(
+        "/api/v1/accounts",
+        json={"name": "Current", "type": "bank", "current_balance": "1000000.00"},
+    ).json()
+    today = date.today()
+    recurring = client.post(
+        "/api/v1/recurring",
+        json={
+            "account_id": account["id"],
+            "amount": "40000.00",
+            "type": "expense",
+            "frequency": "monthly",
+            "next_date": today.isoformat(),
+            "merchant": "Utilities",
+        },
+    )
+    assert recurring.status_code == 201, recurring.text
+    fund = client.post(
+        "/api/v1/funds",
+        json={
+            "name": "School fund",
+            "target_amount": "600000.00",
+            "monthly_contribution": "50000.00",
+        },
+    )
+    assert fund.status_code == 201, fund.text
+    liability = client.post(
+        "/api/v1/liabilities",
+        json={
+            "name": "Car loan",
+            "type": "loan",
+            "current_balance": "400000.00",
+            "minimum_payment": "25000.00",
+            "due_day": today.day,
+        },
+    )
+    assert liability.status_code == 201, liability.text
+    goal = client.post(
+        "/api/v1/goals",
+        json={
+            "name": "Emergency top-up",
+            "type": "emergency",
+            "target_amount": "1000000.00",
+            "monthly_contribution": "100000.00",
+        },
+    )
+    assert goal.status_code == 201, goal.text
+
+    events = client.get("/api/v1/calendar?days=45").json()
+    kinds = {row["kind"] for row in events}
+    assert "recurring" in kinds
+    assert "fund_contribution" in kinds
+    assert "liability" in kinds
+    assert "goal_contribution" in kinds
+    recurring_event = next(row for row in events if row["kind"] == "recurring")
+    assert recurring_event["title"] == "Utilities"
+    assert recurring_event["amount"] == "40000.00"

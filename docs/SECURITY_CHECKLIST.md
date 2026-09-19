@@ -14,7 +14,7 @@
 | 10 | No API keys client-side | Done | AI / engines server-side only |
 | 11 | Backups | Done | `docs/BACKUP_RESTORE.md` (dump/restore drill) |
 | 12 | Data export + household deletion | Done | `GET /api/v1/export`, `DELETE /api/v1/households/current` |
-| 13 | Session management | Done | Idle 12h / absolute 7d; logout revokes (`app/api/v1/auth.py`) |
+| 13 | Session management | Done | Idle 12h / absolute 7d; logout revokes; password change revokes other sessions (`app/api/v1/auth.py`) |
 | 14 | Rate limiting | Done | Register/login + export/delete (`app/core/rate_limit.py`) |
 | 15 | Input validation | Done | Pydantic schemas on API bodies |
 | 16 | Server-side authorization | Done | UI is not the security boundary |
@@ -22,3 +22,5 @@
 | 18 | Dependency scanning in CI | Done | `pip-audit` + `npm audit` in `.github/workflows/ci.yml` |
 | 19 | Monitoring / error tracking | Done | `RequestContextMiddleware` + `X-Request-Id` structured logs |
 | 20 | Dashboard/engine query performance | Done | Indexes on `(household_id, date/type)` transactions and alerts status |
+| 21 | CSRF for cookie mutations | Done | Double-submit `ffos_csrf` + `X-CSRF-Token` (`app/core/csrf.py`); login/register exempt |
+| 22 | Cross-origin cookies | Done | `COOKIE_SAMESITE=none` + `COOKIE_SECURE=true` for Vercel↔API; default `lax` locally |

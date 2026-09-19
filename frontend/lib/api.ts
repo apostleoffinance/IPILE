@@ -90,6 +90,62 @@ export type CalendarEvent = {
   occurrence_id: string | null;
 };
 
+export type GivingPolicy = {
+  id: string;
+  name: string;
+  kind: string;
+  monthly_limit: string | null;
+  annual_limit: string | null;
+  requires_dual_approval: boolean;
+  monthly_used: string;
+  annual_used: string;
+  limit_breached: boolean;
+  status: string;
+};
+
+export type GivingRecord = {
+  id: string;
+  kind: string;
+  beneficiary: string | null;
+  amount: string;
+  date: string;
+  status: string;
+  limit_warning: string | null;
+  transaction_id: string | null;
+};
+
+export type GivingSummary = {
+  period_month: string;
+  policies: GivingPolicy[];
+  records: GivingRecord[];
+  pending_approvals: GivingRecord[];
+  total_posted_month: string;
+  total_posted_year: string;
+};
+
+export type CashFlowDay = {
+  date: string;
+  income: string;
+  expenses: string;
+  giving: string;
+  transfers_net: string;
+  net: string;
+  closing_cash: string;
+};
+
+export type CashFlow = {
+  period_start: string;
+  period_end: string;
+  opening_cash: string;
+  closing_cash: string;
+  income: string;
+  expenses: string;
+  giving: string;
+  transfers_net: string;
+  surplus: string;
+  daily: CashFlowDay[];
+};
+
 export type AllocationLine = {
   id: string;
   rule_id: string | null;
@@ -232,6 +288,7 @@ export type Report = {
 };
 
 export type Insights = {
+  currency?: string;
   period_start: string;
   period_end: string;
   spend: { category: string; amount: string }[];
@@ -241,6 +298,13 @@ export type Insights = {
   net_worth: { period_start: string; period_label: string; net_worth: string }[];
   health_history: { period_start: string; period_label: string; score: string; label: string }[];
   giving: { allocated: string; actual: string; limit: string; vs_limit: string };
+  patterns?: {
+    code: string;
+    severity: string;
+    title: string;
+    detail: string;
+    evidence: Record<string, unknown>;
+  }[];
   health: HealthScore;
 };
 
@@ -354,21 +418,72 @@ export type Alert = {
 };
 
 let householdId: string | undefined;
+let csrfToken: string | undefined;
 
 export function setHouseholdId(id?: string) {
   householdId = id;
 }
 
+function readCookie(name: string): string | undefined {
+  if (typeof document === "undefined") return undefined;
+  const match = document.cookie.match(new RegExp(`(?:^|; )${name}=([^;]*)`));
+  return match ? decodeURIComponent(match[1]) : undefined;
+}
+
+async function ensureCsrfToken(): Promise<string> {
+  if (csrfToken) return csrfToken;
+  const fromCookie = readCookie("ffos_csrf");
+  if (fromCookie) {
+    csrfToken = fromCookie;
+    return fromCookie;
+  }
+  const response = await fetch(`${API_URL}/api/v1/auth/csrf`, { credentials: "include" });
+  const data = (await response.json()) as { csrf_token?: string };
+  if (!response.ok || !data.csrf_token) {
+    throw new Error("Unable to establish CSRF protection.");
+  }
+  csrfToken = data.csrf_token;
+  return csrfToken;
+}
+
+export function clearCsrfToken() {
+  csrfToken = undefined;
+}
+
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
+  const method = (init?.method ?? "GET").toUpperCase();
+  const headers: Record<string, string> = {
+    "Content-Type": "application/json",
+    ...(householdId ? { "X-Household-Id": householdId } : {}),
+    ...((init?.headers as Record<string, string> | undefined) ?? {}),
+  };
+  if (["POST", "PUT", "PATCH", "DELETE"].includes(method)) {
+    headers["X-CSRF-Token"] = await ensureCsrfToken();
+  }
+
   const response = await fetch(`${API_URL}${path}`, {
     ...init,
+    method,
     credentials: "include",
-    headers: {
-      "Content-Type": "application/json",
-      ...(householdId ? { "X-Household-Id": householdId } : {}),
-      ...(init?.headers ?? {}),
-    },
+    headers,
   });
+
+  if (response.status === 403 && ["POST", "PUT", "PATCH", "DELETE"].includes(method)) {
+    clearCsrfToken();
+    headers["X-CSRF-Token"] = await ensureCsrfToken();
+    const retry = await fetch(`${API_URL}${path}`, {
+      ...init,
+      method,
+      credentials: "include",
+      headers,
+    });
+    return parseResponse<T>(retry);
+  }
+
+  return parseResponse<T>(response);
+}
+
+async function parseResponse<T>(response: Response): Promise<T> {
   if (response.status === 204) {
     return undefined as T;
   }
@@ -382,6 +497,10 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
 
 export function getOverview() {
   return request<HouseholdOverview>("/api/v1/overview");
+}
+
+export function getCurrentHousehold() {
+  return request<Household>("/api/v1/households/current");
 }
 
 export function getFinancialHealth() {
@@ -647,6 +766,23 @@ export function getAllocationRules() {
   return request<AllocationRule[]>("/api/v1/allocation-rules");
 }
 
+export function createAllocationRule(body: {
+  name: string;
+  type: string;
+  basis?: string;
+  rate?: string | null;
+  amount?: string | null;
+  priority?: number;
+  mandatory?: boolean;
+  destination_type: string;
+  destination_id?: string | null;
+}) {
+  return request<AllocationRule>("/api/v1/allocation-rules", {
+    method: "POST",
+    body: JSON.stringify(body),
+  });
+}
+
 export function getLatestAllocation() {
   return request<AllocationRun>("/api/v1/allocations/latest");
 }
@@ -699,7 +835,39 @@ export type HouseholdLiability = {
   name: string;
   type: string;
   current_balance: string;
+  interest_rate?: string | null;
+  minimum_payment?: string | null;
   status: string;
+};
+
+export type DebtStrategy = {
+  strategy: string;
+  order: {
+    id: string;
+    name: string;
+    balance: string;
+    interest_rate: string;
+    min_payment: string;
+    position: number;
+  }[];
+  months: number;
+  total_interest: string;
+  total_paid: string;
+  schedule_summary: {
+    month: number;
+    total_payment: string;
+    total_interest: string;
+    remaining_balance: string;
+    debts_remaining: number;
+  }[];
+};
+
+export type DebtStrategies = {
+  extra_payment: string;
+  currency: string;
+  snowball: DebtStrategy;
+  avalanche: DebtStrategy;
+  liabilities_considered: number;
 };
 
 export type HouseholdInvestment = {
@@ -733,7 +901,17 @@ export function getLiabilities() {
   return request<HouseholdLiability[]>("/api/v1/liabilities");
 }
 
-export function createLiability(body: { name: string; type: string; current_balance: string }) {
+export function getDebtStrategies(extraPayment = "0") {
+  return request<DebtStrategies>(`/api/v1/debts/strategies?extra_payment=${encodeURIComponent(extraPayment)}`);
+}
+
+export function createLiability(body: {
+  name: string;
+  type: string;
+  current_balance: string;
+  interest_rate?: string;
+  minimum_payment?: string;
+}) {
   return request<HouseholdLiability>("/api/v1/liabilities", {
     method: "POST",
     body: JSON.stringify(body),
@@ -749,6 +927,14 @@ export function payLiability(id: string, body: { account_id: string; amount: str
 
 export function getInvestments() {
   return request<HouseholdInvestment[]>("/api/v1/investments");
+}
+
+export function getCashFlow(periodStart?: string, periodEnd?: string) {
+  const params = new URLSearchParams();
+  if (periodStart) params.set("period_start", periodStart);
+  if (periodEnd) params.set("period_end", periodEnd);
+  const query = params.toString() ? `?${params.toString()}` : "";
+  return request<CashFlow>(`/api/v1/cash-flow${query}`);
 }
 
 export function createInvestment(body: {
@@ -900,10 +1086,26 @@ export const api = {
     display_name: string;
     invite_token?: string;
     create_household?: boolean;
-  }) => request<User>("/api/v1/auth/register", { method: "POST", body: JSON.stringify(body) }),
+  }) =>
+    request<User>("/api/v1/auth/register", { method: "POST", body: JSON.stringify(body) }).then(
+      (user) => {
+        clearCsrfToken();
+        return user;
+      },
+    ),
   login: (body: { email: string; password: string }) =>
-    request<User>("/api/v1/auth/login", { method: "POST", body: JSON.stringify(body) }),
-  logout: () => request<void>("/api/v1/auth/logout", { method: "POST" }),
+    request<User>("/api/v1/auth/login", { method: "POST", body: JSON.stringify(body) }).then(
+      (user) => {
+        clearCsrfToken();
+        return user;
+      },
+    ),
+  logout: () =>
+    request<void>("/api/v1/auth/logout", { method: "POST" }).then(() => {
+      clearCsrfToken();
+    }),
+  changePassword: (body: { current_password: string; new_password: string }) =>
+    request<void>("/api/v1/auth/password/change", { method: "POST", body: JSON.stringify(body) }),
   getOverview,
   getFinancialHealth,
   explainFinancialHealth,
@@ -984,6 +1186,9 @@ export const api = {
   budgets: () => request<Budget[]>("/api/v1/budget"),
   createBudget: (body: {
     name: string;
+    period_type?: string;
+    start_date?: string;
+    end_date?: string;
     member_id?: string;
     categories: { category_id: string; allocated_amount: string }[];
   }) => request<Budget>("/api/v1/budget", { method: "POST", body: JSON.stringify(body) }),
@@ -1030,4 +1235,33 @@ export const api = {
   contribute: (fundId: string, body: { account_id: string; amount: string }) =>
     request<Fund>(`/api/v1/funds/${fundId}/contributions`, { method: "POST", body: JSON.stringify(body) }),
   calendar: (days = 30) => request<CalendarEvent[]>(`/api/v1/calendar?days=${days}`),
+  getCashFlow: (periodStart?: string, periodEnd?: string) => {
+    const params = new URLSearchParams();
+    if (periodStart) params.set("period_start", periodStart);
+    if (periodEnd) params.set("period_end", periodEnd);
+    const query = params.toString() ? `?${params.toString()}` : "";
+    return request<CashFlow>(`/api/v1/cash-flow${query}`);
+  },
+  givingSummary: () => request<GivingSummary>("/api/v1/giving/summary"),
+  givingPolicies: () => request<GivingPolicy[]>("/api/v1/giving/policies"),
+  createGivingPolicy: (body: {
+    name: string;
+    kind: string;
+    monthly_limit?: string;
+    annual_limit?: string;
+    requires_dual_approval?: boolean;
+  }) => request<GivingPolicy>("/api/v1/giving/policies", { method: "POST", body: JSON.stringify(body) }),
+  createGiving: (body: {
+    kind: string;
+    amount: string;
+    account_id: string;
+    policy_id?: string;
+    beneficiary?: string;
+    notes?: string;
+    date?: string;
+  }) => request<GivingRecord>("/api/v1/giving", { method: "POST", body: JSON.stringify(body) }),
+  approveGiving: (id: string) =>
+    request<GivingRecord>(`/api/v1/giving/${id}/approve`, { method: "POST" }),
+  rejectGiving: (id: string) =>
+    request<GivingRecord>(`/api/v1/giving/${id}/reject`, { method: "POST" }),
 };

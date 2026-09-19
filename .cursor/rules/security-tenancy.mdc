@@ -1,0 +1,15 @@
+---
+description: Household tenancy, authn/authz, and financial data protection
+globs: backend/**/*.py
+alwaysApply: false
+---
+
+# Security and tenancy
+
+- Every financial query/mutation must filter by authorized `household_id`.
+- Never trust client-supplied household id without membership check.
+- Authorize on the server. UI hiding is not security.
+- Passwords: Argon2id. Sessions: HTTP-only cookies. No secrets in the frontend.
+- Validate all inputs. Rate-limit auth. Audit money, rules, members, export, delete.
+- Roles: owner, partner, member, viewer (advisor later).
+- Do not log secrets or full account numbers.

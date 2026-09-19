@@ -13,9 +13,10 @@ from app.models.member import HouseholdMember
 from app.models.session import SessionToken
 from app.models.user import User
 
-READ_ROLES = frozenset({"owner", "partner", "member", "viewer"})
+READ_ROLES = frozenset({"owner", "partner", "member", "viewer", "advisor"})
 WRITE_ROLES = frozenset({"owner", "partner"})
 OWNER_ROLES = frozenset({"owner"})
+READ_ONLY_ROLES = frozenset({"viewer", "advisor"})
 
 
 @dataclass

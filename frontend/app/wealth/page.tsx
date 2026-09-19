@@ -2,11 +2,19 @@
 
 import { FormEvent, useEffect, useState } from "react";
 import Link from "next/link";
+import { NetWorthChart } from "@/components/charts/NetWorthChart";
 import { MoneyAmount } from "@/components/financial/MoneyAmount";
+import { NetWorthSummary } from "@/components/financial/NetWorthSummary";
+import { ContentContainer } from "@/components/layouts/ContentContainer";
+import { PageHeader } from "@/components/layouts/PageHeader";
+import { SectionHeader } from "@/components/layouts/SectionHeader";
 import { AppShell } from "@/components/shared/AppShell";
 import { EmptyState } from "@/components/shared/EmptyState";
 import { ErrorState } from "@/components/shared/ErrorState";
 import { LoadingState } from "@/components/shared/LoadingState";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Select } from "@/components/ui/select";
 import { createAsset, getNetWorth, type WealthSnapshot } from "@/lib/api";
 
 export default function WealthPage() {
@@ -43,30 +51,41 @@ export default function WealthPage() {
 
   return (
     <AppShell>
-      <div className="space-y-8 pb-16">
-        <div className="flex flex-wrap items-end justify-between gap-4">
-          <div>
-            <p className="text-sm text-muted">Are we getting richer?</p>
-            <h1 className="mt-1 text-3xl font-medium">Net worth</h1>
-          </div>
-          <div className="flex gap-4 text-sm">
-            <Link href="/wealth/investments" className="underline text-muted">
-              Investments
-            </Link>
-            <Link href="/wealth/goals" className="underline text-muted">
-              Goals
-            </Link>
-            <Link href="/wealth/debts" className="underline text-muted">
-              Debts
-            </Link>
-          </div>
-        </div>
+      <ContentContainer>
+        <PageHeader
+          eyebrow="Wealth"
+          title="Net worth"
+          description="Are we getting richer?"
+          actions={
+            <div className="flex gap-3 text-sm">
+              <Link href="/wealth/investments" className="text-muted underline">
+                Investments
+              </Link>
+              <Link href="/wealth/goals" className="text-muted underline">
+                Goals
+              </Link>
+              <Link href="/wealth/debts" className="text-muted underline">
+                Debts
+              </Link>
+            </div>
+          }
+        />
         {error ? <ErrorState message={error} /> : null}
         {!data && !error ? <LoadingState /> : null}
         {data ? (
           <>
+            <NetWorthSummary
+              netWorth={data.net_worth}
+              totalAssets={data.total_assets}
+              totalLiabilities={data.total_liabilities}
+              currency={data.currency}
+            />
+            <p className="text-sm text-muted">
+              Emergency fund{" "}
+              <MoneyAmount amount={data.emergency_fund} currency={data.currency} />
+            </p>
             <div className="grid gap-4 md:grid-cols-2">
-              <div className="rounded-md border border-line bg-surface p-5">
+              <div className="border border-line bg-surface p-5">
                 <h2 className="text-sm uppercase tracking-wide text-muted">Assets</h2>
                 <Row label="Cash" amount={data.buckets.cash} />
                 <Row label="Savings" amount={data.buckets.savings} />
@@ -77,7 +96,7 @@ export default function WealthPage() {
                 <Row label="Other" amount={data.buckets.other} />
                 <Row label="Total assets" amount={data.total_assets} strong />
               </div>
-              <div className="rounded-md border border-line bg-surface p-5">
+              <div className="border border-line bg-surface p-5">
                 <h2 className="text-sm uppercase tracking-wide text-muted">Liabilities</h2>
                 <Row label="Loans" amount={data.buckets.loans} />
                 <Row label="Credit" amount={data.buckets.credit} />
@@ -85,44 +104,24 @@ export default function WealthPage() {
                 <Row label="Total debt" amount={data.debt} strong />
               </div>
             </div>
-            <div className="rounded-md border border-line bg-surface p-6 text-center">
-              <p className="text-xs uppercase tracking-wide text-muted">Net worth</p>
-              <p className="mt-2 text-4xl">
-                <MoneyAmount amount={data.net_worth} currency={data.currency} />
-              </p>
-              <p className="mt-2 text-sm text-muted">
-                Emergency <MoneyAmount amount={data.emergency_fund} currency={data.currency} />
-              </p>
-            </div>
             <section>
-              <h2 className="mb-3 text-sm uppercase tracking-wide text-muted">Net worth over time</h2>
+              <SectionHeader title="Net worth over time" />
               {!data.history.length ? (
                 <EmptyState title="No snapshots yet" body="Period close writes the first point on this chart." />
               ) : (
-                <div className="space-y-2">
-                  {data.history.map((row) => (
-                    <div
-                      key={row.period_start}
-                      className="flex items-baseline justify-between rounded-md border border-line bg-surface px-4 py-3"
-                    >
-                      <p className="text-sm text-muted">
-                        {row.period_start} → {row.period_end}
-                      </p>
-                      <MoneyAmount amount={row.net_worth} currency={data.currency} />
-                    </div>
-                  ))}
-                </div>
+                <NetWorthChart
+                  points={data.history.map((row) => ({
+                    label: row.period_start.slice(0, 7),
+                    net_worth: row.net_worth,
+                  }))}
+                />
               )}
             </section>
-            <form onSubmit={onCreate} className="grid gap-3 rounded-md border border-line bg-surface p-5 md:grid-cols-4">
-              <input
-                className="rounded-md border border-line bg-canvas px-3 py-2"
-                placeholder="Asset name"
-                value={name}
-                onChange={(event) => setName(event.target.value)}
-              />
-              <select
-                className="rounded-md border border-line bg-canvas px-3 py-2"
+            <SectionHeader title="Add asset" />
+            <form onSubmit={onCreate} className="grid gap-3 border border-line bg-surface p-5 md:grid-cols-4">
+              <Input placeholder="Asset name" value={name} onChange={(event) => setName(event.target.value)} />
+              <Select
+                className="text-sm"
                 value={type}
                 onChange={(event) => setType(event.target.value)}
               >
@@ -133,24 +132,20 @@ export default function WealthPage() {
                 <option value="property">Property</option>
                 <option value="vehicle">Vehicle</option>
                 <option value="other">Other</option>
-              </select>
-              <input
-                className="rounded-md border border-line bg-canvas px-3 py-2"
+              </Select>
+              <Input
+                className="tabular"
                 placeholder="Current value"
                 value={value}
                 onChange={(event) => setValue(event.target.value)}
               />
-              <button
-                type="submit"
-                disabled={pending}
-                className="rounded-md bg-ink px-4 py-2 text-canvas disabled:opacity-50"
-              >
+              <Button type="submit" disabled={pending}>
                 Add asset
-              </button>
+              </Button>
             </form>
           </>
         ) : null}
-      </div>
+      </ContentContainer>
     </AppShell>
   );
 }

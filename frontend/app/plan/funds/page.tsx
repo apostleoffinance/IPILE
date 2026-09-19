@@ -2,10 +2,16 @@
 
 import { FormEvent, useEffect, useState } from "react";
 import { FundProgress } from "@/components/plan/FundProgress";
+import { ContentContainer } from "@/components/layouts/ContentContainer";
+import { PageHeader } from "@/components/layouts/PageHeader";
+import { SectionHeader } from "@/components/layouts/SectionHeader";
 import { AppShell } from "@/components/shared/AppShell";
 import { EmptyState } from "@/components/shared/EmptyState";
 import { ErrorState } from "@/components/shared/ErrorState";
 import { LoadingState } from "@/components/shared/LoadingState";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Select } from "@/components/ui/select";
 import { api, type Account, type Fund, type Obligation } from "@/lib/api";
 
 export default function FundsPage() {
@@ -64,18 +70,16 @@ export default function FundsPage() {
 
   return (
     <AppShell>
-      <div className="space-y-8 pb-16">
-        <div>
-          <p className="text-sm text-muted">Are reserves building on time?</p>
-          <h1 className="mt-1 text-3xl font-medium">Funds</h1>
-        </div>
+      <ContentContainer>
+        <PageHeader eyebrow="Plan" title="Funds" description="Are reserves building on time?" />
         {error ? <ErrorState message={error} /> : null}
         {!loaded && !error ? <LoadingState /> : null}
 
-        <form onSubmit={onCreate} className="grid gap-4 rounded-md border border-line bg-surface p-5 md:grid-cols-2">
+        <SectionHeader title="Create fund" />
+        <form onSubmit={onCreate} className="grid gap-4 border border-line bg-surface p-5 md:grid-cols-2">
           <label className="block text-sm">
             Name
-            <input
+            <Input
               required
               className="mt-1 w-full rounded-md border border-line bg-canvas px-3 py-2"
               value={name}
@@ -84,7 +88,7 @@ export default function FundsPage() {
           </label>
           <label className="block text-sm">
             Target
-            <input
+            <Input
               required
               className="mt-1 w-full rounded-md border border-line bg-canvas px-3 py-2 tabular"
               value={target}
@@ -93,7 +97,7 @@ export default function FundsPage() {
           </label>
           <label className="block text-sm">
             Monthly contribution
-            <input
+            <Input
               className="mt-1 w-full rounded-md border border-line bg-canvas px-3 py-2 tabular"
               value={monthly}
               onChange={(event) => setMonthly(event.target.value)}
@@ -102,7 +106,7 @@ export default function FundsPage() {
           </label>
           <label className="block text-sm">
             Target date
-            <input
+            <Input
               type="date"
               className="mt-1 w-full rounded-md border border-line bg-canvas px-3 py-2"
               value={targetDate}
@@ -111,8 +115,8 @@ export default function FundsPage() {
           </label>
           <label className="block text-sm md:col-span-2">
             Linked obligation
-            <select
-              className="mt-1 w-full rounded-md border border-line bg-canvas px-3 py-2"
+            <Select
+              className="mt-1"
               value={obligationId}
               onChange={(event) => setObligationId(event.target.value)}
             >
@@ -122,12 +126,12 @@ export default function FundsPage() {
                   {item.name}
                 </option>
               ))}
-            </select>
+            </Select>
           </label>
           <div>
-            <button type="submit" disabled={pending} className="rounded-md bg-accent px-4 py-2 text-sm text-white">
+            <Button type="submit" disabled={pending}>
               Add fund
-            </button>
+            </Button>
           </div>
         </form>
 
@@ -161,8 +165,8 @@ export default function FundsPage() {
               >
                 <label className="block text-sm">
                   From account
-                  <select
-                    className="mt-1 block rounded-md border border-line bg-canvas px-3 py-2"
+                  <Select
+                    className="mt-1 block"
                     value={accountId}
                     onChange={(event) => setAccountId(event.target.value)}
                   >
@@ -171,25 +175,25 @@ export default function FundsPage() {
                         {account.name}
                       </option>
                     ))}
-                  </select>
+                  </Select>
                 </label>
                 <label className="block text-sm">
                   Amount
-                  <input
+                  <Input
                     required
                     className="mt-1 block rounded-md border border-line bg-canvas px-3 py-2 tabular"
                     value={amount}
                     onChange={(event) => setAmount(event.target.value)}
                   />
                 </label>
-                <button type="submit" className="rounded-md bg-accent px-4 py-2 text-sm text-white">
+                <Button type="submit">
                   Contribute
-                </button>
+                </Button>
               </form>
             </div>
           ))
         )}
-      </div>
+      </ContentContainer>
     </AppShell>
   );
 }

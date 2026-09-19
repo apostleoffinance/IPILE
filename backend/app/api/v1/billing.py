@@ -1,8 +1,12 @@
-from fastapi import APIRouter, Depends, HTTPException
+from typing import Any
+
+from fastapi import APIRouter, Depends, Header, HTTPException, Request, status
 from sqlalchemy.orm import Session
 
 from app.api.deps import HouseholdContext, get_db, require_roles
+from app.core.config import get_settings
 from app.schemas.public import BillingChange, BillingOut
+from app.services.audit import write_audit
 from app.services.billing import billing_snapshot, change_plan
 
 router = APIRouter(prefix="/billing", tags=["billing"])
@@ -29,3 +33,50 @@ def post_billing_plan(
     db.commit()
     db.refresh(ctx.household)
     return billing_snapshot(ctx.household)
+
+
+@router.post("/webhook", status_code=status.HTTP_202_ACCEPTED)
+async def billing_webhook(
+    request: Request,
+    db: Session = Depends(get_db),
+    x_billing_secret: str | None = Header(default=None, alias="X-Billing-Secret"),
+) -> dict[str, Any]:
+    """PSP-ready stub. Verify shared secret; audit the event; return 202.
+
+    Wire Paystack/Stripe signature verification here later — see docs/BILLING.md.
+    """
+    secret = (get_settings().billing_webhook_secret or "").strip()
+    if not secret:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Billing webhook is not configured.",
+        )
+    if not x_billing_secret or x_billing_secret != secret:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid billing secret.",
+        )
+
+    try:
+        payload = await request.json()
+    except Exception:
+        payload = {}
+    if not isinstance(payload, dict):
+        payload = {"raw": str(payload)}
+
+    event_type = str(payload.get("event") or payload.get("type") or "billing.webhook")
+    write_audit(
+        db,
+        household_id=None,
+        user_id=None,
+        action="webhook",
+        entity_type="billing",
+        entity_id=str(payload.get("id") or payload.get("reference") or ""),
+        detail={
+            "event": event_type,
+            "provider": payload.get("provider"),
+            "keys": list(payload.keys()),
+        },
+    )
+    db.commit()
+    return {"status": "accepted", "event": event_type}

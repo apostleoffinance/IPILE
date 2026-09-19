@@ -42,7 +42,7 @@ def _get_account(db: Session, household_id: UUID, account_id: UUID) -> Account:
 
 
 def _authorize_write(ctx: HouseholdContext, member_id: UUID | None) -> UUID | None:
-    if ctx.role == "viewer":
+    if ctx.role in {"viewer", "advisor"}:
         raise HTTPException(status_code=403, detail="Insufficient permissions.")
     if ctx.role == "member":
         if member_id and member_id != ctx.member.id:

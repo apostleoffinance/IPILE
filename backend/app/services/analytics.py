@@ -9,7 +9,7 @@ from app.models.analytics import FinancialScore, FinancialSnapshot, Report
 from app.models.household import Household
 from app.models.obligation import Obligation, ObligationOccurrence
 from app.money import format_money, quantize_money
-from app.services.allocations import period_bounds
+from app.services.allocations import latest_run, period_bounds, serialize_run
 from app.services.health import (
     _spend_by_category,
     _top_overspend,
@@ -20,6 +20,7 @@ from app.services.health import (
 )
 from app.services.health_engine import HealthResult
 from app.services.obligation_engine import coverage, coverage_label
+from app.services.safe_to_spend import compute_safe_to_spend
 from app.services.wealth import household_net_worth
 
 
@@ -369,12 +370,169 @@ def giving_report(db: Session, household: Household, year: int) -> Report:
     return upsert_report(db, household, kind="giving", start=start, end=end, payload=payload)
 
 
+def _pattern(
+    code: str,
+    severity: str,
+    title: str,
+    detail: str,
+    evidence: dict | None = None,
+) -> dict:
+    return {
+        "code": code,
+        "severity": severity,
+        "title": title,
+        "detail": detail,
+        "evidence": evidence or {},
+    }
+
+
+def detect_insight_patterns(
+    db: Session,
+    household: Household,
+    *,
+    overspend: list[dict],
+    giving: dict,
+    snapshots: list,
+    today: date,
+) -> list[dict]:
+    patterns: list[dict] = []
+
+    if overspend:
+        top = overspend[0]
+        patterns.append(
+            _pattern(
+                "budget_overspend_streak",
+                "warning",
+                "Budget overspend",
+                f"{top.get('category', 'A category')} is over plan this period.",
+                {"overspend": overspend},
+            )
+        )
+
+    breached_policies: list[str] = []
+    try:
+        from app.models.giving import GivingPolicy
+        from app.services.giving_engine import serialize_policy
+
+        policies = (
+            db.query(GivingPolicy)
+            .filter(
+                GivingPolicy.household_id == household.id,
+                GivingPolicy.deleted_at.is_(None),
+                GivingPolicy.status == "active",
+            )
+            .all()
+        )
+        for policy in policies:
+            snap = serialize_policy(db, policy, today)
+            if snap.limit_breached:
+                breached_policies.append(policy.name)
+    except Exception:
+        breached_policies = []
+
+    vs_limit = Decimal(str(giving.get("vs_limit") or "0"))
+    if breached_policies or vs_limit > 0:
+        names = ", ".join(breached_policies) if breached_policies else "Giving"
+        patterns.append(
+            _pattern(
+                "giving_limit_breach",
+                "warning",
+                "Giving over limit",
+                f"{names} exceeded the configured giving limit.",
+                {
+                    "policies": breached_policies,
+                    "vs_limit": giving.get("vs_limit"),
+                    "actual": giving.get("actual"),
+                    "limit": giving.get("limit"),
+                },
+            )
+        )
+
+    run = latest_run(db, household.id)
+    if run is not None:
+        serialized = serialize_run(db, run)
+        if serialized.unfunded_mandatory:
+            patterns.append(
+                _pattern(
+                    "constitution_variance",
+                    "critical",
+                    "Constitution underfunded",
+                    "Latest allocation left mandatory lines underfunded.",
+                    {
+                        "unfunded": [
+                            {
+                                "name": row.name,
+                                "requested": row.requested_amount,
+                                "amount": row.amount,
+                            }
+                            for row in serialized.unfunded_mandatory
+                        ]
+                    },
+                )
+            )
+
+    sts = compute_safe_to_spend(db, household, today=today)
+    buffer = quantize_money(Decimal(str(household.minimum_buffer_amount or 0)))
+    current_sts = quantize_money(Decimal(str(sts.current)))
+    if buffer > 0 and current_sts < buffer:
+        patterns.append(
+            _pattern(
+                "sts_buffer_pressure",
+                "warning",
+                "Safe to Spend below buffer",
+                "Current Safe to Spend is under the household minimum buffer.",
+                {
+                    "current": format_money(current_sts),
+                    "minimum_buffer": format_money(buffer),
+                },
+            )
+        )
+
+    if len(snapshots) >= 3:
+        values = [quantize_money(Decimal(str(row.net_worth))) for row in snapshots]
+        end_up = 0
+        end_down = 0
+        for prev, curr in zip(values[:-1], values[1:]):
+            if curr > prev:
+                end_up += 1
+                end_down = 0
+            elif curr < prev:
+                end_down += 1
+                end_up = 0
+            else:
+                end_up = 0
+                end_down = 0
+        if end_up >= 2:
+            patterns.append(
+                _pattern(
+                    "net_worth_up_streak",
+                    "healthy",
+                    "Net worth rising",
+                    f"Net worth increased for {end_up} consecutive snapshot periods.",
+                    {"streak": end_up, "latest": format_money(values[-1])},
+                )
+            )
+        elif end_down >= 2:
+            patterns.append(
+                _pattern(
+                    "net_worth_down_streak",
+                    "warning",
+                    "Net worth declining",
+                    f"Net worth declined for {end_down} consecutive snapshot periods.",
+                    {"streak": end_down, "latest": format_money(values[-1])},
+                )
+            )
+
+    return patterns
+
+
 def insights_payload(db: Session, household: Household, today: date | None = None) -> dict:
     today = today or date.today()
     result, start, end = compute_household_health(db, household, today)
     upsert_score(db, household, result, start, end)
     spend = _spend_by_category(db, household.id, start, end)
-    overspend = _top_overspend(db, household, start, end)
+    overspend_row = _top_overspend(db, household, start, end)
+    overspend = [overspend_row] if overspend_row else []
     snapshots = list_snapshots(db, household.id)
     scores = (
         db.query(FinancialScore)
@@ -383,12 +541,20 @@ def insights_payload(db: Session, household: Household, today: date | None = Non
         .all()
     )
     giving = giving_report(db, household, start.year).payload
+    patterns = detect_insight_patterns(
+        db,
+        household,
+        overspend=overspend,
+        giving=giving,
+        snapshots=snapshots,
+        today=today,
+    )
     return {
         "period_start": start.isoformat(),
         "period_end": end.isoformat(),
         "spend": spend,
         "top_categories": spend[:5],
-        "overspend": [overspend] if overspend else [],
+        "overspend": overspend,
         "cash_flow": [
             {
                 "period_start": row.period_start.isoformat(),
@@ -422,5 +588,6 @@ def insights_payload(db: Session, household: Household, today: date | None = Non
             "limit": giving.get("limit"),
             "vs_limit": giving.get("vs_limit"),
         },
+        "patterns": patterns,
         "health": serialize_health(result, start, end),
     }

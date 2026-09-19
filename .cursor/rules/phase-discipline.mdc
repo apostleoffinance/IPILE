@@ -1,0 +1,14 @@
+---
+description: Complete one implementation phase before starting the next
+alwaysApply: true
+---
+
+# Phase discipline
+
+- Read `PHASE_STATUS.md` first. Implement only `current_phase`.
+- Do not start phase N+1 until phase N is `complete` with evidence in `PHASE_STATUS.md`.
+- Do not "get ahead" by building later modules, screens, or engines. Minimal FK stub tables are allowed; UX and engines for later phases are not.
+- A phase is done only when `IMPLEMENTATION_ROADMAP.md` definition of done is met and tests pass.
+- After completing a phase, update `PHASE_STATUS.md` and stop unless the user asks to continue.
+- Phase 4 requires Phase 2 and Phase 3. Phase 11 AI is forbidden until engines exist.
+- Do not mark a phase complete to keep moving.

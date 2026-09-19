@@ -5,6 +5,9 @@ import { FormEvent, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Wordmark } from "@/components/brand/Wordmark";
 import { ErrorState } from "@/components/shared/ErrorState";
+import { ThemeToggle } from "@/components/theme/ThemeToggle";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { api, setHouseholdId } from "@/lib/api";
 
 export default function GetStartedPage() {
@@ -44,69 +47,68 @@ export default function GetStartedPage() {
   }
 
   return (
-    <main className="flex min-h-screen flex-col items-center justify-center bg-brand px-6 py-12 text-[#e8efe9]">
-      <Wordmark tone="dark" />
+    <main className="relative flex min-h-screen flex-col items-center justify-center bg-canvas px-6 py-12 text-ink">
+      <div className="absolute right-6 top-6">
+        <ThemeToggle />
+      </div>
+      <Wordmark size="lg" priority />
       <form onSubmit={onSubmit} className="mt-10 w-full max-w-sm space-y-4">
         <div className="text-center">
-          <h1 className="font-display text-3xl text-[#f4f7f5]">Build your foundation</h1>
-          <p className="mt-2 text-sm text-[#9fb8ad]">About five minutes to get started.</p>
+          <h1 className="font-display text-3xl text-ink">Build your foundation</h1>
+          <p className="mt-2 text-sm text-muted">About five minutes to get started.</p>
         </div>
-        <label className="block text-sm text-[#9fb8ad]">
+        <label className="block text-sm text-muted">
           Your name
-          <input
-            className="mt-1 w-full border border-[#1c332a] bg-[#080f0c] px-3 py-2.5 text-[#f4f7f5] outline-none focus:border-gold/50"
+          <Input
+            className="mt-1 w-full border border-line bg-input px-3 py-2.5 text-ink outline-none focus:border-gold/50"
             value={displayName}
             onChange={(event) => setDisplayName(event.target.value)}
             required
           />
         </label>
-        <label className="block text-sm text-[#9fb8ad]">
+        <label className="block text-sm text-muted">
           Email
-          <input
+          <Input
             type="email"
-            className="mt-1 w-full border border-[#1c332a] bg-[#080f0c] px-3 py-2.5 text-[#f4f7f5] outline-none focus:border-gold/50"
+            className="mt-1 w-full border border-line bg-input px-3 py-2.5 text-ink outline-none focus:border-gold/50"
             value={email}
             onChange={(event) => setEmail(event.target.value)}
             required
             autoComplete="email"
           />
         </label>
-        <label className="block text-sm text-[#9fb8ad]">
+        <label className="block text-sm text-muted">
           Password
-          <input
+          <Input
             type="password"
             minLength={12}
-            className="mt-1 w-full border border-[#1c332a] bg-[#080f0c] px-3 py-2.5 text-[#f4f7f5] outline-none focus:border-gold/50"
+            className="mt-1 w-full border border-line bg-input px-3 py-2.5 text-ink outline-none focus:border-gold/50"
             value={password}
             onChange={(event) => setPassword(event.target.value)}
             required
             autoComplete="new-password"
           />
         </label>
-        <label className="block text-sm text-[#9fb8ad]">
-          Invite token <span className="text-[#7f9a8e]">(optional)</span>
-          <input
-            className="mt-1 w-full border border-[#1c332a] bg-[#080f0c] px-3 py-2.5 font-mono text-xs text-[#f4f7f5] outline-none focus:border-gold/50"
+        <label className="block text-sm text-muted">
+          Invite token <span className="opacity-70">(optional)</span>
+          <Input
+            className="mt-1 w-full border border-line bg-input px-3 py-2.5 font-mono text-xs text-ink outline-none focus:border-gold/50"
             value={inviteToken}
             onChange={(event) => setInviteToken(event.target.value)}
           />
         </label>
         {error ? <ErrorState message={error} /> : null}
-        <button
-          type="submit"
-          disabled={pending}
-          className="w-full bg-gold px-4 py-2.5 text-sm font-medium text-brand hover:bg-gold-bright disabled:opacity-60"
-        >
-          {pending ? "Creating…" : "Continue →"}
-        </button>
-        <p className="text-center text-sm text-[#7f9a8e]">
+        <Button type="submit" disabled={pending} variant="gold" className="w-full">
+          {pending ? "Creating..." : "Continue →"}
+        </Button>
+        <p className="text-center text-sm text-muted">
           Already have an account?{" "}
           <Link href="/login" className="text-gold hover:text-gold-bright">
             Sign in
           </Link>
         </p>
         <p className="text-center">
-          <Link href="/" className="text-xs text-[#7f9a8e] hover:text-[#9fb8ad]">
+          <Link href="/" className="text-xs text-muted hover:text-ink">
             ← Back to IPÌLẸ̀
           </Link>
         </p>

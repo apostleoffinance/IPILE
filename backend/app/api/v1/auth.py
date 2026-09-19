@@ -6,6 +6,7 @@ from sqlalchemy.orm import Session
 
 from app.api.deps import get_current_user
 from app.core.config import get_settings
+from app.core.csrf import set_csrf_cookie
 from app.core.db import get_db
 from app.core.rate_limit import enforce_rate_limit
 from app.core.security import (
@@ -19,8 +20,15 @@ from app.models.household import Household
 from app.models.member import HouseholdMember
 from app.models.session import SessionToken
 from app.models.user import User
-from app.schemas.auth import HouseholdSummary, LoginRequest, MeOut, RegisterRequest, UserOut
-from app.services.households import create_household_for_owner
+from app.schemas.auth import (
+    CsrfOut,
+    HouseholdSummary,
+    LoginRequest,
+    MeOut,
+    PasswordChangeRequest,
+    RegisterRequest,
+    UserOut,
+)
 
 router = APIRouter(prefix="/auth", tags=["auth"])
 COOKIE = get_settings().session_cookie_name
@@ -33,14 +41,16 @@ def _set_session_cookie(response: Response, token: str) -> None:
         value=token,
         httponly=True,
         secure=settings.cookie_secure,
-        samesite="lax",
+        samesite=settings.resolved_cookie_samesite,
         max_age=settings.session_absolute_days * 24 * 60 * 60,
         path="/",
     )
 
 
 def _clear_session_cookie(response: Response) -> None:
-    response.delete_cookie(key=get_settings().session_cookie_name, path="/")
+    settings = get_settings()
+    response.delete_cookie(key=settings.session_cookie_name, path="/")
+    response.delete_cookie(key=settings.csrf_cookie_name, path="/")
 
 
 def _create_session(db: Session, user: User) -> str:
@@ -56,6 +66,17 @@ def _create_session(db: Session, user: User) -> str:
     )
     user.last_login_at = datetime.now(UTC)
     return token
+
+
+def _issue_auth_cookies(response: Response, session_token: str) -> None:
+    _set_session_cookie(response, session_token)
+    set_csrf_cookie(response)
+
+
+@router.get("/csrf", response_model=CsrfOut)
+def csrf(response: Response) -> CsrfOut:
+    token = set_csrf_cookie(response)
+    return CsrfOut(csrf_token=token)
 
 
 @router.post("/register", response_model=UserOut, status_code=status.HTTP_201_CREATED)
@@ -90,11 +111,13 @@ def register(
         except InviteError as exc:
             raise HTTPException(status_code=400, detail=str(exc)) from exc
     elif payload.create_household:
+        from app.services.households import create_household_for_owner
+
         create_household_for_owner(db, user, f"{payload.display_name}'s household")
     token = _create_session(db, user)
     db.commit()
     db.refresh(user)
-    _set_session_cookie(response, token)
+    _issue_auth_cookies(response, token)
     return user
 
 
@@ -116,7 +139,7 @@ def login(
     token = _create_session(db, user)
     db.commit()
     db.refresh(user)
-    _set_session_cookie(response, token)
+    _issue_auth_cookies(response, token)
     return user
 
 
@@ -139,6 +162,35 @@ def logout(
             db.add(record)
             db.commit()
     _clear_session_cookie(response)
+
+
+@router.post("/password/change", status_code=status.HTTP_204_NO_CONTENT)
+def change_password(
+    payload: PasswordChangeRequest,
+    db: Session = Depends(get_db),
+    user: User = Depends(get_current_user),
+    session_token: str | None = Cookie(default=None, alias=COOKIE),
+) -> None:
+    if not verify_password(payload.current_password, user.password_hash):
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Current password is incorrect.")
+    if payload.current_password == payload.new_password:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="New password must differ.")
+    user.password_hash = hash_password(payload.new_password)
+    db.add(user)
+    # Revoke other sessions; keep current
+    current_hash = hash_session_token(session_token) if session_token else None
+    sessions = (
+        db.query(SessionToken)
+        .filter(SessionToken.user_id == user.id, SessionToken.revoked_at.is_(None))
+        .all()
+    )
+    now = datetime.now(UTC)
+    for row in sessions:
+        if current_hash and row.token_hash == current_hash:
+            continue
+        row.revoked_at = now
+        db.add(row)
+    db.commit()
 
 
 @router.get("/me", response_model=MeOut)

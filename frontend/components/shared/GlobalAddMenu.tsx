@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useEffect } from "react";
 
 const ACTIONS = [
+  { href: "/forecast?check=1", label: "Check a purchase", hint: "Can we afford this?" },
   { href: "/money/income", label: "Income", hint: "Record money coming in" },
   { href: "/money/transactions", label: "Expense", hint: "Capture spending" },
   { href: "/money/transactions", label: "Transfer", hint: "Move between accounts" },

@@ -1,3 +1,4 @@
+import * as React from "react";
 import type { HealthScore as HealthScoreType } from "@/lib/api";
 
 const labelClass: Record<string, string> = {
@@ -25,7 +26,7 @@ export function HealthScore({
         {health.score} <span className="text-lg text-muted">/ 100</span>
       </p>
       <p className={`mt-2 text-sm ${labelClass[health.label] ?? "text-muted"}`}>{health.label}</p>
-      <p className="mt-1 text-sm text-muted">Why {health.score}? — every weighted component.</p>
+      <p className="mt-1 text-sm text-muted">Why {health.score}? Every weighted component.</p>
     </button>
   );
 }

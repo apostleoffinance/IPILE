@@ -12,14 +12,27 @@ class Settings(BaseSettings):
     database_url: str = "postgresql+psycopg://familyos:familyos_dev_only@localhost:5432/familyos"
     cors_origins: str = "http://localhost:3000"
     session_cookie_name: str = "ffos_session"
+    csrf_cookie_name: str = "ffos_csrf"
     session_idle_hours: int = 12
     session_absolute_days: int = 7
     cookie_secure: bool = False
+    # lax for same-site; none requires HTTPS (cookie_secure=true) for cross-origin (e.g. Vercel + API)
+    cookie_samesite: str = "lax"
     seed_on_start: bool = True
+    billing_webhook_secret: str = ""
 
     @property
     def cors_origin_list(self) -> list[str]:
         return [part.strip() for part in self.cors_origins.split(",") if part.strip()]
+
+    @property
+    def resolved_cookie_samesite(self) -> str:
+        value = self.cookie_samesite.lower().strip()
+        if value not in {"lax", "strict", "none"}:
+            return "lax"
+        if value == "none" and not self.cookie_secure:
+            return "lax"
+        return value
 
 
 @lru_cache

@@ -1,37 +1,55 @@
 "use client";
 
-import { FormEvent, useEffect, useState } from "react";
+import { FormEvent, useEffect, useMemo, useState } from "react";
+import { DebtSummaryCard } from "@/components/financial/Summaries";
 import { MoneyAmount } from "@/components/financial/MoneyAmount";
+import { ContentContainer } from "@/components/layouts/ContentContainer";
+import { PageHeader } from "@/components/layouts/PageHeader";
+import { SectionHeader } from "@/components/layouts/SectionHeader";
 import { AppShell } from "@/components/shared/AppShell";
 import { EmptyState } from "@/components/shared/EmptyState";
 import { ErrorState } from "@/components/shared/ErrorState";
 import { LoadingState } from "@/components/shared/LoadingState";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Select } from "@/components/ui/select";
 import {
   createLiability,
   getAccounts,
+  getDebtStrategies,
   getLiabilities,
   payLiability,
   type Account,
+  type DebtStrategies,
   type HouseholdLiability,
 } from "@/lib/api";
 
 export default function DebtsPage() {
   const [rows, setRows] = useState<HouseholdLiability[]>([]);
   const [accounts, setAccounts] = useState<Account[]>([]);
+  const [strategies, setStrategies] = useState<DebtStrategies | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [loaded, setLoaded] = useState(false);
   const [name, setName] = useState("");
   const [type, setType] = useState("loan");
   const [balance, setBalance] = useState("");
+  const [rate, setRate] = useState("0.12");
+  const [minPayment, setMinPayment] = useState("");
+  const [extraPayment, setExtraPayment] = useState("0");
   const [payId, setPayId] = useState("");
   const [accountId, setAccountId] = useState("");
   const [amount, setAmount] = useState("");
   const [pending, setPending] = useState(false);
 
-  async function refresh() {
-    const [nextRows, nextAccounts] = await Promise.all([getLiabilities(), getAccounts()]);
+  async function refresh(extra = extraPayment) {
+    const [nextRows, nextAccounts, nextStrategies] = await Promise.all([
+      getLiabilities(),
+      getAccounts(),
+      getDebtStrategies(extra || "0"),
+    ]);
     setRows(nextRows);
     setAccounts(nextAccounts);
+    setStrategies(nextStrategies);
     if (!accountId && nextAccounts[0]) setAccountId(nextAccounts[0].id);
     const open = nextRows.find((row) => row.status !== "paid_off");
     if (!payId && open) setPayId(open.id);
@@ -47,9 +65,16 @@ export default function DebtsPage() {
     setPending(true);
     setError(null);
     try {
-      await createLiability({ name, type, current_balance: balance });
+      await createLiability({
+        name,
+        type,
+        current_balance: balance,
+        interest_rate: rate || undefined,
+        minimum_payment: minPayment || undefined,
+      });
       setName("");
       setBalance("");
+      setMinPayment("");
       await refresh();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Could not add liability.");
@@ -73,15 +98,24 @@ export default function DebtsPage() {
     }
   }
 
+  const totalDebt = useMemo(
+    () =>
+      rows
+        .filter((row) => row.status !== "paid_off")
+        .reduce((sum, row) => sum + Number(row.current_balance), 0)
+        .toFixed(2),
+    [rows],
+  );
+  const openCount = useMemo(() => rows.filter((row) => row.status !== "paid_off").length, [rows]);
+
   return (
     <AppShell>
-      <div className="space-y-8 pb-16">
-        <div>
-          <p className="text-sm text-muted">Are we getting richer?</p>
-          <h1 className="mt-1 text-3xl font-medium">Debts</h1>
-        </div>
+      <ContentContainer>
+        <PageHeader eyebrow="Wealth" title="Debts" description="Are we getting richer by paying down liabilities?" />
         {error ? <ErrorState message={error} /> : null}
         {!loaded && !error ? <LoadingState /> : null}
+        {loaded ? <DebtSummaryCard totalDebt={totalDebt} openCount={openCount} /> : null}
+        <SectionHeader title="Liabilities" />
         {!rows.length && loaded ? (
           <EmptyState title="No liabilities" body="Loans and credit appear here. Paid-off debts stay for history." />
         ) : (
@@ -89,12 +123,19 @@ export default function DebtsPage() {
             {rows.map((row) => (
               <div
                 key={row.id}
-                className="flex items-baseline justify-between rounded-md border border-line bg-surface px-4 py-3"
+                className="flex items-baseline justify-between border border-line bg-surface px-4 py-3"
               >
                 <div>
                   <p className="text-sm">{row.name}</p>
                   <p className="mt-1 text-xs capitalize text-muted">
                     {row.type} · {row.status}
+                    {row.interest_rate ? ` · ${(Number(row.interest_rate) * 100).toFixed(1)}% APR` : ""}
+                    {row.minimum_payment ? (
+                      <>
+                        {" · min "}
+                        <MoneyAmount amount={row.minimum_payment} />
+                      </>
+                    ) : null}
                   </p>
                 </div>
                 <MoneyAmount amount={row.current_balance} />
@@ -102,15 +143,40 @@ export default function DebtsPage() {
             ))}
           </div>
         )}
-        <form onSubmit={onCreate} className="grid gap-3 rounded-md border border-line bg-surface p-5 md:grid-cols-4">
-          <input
-            className="rounded-md border border-line bg-canvas px-3 py-2"
+
+        {strategies && strategies.liabilities_considered > 0 ? (
+          <section className="space-y-4">
+            <div className="flex flex-wrap items-end justify-between gap-3">
+              <div>
+                <h2 className="font-display text-2xl">Payoff strategies</h2>
+                <p className="mt-1 text-sm text-muted">
+                  Snowball clears smallest balances first. Avalanche attacks the highest rates first.
+                </p>
+              </div>
+              <label className="text-sm">
+                Extra monthly payment
+                <Input
+                  className="ml-2 w-40"
+                  value={extraPayment}
+                  onChange={(event) => setExtraPayment(event.target.value)}
+                  onBlur={() => refresh(extraPayment).catch((err: Error) => setError(err.message))}
+                />
+              </label>
+            </div>
+            <div className="grid gap-4 md:grid-cols-2">
+              <StrategyCard title="Snowball" strategy={strategies.snowball} currency={strategies.currency} />
+              <StrategyCard title="Avalanche" strategy={strategies.avalanche} currency={strategies.currency} />
+            </div>
+          </section>
+        ) : null}
+
+        <form onSubmit={onCreate} className="grid gap-3 rounded-md border border-line bg-surface p-5 md:grid-cols-3">
+          <Input
             placeholder="Liability name"
             value={name}
             onChange={(event) => setName(event.target.value)}
           />
-          <select
-            className="rounded-md border border-line bg-canvas px-3 py-2"
+          <Select
             value={type}
             onChange={(event) => setType(event.target.value)}
           >
@@ -118,21 +184,29 @@ export default function DebtsPage() {
             <option value="credit">Credit</option>
             <option value="mortgage">Mortgage</option>
             <option value="other">Other</option>
-          </select>
-          <input
-            className="rounded-md border border-line bg-canvas px-3 py-2"
+          </Select>
+          <Input
             placeholder="Current balance"
             value={balance}
             onChange={(event) => setBalance(event.target.value)}
           />
-          <button type="submit" disabled={pending} className="rounded-md bg-ink px-4 py-2 text-canvas">
+          <Input
+            placeholder="APR (e.g. 0.18)"
+            value={rate}
+            onChange={(event) => setRate(event.target.value)}
+          />
+          <Input
+            placeholder="Minimum payment"
+            value={minPayment}
+            onChange={(event) => setMinPayment(event.target.value)}
+          />
+          <Button type="submit" disabled={pending}>
             Add debt
-          </button>
+          </Button>
         </form>
         {rows.some((row) => row.status !== "paid_off") ? (
           <form onSubmit={onPay} className="grid gap-3 rounded-md border border-line bg-surface p-5 md:grid-cols-4">
-            <select
-              className="rounded-md border border-line bg-canvas px-3 py-2"
+            <Select
               value={payId}
               onChange={(event) => setPayId(event.target.value)}
             >
@@ -143,9 +217,8 @@ export default function DebtsPage() {
                     {row.name}
                   </option>
                 ))}
-            </select>
-            <select
-              className="rounded-md border border-line bg-canvas px-3 py-2"
+            </Select>
+            <Select
               value={accountId}
               onChange={(event) => setAccountId(event.target.value)}
             >
@@ -154,19 +227,56 @@ export default function DebtsPage() {
                   {account.name}
                 </option>
               ))}
-            </select>
-            <input
-              className="rounded-md border border-line bg-canvas px-3 py-2"
+            </Select>
+            <Input
               placeholder="Payment amount"
               value={amount}
               onChange={(event) => setAmount(event.target.value)}
             />
-            <button type="submit" disabled={pending} className="rounded-md bg-ink px-4 py-2 text-canvas">
+            <Button type="submit" disabled={pending}>
               Record payment
-            </button>
+            </Button>
           </form>
         ) : null}
-      </div>
+      </ContentContainer>
     </AppShell>
+  );
+}
+
+function StrategyCard({
+  title,
+  strategy,
+  currency,
+}: {
+  title: string;
+  strategy: DebtStrategies["snowball"];
+  currency: string;
+}) {
+  return (
+    <div className="border border-line bg-surface p-5">
+      <h3 className="font-display text-xl">{title}</h3>
+      <p className="mt-2 text-sm text-muted">
+        {strategy.months} months · interest{" "}
+        <MoneyAmount amount={strategy.total_interest} currency={currency} />
+      </p>
+      <ol className="mt-4 list-decimal space-y-1 pl-5 text-sm">
+        {strategy.order.map((row) => (
+          <li key={row.id}>
+            {row.name} · <MoneyAmount amount={row.balance} currency={currency} />
+          </li>
+        ))}
+      </ol>
+      {strategy.schedule_summary.length ? (
+        <div className="mt-4 space-y-1 text-xs text-muted">
+          <p className="uppercase tracking-wide">Schedule summary</p>
+          {strategy.schedule_summary.map((row) => (
+            <p key={row.month}>
+              Month {row.month}: pay <MoneyAmount amount={row.total_payment} currency={currency} /> · remaining{" "}
+              <MoneyAmount amount={row.remaining_balance} currency={currency} />
+            </p>
+          ))}
+        </div>
+      ) : null}
+    </div>
   );
 }

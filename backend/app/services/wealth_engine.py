@@ -12,7 +12,7 @@ ASSET_TYPES = frozenset(
     {"cash", "savings", "investment", "business", "property", "vehicle", "other"}
 )
 LIABILITY_TYPES = frozenset({"loan", "credit", "mortgage", "other"})
-INVESTMENT_TYPES = frozenset({"equity", "fund", "bond", "treasury", "other"})
+INVESTMENT_TYPES = frozenset({"equity", "fund", "bond", "treasury", "crypto", "other"})
 INVESTMENT_TX_TYPES = frozenset({"buy", "sell", "dividend", "adjustment"})
 ACCOUNT_ASSET_BUCKET = {
     "bank": "cash",

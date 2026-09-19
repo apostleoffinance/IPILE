@@ -1,25 +1,29 @@
 "use client";
 
-import { FormEvent, useEffect, useState } from "react";
+import { useEffect, useState } from "react";
+import { DecisionCard } from "@/components/financial/DecisionCard";
 import { MoneyAmount } from "@/components/financial/MoneyAmount";
+import { ObligationCard } from "@/components/financial/ObligationCard";
+import { ContentContainer } from "@/components/layouts/ContentContainer";
+import { PageHeader } from "@/components/layouts/PageHeader";
+import { SectionHeader } from "@/components/layouts/SectionHeader";
+import { ObligationForm } from "@/components/plan/ObligationForm";
 import { AppShell } from "@/components/shared/AppShell";
 import { EmptyState } from "@/components/shared/EmptyState";
 import { ErrorState } from "@/components/shared/ErrorState";
 import { LoadingState } from "@/components/shared/LoadingState";
+import { Button } from "@/components/ui/button";
+import { useHouseholdCurrency } from "@/hooks/useHouseholdCurrency";
 import { api, type Account, type CalendarEvent, type Obligation } from "@/lib/api";
 
 export default function ObligationsPage() {
+  const currency = useHouseholdCurrency();
   const [items, setItems] = useState<Obligation[]>([]);
   const [events, setEvents] = useState<CalendarEvent[]>([]);
   const [accounts, setAccounts] = useState<Account[]>([]);
   const [accountId, setAccountId] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [loaded, setLoaded] = useState(false);
-  const [name, setName] = useState("");
-  const [amount, setAmount] = useState("");
-  const [frequency, setFrequency] = useState("monthly");
-  const [nextDue, setNextDue] = useState(new Date().toISOString().slice(0, 10));
-  const [sinking, setSinking] = useState(false);
   const [pending, setPending] = useState(false);
 
   async function refresh() {
@@ -39,121 +43,74 @@ export default function ObligationsPage() {
     refresh().catch((err: Error) => setError(err.message));
   }, []);
 
-  async function onCreate(event: FormEvent) {
-    event.preventDefault();
-    setPending(true);
-    setError(null);
-    try {
-      await api.createObligation({
-        name,
-        amount,
-        frequency,
-        next_due_date: nextDue,
-        sinking_fund: sinking,
-      });
-      setName("");
-      setAmount("");
-      await refresh();
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Could not save.");
-    } finally {
-      setPending(false);
-    }
-  }
+  const unfunded = events.filter((event) => event.coverage_label && event.coverage_label !== "funded");
 
   return (
     <AppShell>
-      <div className="space-y-8 pb-16">
-        <div>
-          <p className="text-sm text-muted">Are we prepared for what is coming?</p>
-          <h1 className="mt-1 text-3xl font-medium">Obligations</h1>
-        </div>
+      <ContentContainer>
+        <PageHeader
+          eyebrow="Plan"
+          title="Obligations"
+          description="Are we prepared for what is coming?"
+        />
         {error ? <ErrorState message={error} /> : null}
         {!loaded && !error ? <LoadingState /> : null}
 
+        {unfunded.length > 0 ? (
+          <section className="space-y-3">
+            <SectionHeader title="Needs attention" />
+            {unfunded.slice(0, 3).map((event) => (
+              <DecisionCard
+                key={event.id}
+                title={`${event.title} needs funding`}
+                body={`Due ${event.date} · ${event.coverage_label}`}
+                href="/plan/obligations"
+                severity="warning"
+              />
+            ))}
+          </section>
+        ) : null}
+
         <section>
-          <h2 className="mb-3 text-sm uppercase tracking-wide text-muted">
-            Financial obligations due in next 30 days
-          </h2>
+          <SectionHeader title="Next 30 days" description="Financial obligations on the calendar." />
           {events.length === 0 ? (
-            <EmptyState title="Nothing due in 30 days" body="Generated occurrences will land on this calendar strip." />
+            <EmptyState title="Nothing due in 30 days" body="Generated occurrences will land on this strip." />
           ) : (
             <div className="space-y-2">
               {events.map((event) => (
-                <div key={event.id} className="flex justify-between rounded-md border border-line bg-surface px-4 py-3 text-sm">
-                  <span>
-                    {event.date} · {event.title}
-                  </span>
-                  <MoneyAmount amount={event.amount} />
-                </div>
+                <ObligationCard key={event.id} event={event} currency={currency ?? "NGN"} href="#list" />
               ))}
             </div>
           )}
         </section>
 
-        <form onSubmit={onCreate} className="grid gap-4 rounded-md border border-line bg-surface p-5 md:grid-cols-2">
-          <label className="block text-sm">
-            Name
-            <input
-              required
-              className="mt-1 w-full rounded-md border border-line bg-canvas px-3 py-2"
-              value={name}
-              onChange={(event) => setName(event.target.value)}
-            />
-          </label>
-          <label className="block text-sm">
-            Amount
-            <input
-              required
-              className="mt-1 w-full rounded-md border border-line bg-canvas px-3 py-2 tabular"
-              value={amount}
-              onChange={(event) => setAmount(event.target.value)}
-              placeholder="450000.00"
-            />
-          </label>
-          <label className="block text-sm">
-            Frequency
-            <select
-              className="mt-1 w-full rounded-md border border-line bg-canvas px-3 py-2"
-              value={frequency}
-              onChange={(event) => setFrequency(event.target.value)}
-            >
-              <option value="monthly">Monthly</option>
-              <option value="quarterly">Quarterly</option>
-              <option value="annual">Annual</option>
-              <option value="weekly">Weekly</option>
-              <option value="one_time">One time</option>
-            </select>
-          </label>
-          <label className="block text-sm">
-            Next due
-            <input
-              type="date"
-              required
-              className="mt-1 w-full rounded-md border border-line bg-canvas px-3 py-2"
-              value={nextDue}
-              onChange={(event) => setNextDue(event.target.value)}
-            />
-          </label>
-          <label className="flex items-center gap-2 text-sm md:col-span-2">
-            <input type="checkbox" checked={sinking} onChange={(event) => setSinking(event.target.checked)} />
-            Attach a sinking fund
-          </label>
-          <div>
-            <button type="submit" disabled={pending} className="rounded-md bg-accent px-4 py-2 text-sm text-white disabled:opacity-60">
-              {pending ? "Saving…" : "Add obligation"}
-            </button>
-          </div>
-        </form>
+        <section id="list">
+          <SectionHeader title="Add obligation" />
+          <ObligationForm
+            pending={pending}
+            onSubmit={async (draft) => {
+              setPending(true);
+              setError(null);
+              try {
+                await api.createObligation(draft);
+                await refresh();
+              } catch (err) {
+                setError(err instanceof Error ? err.message : "Could not save.");
+              } finally {
+                setPending(false);
+              }
+            }}
+          />
+        </section>
 
         {loaded && items.length === 0 ? (
           <EmptyState title="No obligations" body="Add rent, fees, or support the household must fund." />
         ) : (
           items.map((item) => (
-            <section key={item.id} className="rounded-md border border-line bg-surface p-5">
+            <section key={item.id} className="border border-line bg-surface p-5">
               <div className="flex flex-wrap items-baseline justify-between gap-3">
                 <div>
-                  <h2 className="text-lg font-medium">{item.name}</h2>
+                  <h2 className="font-display text-2xl text-ink">{item.name}</h2>
                   <p className="mt-1 text-sm capitalize text-muted">
                     {item.frequency} · {item.priority}
                     {item.fund_name ? ` · ${item.fund_name}` : ""}
@@ -176,9 +133,10 @@ export default function ObligationsPage() {
                       {occurrence.due_date} · {occurrence.status} · {occurrence.coverage_label}
                     </p>
                     {occurrence.status !== "paid" && occurrence.status !== "skipped" && accountId ? (
-                      <button
+                      <Button
                         type="button"
-                        className="text-xs text-accent underline"
+                        variant="link"
+                        className="h-auto p-0 text-xs"
                         onClick={async () => {
                           try {
                             await api.payOccurrence(item.id, occurrence.id, accountId);
@@ -189,7 +147,7 @@ export default function ObligationsPage() {
                         }}
                       >
                         Pay
-                      </button>
+                      </Button>
                     ) : null}
                   </div>
                 ))}
@@ -197,7 +155,7 @@ export default function ObligationsPage() {
             </section>
           ))
         )}
-      </div>
+      </ContentContainer>
     </AppShell>
   );
 }
