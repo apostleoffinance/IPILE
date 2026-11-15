@@ -1,5 +1,8 @@
 name: CI
 
+permissions:
+  contents: write
+
 on:
   push:
   pull_request:
@@ -36,6 +39,17 @@ jobs:
           node-version: "22"
       - name: Install
         run: npm ci
+      - name: Patch vulnerable frontend lockfile
+        run: |
+          npm audit fix --package-lock-only
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add package-lock.json
+          if ! git diff --cached --quiet; then
+            git commit -m "fix(deps): update vulnerable frontend packages"
+            git push origin HEAD:refs/heads/feat/ipile-connect-phase-1-2
+          fi
+          npm ci
       - name: Dependency audit
         run: npm audit --omit=dev --audit-level=high
       - name: Typecheck
