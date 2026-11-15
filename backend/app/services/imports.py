@@ -55,33 +55,37 @@ def apply_import_rows(
         if _existing(db, household.id, row.external_id):
             skipped += 1
             continue
+        if row.type == "transfer":
+            errors.append(f"{row.external_id}: transfers must be matched to a counterparty account before import.")
+            continue
         try:
-            tx = Transaction(
-                household_id=household.id,
-                account_id=account.id,
-                amount=row.amount,
-                currency=household.base_currency,
-                type=row.type,
-                category_id=_category_id(db, household.id, row.category_name),
-                date=row.date,
-                merchant=row.merchant,
-                description=row.description,
-                status="cleared",
-                external_id=row.external_id,
-                import_source=source,
-            )
-            db.add(tx)
-            db.flush()
-            apply_transaction_effect(
-                db,
-                account=account,
-                counterparty=None,
-                tx_type=tx.type,
-                amount=tx.amount,
-                status=tx.status,
-            )
-            db.add(account)
-            db.flush()
+            with db.begin_nested():
+                tx = Transaction(
+                    household_id=household.id,
+                    account_id=account.id,
+                    amount=row.amount,
+                    currency=account.currency or household.base_currency,
+                    type=row.type,
+                    category_id=_category_id(db, household.id, row.category_name),
+                    date=row.date,
+                    merchant=row.merchant,
+                    description=row.description,
+                    status="cleared",
+                    external_id=row.external_id,
+                    import_source=source,
+                )
+                db.add(tx)
+                db.flush()
+                apply_transaction_effect(
+                    db,
+                    account=account,
+                    counterparty=None,
+                    tx_type=tx.type,
+                    amount=tx.amount,
+                    status=tx.status,
+                )
+                db.add(account)
+                db.flush()
             created += 1
         except Exception as exc:  # noqa: BLE001 — collect row errors into job result
             errors.append(f"{row.external_id}: {exc}")
