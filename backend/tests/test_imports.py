@@ -71,3 +71,80 @@ def test_statement_import_path(client: TestClient) -> None:
     )
     assert again.json()["skipped_count"] == 2
     assert Decimal(client.get("/api/v1/accounts").json()[0]["current_balance"]) == balance
+
+
+def test_csv_import_supports_separate_debit_and_credit_columns(client: TestClient) -> None:
+    register(client, "import-columns@example.com")
+    account = client.post(
+        "/api/v1/accounts",
+        json={"name": "Current", "type": "bank", "current_balance": "100000.00"},
+    ).json()
+    statement = """date,description,debit,credit,reference
+2026-09-01,Groceries,12500.00,,debit-1
+2026-09-02,Salary,,250000.00,credit-1
+"""
+    response = client.post(
+        "/api/v1/imports/csv",
+        json={"account_id": account["id"], "content": statement},
+    )
+    assert response.status_code == 201, response.text
+    assert response.json()["created_count"] == 2
+    transactions = client.get("/api/v1/transactions").json()
+    by_reference = {row["external_id"]: row for row in transactions}
+    assert by_reference["debit-1"]["type"] == "expense"
+    assert by_reference["credit-1"]["type"] == "income"
+    balance = Decimal(client.get("/api/v1/accounts").json()[0]["current_balance"])
+    assert balance == Decimal("337500.00")
+
+
+def test_forwarded_bank_alert_is_reviewed_before_posting(client: TestClient, monkeypatch) -> None:
+    from app.core.config import Settings
+    from app.api.v1 import imports as imports_api
+
+    register(client, "import-email@example.com")
+    account = client.post(
+        "/api/v1/accounts",
+        json={"name": "Current", "type": "bank", "current_balance": "50000.00"},
+    ).json()
+    monkeypatch.setattr(
+        imports_api,
+        "get_settings",
+        lambda: Settings(inbound_email_domain="imports.example.test", inbound_email_webhook_secret="test-secret"),
+    )
+    mailbox = client.post("/api/v1/imports/mailbox")
+    assert mailbox.status_code == 200, mailbox.text
+    address = mailbox.json()["address"]
+    inbound = client.post(
+        "/api/v1/imports/inbound-email",
+        headers={"X-Inbound-Email-Secret": "test-secret"},
+        json={
+            "To": address,
+            "From": "alerts@bank.example",
+            "Subject": "Debit Alert",
+            "TextBody": "Your account was debited NGN 5,000.00 on 15/11/2026. Ref: ABC12345",
+        },
+    )
+    assert inbound.status_code == 202, inbound.text
+    queue = client.get("/api/v1/imports/review")
+    assert queue.status_code == 200
+    assert len(queue.json()) == 1
+    assert queue.json()[0]["status"] == "pending_review"
+    before = Decimal(client.get("/api/v1/accounts").json()[0]["current_balance"])
+    assert before == Decimal("50000.00")
+    approved = client.post(
+        f"/api/v1/imports/{queue.json()[0]['id']}/approve",
+        json={"account_id": account["id"]},
+    )
+    assert approved.status_code == 200, approved.text
+    assert approved.json()["status"] == "approved"
+    after = Decimal(client.get("/api/v1/accounts").json()[0]["current_balance"])
+    assert after == Decimal("45000.00")
+
+
+def test_inbound_email_rejects_invalid_webhook_secret(client: TestClient) -> None:
+    response = client.post(
+        "/api/v1/imports/inbound-email",
+        headers={"X-Inbound-Email-Secret": "wrong"},
+        json={"To": "bank-alert+unknown@imports.example.test", "TextBody": "debit NGN 10"},
+    )
+    assert response.status_code == 401
