@@ -4,12 +4,10 @@ import re
 import secrets
 from datetime import UTC, datetime
 from decimal import Decimal
-from io import BytesIO
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, File, Form, Header, HTTPException, UploadFile, status
 from pydantic import BaseModel
-from pypdf import PdfReader
 from sqlalchemy.orm import Session
 
 from app.api.deps import HouseholdContext, get_db, require_roles
@@ -20,6 +18,7 @@ from app.schemas.imports import ImportBody, ImportJobOut
 from app.services.email_imports import parse_bank_alert
 from app.services.import_adapters import ImportRow
 from app.services.imports import apply_import_rows, run_import
+from app.services.pdf_imports import parse_pdf_statement
 
 router = APIRouter(prefix="/imports", tags=["imports"])
 MAX_UPLOAD_BYTES = 10 * 1024 * 1024
@@ -103,20 +102,19 @@ async def upload_statement(
         raise HTTPException(status_code=413, detail="Statement exceeds the 10 MB upload limit.")
     try:
         if suffix == "pdf":
-            reader = PdfReader(BytesIO(raw), strict=True)
-            if reader.is_encrypted:
-                raise ValueError("Password-protected PDFs are not supported.")
-            content = "\n".join(page.extract_text() or "" for page in reader.pages)
-            if not content.strip():
-                raise ValueError("No selectable text found. Scanned PDFs are not supported yet.")
+            rows = parse_pdf_statement(raw)
             source = "statement"
+            account = _scoped_account(db, ctx.household.id, account_id)
+            job = apply_import_rows(
+                db, ctx.household, account, rows, source=source, filename=filename
+            )
         else:
             content = raw.decode("utf-8-sig")
             source = "csv" if suffix == "csv" else "statement"
-        job = run_import(
-            db, ctx.household, account_id=account_id, source=source,
-            content=content, filename=filename,
-        )
+            job = run_import(
+                db, ctx.household, account_id=account_id, source=source,
+                content=content, filename=filename,
+            )
     except (ValueError, UnicodeDecodeError) as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
     except Exception as exc:
