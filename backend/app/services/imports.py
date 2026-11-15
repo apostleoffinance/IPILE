@@ -56,8 +56,8 @@ def apply_import_rows(
             skipped += 1
             continue
         if row.type == "transfer":
-            errors.append(
-                f"{row.external_id}: transfers must be matched to a counterparty account before import."
+            errors.append(f"{row.external_id}:")
+                "Transfers must be matched to a counterparty account before import."
             )
             continue
         try:
