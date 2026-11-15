@@ -22,9 +22,15 @@ def parse_bank_alert(*, sender: str, subject: str, body: str) -> ImportRow:
         raise ValueError("Could not identify a currency amount in this bank alert.")
     amount = quantize_money(Decimal(amount_match.group(1).replace(",", "")))
     lowered = text.lower()
-    if any(word in lowered for word in ("credit alert", "credited", "deposit received", "transfer received")):
+    if any(
+        word in lowered
+        for word in ("credit alert", "credited", "deposit received", "transfer received")
+    ):
         tx_type = "income"
-    elif any(word in lowered for word in ("debit alert", "debited", "purchase", "withdrawal", "transfer to")):
+    elif any(
+        word in lowered
+        for word in ("debit alert", "debited", "purchase", "withdrawal", "transfer to")
+    ):
         tx_type = "expense"
     else:
         raise ValueError("Could not determine whether this alert is a debit or credit.")
