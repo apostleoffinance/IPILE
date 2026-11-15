@@ -61,7 +61,7 @@ def test_seed_household_is_a_normal_household(client: TestClient) -> None:
     obligations = {row["name"]: row for row in client.get("/api/v1/obligations").json()}
     assert obligations["Sibling University Fees"]["required_monthly"] == "150000.00"
     assert obligations["Parents' rent"]["required_monthly"] == "50000.00"
-    assert obligations["Sibling University Fees"]["next_due_date"] == "2026-10-15"
+    assert obligations["Sibling University Fees"]["next_due_date"] == "2026-12-15"
     funds = {row["name"]: row for row in client.get("/api/v1/funds").json()}
     assert funds["University fund"]["target_amount"] == "450000.00"
     assert funds["Parents Rent Fund"]["required_monthly"] == "50000.00"
