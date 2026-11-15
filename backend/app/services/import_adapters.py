@@ -109,7 +109,7 @@ class CsvImportAdapter:
                 else:
                     amount = _parse_amount(raw.get(amount_col, "") or "")
                     inferred_type = "income" if amount < 0 else "expense"
-                type_col = fields.get("type", "")
+                type_col = fields.get("type") or fields.get("transaction type", "")
                 tx_type = (raw.get(type_col, "") or inferred_type) if type_col else inferred_type
                 description_col = fields.get("description") or fields.get("narration") or fields.get("details")
                 merchant_col = fields.get("merchant") or fields.get("payee")
@@ -119,7 +119,7 @@ class CsvImportAdapter:
                     amount=amount,
                     tx_type=tx_type,
                     description=raw.get(description_col, "") if description_col else None,
-                    external_id=raw.get(fields["external_id"], "") if "external_id" in fields else None,
+                    external_id=raw.get(next((fields[k] for k in ("external_id", "reference", "transaction id", "transaction reference", "ref") if k in fields), ""), "") if any(k in fields for k in ("external_id", "reference", "transaction id", "transaction reference", "ref")) else None,
                     merchant=raw.get(merchant_col, "") if merchant_col else None,
                     category=raw.get(category_col, "") if category_col else None,
                 )
@@ -135,7 +135,8 @@ class StatementImportAdapter:
     source = "statement"
 
     def parse(self, content: str) -> list[ImportRow]:
-        if "," in content.splitlines()[0] and "|" not in content.splitlines()[0]:
+        first_line = next((line for line in content.splitlines() if line.strip()), "")
+        if "," in first_line and "|" not in first_line:
             return CsvImportAdapter().parse(content)
         rows: list[ImportRow] = []
         for index, line in enumerate(content.splitlines(), start=1):
