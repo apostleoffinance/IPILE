@@ -90,18 +90,29 @@ class CsvImportAdapter:
         if not reader.fieldnames:
             raise ValueError("CSV requires a header row.")
         fields = {name.lower().strip(): name for name in reader.fieldnames if name}
-        date_col = next((fields[k] for k in ("date", "transaction date", "value date") if k in fields), None)
+        date_col = next(
+            (fields[k] for k in ("date", "transaction date", "value date") if k in fields),
+            None,
+        )
         amount_col = fields.get("amount")
-        debit_col = next((fields[k] for k in ("debit", "withdrawal", "money out") if k in fields), None)
-        credit_col = next((fields[k] for k in ("credit", "deposit", "money in") if k in fields), None)
+        debit_col = next(
+            (fields[k] for k in ("debit", "withdrawal", "money out") if k in fields),
+            None,
+        )
+        credit_col = next(
+            (fields[k] for k in ("credit", "deposit", "money in") if k in fields),
+            None,
+        )
         if not date_col or not (amount_col or debit_col or credit_col):
             raise ValueError("CSV needs a date and amount, debit, or credit column.")
         rows: list[ImportRow] = []
         for index, raw in enumerate(reader, start=2):
             try:
                 if debit_col or credit_col:
-                    debit = _parse_amount(raw.get(debit_col, "") or "0") if debit_col else Decimal("0")
-                    credit = _parse_amount(raw.get(credit_col, "") or "0") if credit_col else Decimal("0")
+                    debit_raw = raw.get(debit_col, "") if debit_col else "0"
+                    debit = _parse_amount(debit_raw or "0") if debit_col else Decimal("0")
+                    credit_raw = raw.get(credit_col, "") if credit_col else "0"
+                    credit = _parse_amount(credit_raw or "0") if credit_col else Decimal("0")
                     if debit and credit:
                         raise ValueError("A row cannot contain both debit and credit amounts.")
                     amount = credit if credit else -abs(debit)
@@ -111,7 +122,11 @@ class CsvImportAdapter:
                     inferred_type = "income" if amount < 0 else "expense"
                 type_col = fields.get("type") or fields.get("transaction type", "")
                 tx_type = (raw.get(type_col, "") or inferred_type) if type_col else inferred_type
-                description_col = fields.get("description") or fields.get("narration") or fields.get("details")
+                description_col = (
+                    fields.get("description")
+                    or fields.get("narration")
+                    or fields.get("details")
+                )
                 merchant_col = fields.get("merchant") or fields.get("payee")
                 category_col = fields.get("category")
                 row = _make_row(
@@ -119,7 +134,36 @@ class CsvImportAdapter:
                     amount=amount,
                     tx_type=tx_type,
                     description=raw.get(description_col, "") if description_col else None,
-                    external_id=raw.get(next((fields[k] for k in ("external_id", "reference", "transaction id", "transaction reference", "ref") if k in fields), ""), "") if any(k in fields for k in ("external_id", "reference", "transaction id", "transaction reference", "ref")) else None,
+                    external_id=(
+                        raw.get(
+                            next(
+                                (
+                                    fields[key]
+                                    for key in (
+                                        "external_id",
+                                        "reference",
+                                        "transaction id",
+                                        "transaction reference",
+                                        "ref",
+                                    )
+                                    if key in fields
+                                ),
+                                "",
+                            ),
+                            "",
+                        )
+                        if any(
+                            key in fields
+                            for key in (
+                                "external_id",
+                                "reference",
+                                "transaction id",
+                                "transaction reference",
+                                "ref",
+                            )
+                        )
+                        else None
+                    ),
                     merchant=raw.get(merchant_col, "") if merchant_col else None,
                     category=raw.get(category_col, "") if category_col else None,
                 )
@@ -154,7 +198,9 @@ class StatementImportAdapter:
                 debit = _parse_amount(parts[2] or "0")
                 credit = _parse_amount(parts[3] or "0")
                 if debit and credit:
-                    raise ValueError(f"Statement line {index}: both debit and credit are populated.")
+                    raise ValueError(
+                        f"Statement line {index}: both debit and credit are populated."
+                    )
                 amount = credit if credit else -abs(debit)
                 tx_type = "income" if credit else "expense"
                 description, external_id = parts[1], parts[4]
