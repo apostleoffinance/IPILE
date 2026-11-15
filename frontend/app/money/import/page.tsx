@@ -178,7 +178,7 @@ export default function ImportPage() {
             <section className="space-y-3 border border-line p-4">
               <h2 className="font-semibold">2. Forward bank alert emails</h2>
               <p className="text-sm text-muted">Create a private household address and forward bank transaction alerts to it. Alerts are parsed into a review queue; they do not change balances until approved.</p>
-              <Button type="button" variant="secondary" disabled={mailboxPending} onClick={onCreateMailbox}>
+              <Button type="button" variant="outline" disabled={mailboxPending} onClick={onCreateMailbox}>
                 {mailboxPending ? "Creating..." : "Generate household import address"}
               </Button>
               {mailbox ? <div className="break-all rounded border border-line bg-surface p-3 font-mono text-sm">{mailbox}</div> : null}
