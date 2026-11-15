@@ -119,7 +119,10 @@ async def upload_statement(
         raise HTTPException(status_code=400, detail=str(exc)) from exc
     except Exception as exc:
         if suffix == "pdf":
-            raise HTTPException(status_code=400, detail="Could not read this PDF statement.") from exc
+            raise HTTPException(
+                status_code=400,
+                detail="Could not read this PDF statement.",
+            ) from exc
         raise
     db.commit()
     db.refresh(job)
@@ -144,7 +147,11 @@ def create_mailbox(
         mailbox.token_hash = token_hash
         mailbox.enabled = True
     db.commit()
-    return {"address": _mailbox_address(token), "enabled": True, "note": "Store this address privately. Regenerating it invalidates the previous address."}
+    return {
+        "address": _mailbox_address(token),
+        "enabled": True,
+        "note": "Store this address privately. Regenerating it invalidates the previous address.",
+    }
 
 
 @router.post("/inbound-email", status_code=status.HTTP_202_ACCEPTED)
@@ -201,7 +208,11 @@ def receive_inbound_email(
     db.add(mailbox)
     db.commit()
     db.refresh(job)
-    return {"id": str(job.id), "status": job.status, "message": "Alert received for household review."}
+    return {
+        "id": str(job.id),
+        "status": job.status,
+        "message": "Alert received for household review.",
+    }
 
 
 @router.get("/review", response_model=list[ImportJobOut])
@@ -249,7 +260,14 @@ def approve_email_import(
         )
         for item in job.result.get("rows", [])
     ]
-    applied = apply_import_rows(db, ctx.household, account, rows, source="email", filename=job.filename)
+    applied = apply_import_rows(
+        db,
+        ctx.household,
+        account,
+        rows,
+        source="email",
+        filename=job.filename,
+    )
     job.status = "approved"
     job.created_count = applied.created_count
     job.skipped_count = applied.skipped_count
