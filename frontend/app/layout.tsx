@@ -30,7 +30,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       <head>
         <script dangerouslySetInnerHTML={{ __html: themeBootScript }} />
       </head>
-      <body className="min-h-screen bg-canvas text-ink antialiased"
+      <body className="min-h-screen bg-canvas text-ink antialiased">
         <ThemeProvider>
           <SkipLink />
           <ToastProvider>{children}</ToastProvider>
