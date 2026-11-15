@@ -1,9 +1,11 @@
-"""Import adapters: all sources become Transaction rows."""
+"""Bank statement adapters normalise source rows before they reach the ledger."""
 
 from __future__ import annotations
 
 import csv
+import hashlib
 import io
+import re
 from dataclasses import dataclass
 from datetime import date, datetime
 from decimal import Decimal, InvalidOperation
@@ -11,7 +13,7 @@ from typing import Protocol
 
 from app.money import quantize_money
 
-IMPORT_SOURCES = frozenset({"csv", "statement", "api", "open_banking"})
+IMPORT_SOURCES = frozenset({"csv", "statement", "api", "open_banking", "email"})
 TX_TYPES = frozenset(
     {"income", "expense", "transfer", "refund", "investment", "debt_payment", "giving"}
 )
@@ -36,7 +38,7 @@ class ImportAdapter(Protocol):
 
 def _parse_date(raw: str) -> date:
     text = raw.strip()
-    for fmt in ("%Y-%m-%d", "%d/%m/%Y", "%m/%d/%Y", "%Y/%m/%d"):
+    for fmt in ("%Y-%m-%d", "%d/%m/%Y", "%m/%d/%Y", "%Y/%m/%d", "%d-%m-%Y"):
         try:
             return datetime.strptime(text, fmt).date()
         except ValueError:
@@ -45,24 +47,39 @@ def _parse_date(raw: str) -> date:
 
 
 def _parse_amount(raw: str) -> Decimal:
-    text = raw.strip().replace(",", "").replace("₦", "")
+    text = raw.strip().replace(",", "").replace("₦", "").replace("NGN", "").strip()
+    text = re.sub(r"[^0-9.()\-]", "", text)
+    if text.startswith("(") and text.endswith(")"):
+        text = "-" + text[1:-1]
     try:
         return quantize_money(Decimal(text))
     except (InvalidOperation, ValueError) as exc:
         raise ValueError(f"Invalid amount: {raw}") from exc
 
 
-def _normalize_type(raw: str, amount: Decimal) -> str:
-    value = (raw or "").strip().lower()
-    if value in TX_TYPES:
-        return value
-    if amount < 0:
-        return "expense"
-    if value in {"credit", "cr", "inflow"}:
-        return "income"
-    if value in {"debit", "dr", "outflow"}:
-        return "expense"
-    return "expense" if amount >= 0 and value == "" else (value or "expense")
+def _stable_id(*parts: str) -> str:
+    return hashlib.sha256("|".join(parts).encode("utf-8")).hexdigest()
+
+
+def _make_row(
+    *, raw_date: str, amount: Decimal, tx_type: str, description: str | None,
+    external_id: str | None, merchant: str | None = None, category: str | None = None,
+) -> ImportRow:
+    parsed_date = _parse_date(raw_date)
+    tx_type = tx_type.strip().lower()
+    if tx_type not in TX_TYPES:
+        tx_type = "income" if amount < 0 else "expense"
+    return ImportRow(
+        date=parsed_date,
+        amount=abs(amount),
+        type=tx_type,
+        description=description.strip() if description else None,
+        external_id=(external_id or "").strip() or _stable_id(
+            parsed_date.isoformat(), str(amount), description or "", merchant or ""
+        ),
+        merchant=merchant.strip() if merchant else None,
+        category_name=category.strip() if category else None,
+    )
 
 
 class CsvImportAdapter:
@@ -73,63 +90,89 @@ class CsvImportAdapter:
         if not reader.fieldnames:
             raise ValueError("CSV requires a header row.")
         fields = {name.lower().strip(): name for name in reader.fieldnames if name}
-        required = {"date", "amount", "external_id"}
-        missing = required - set(fields)
-        if missing:
-            raise ValueError(f"CSV missing columns: {', '.join(sorted(missing))}")
+        date_col = next((fields[k] for k in ("date", "transaction date", "value date") if k in fields), None)
+        amount_col = fields.get("amount")
+        debit_col = next((fields[k] for k in ("debit", "withdrawal", "money out") if k in fields), None)
+        credit_col = next((fields[k] for k in ("credit", "deposit", "money in") if k in fields), None)
+        if not date_col or not (amount_col or debit_col or credit_col):
+            raise ValueError("CSV needs a date and amount, debit, or credit column.")
         rows: list[ImportRow] = []
         for index, raw in enumerate(reader, start=2):
-            amount = _parse_amount(raw[fields["amount"]])
-            tx_type = _normalize_type(raw.get(fields.get("type", ""), ""), abs(amount))
-            external_id = (raw[fields["external_id"]] or "").strip()
-            if not external_id:
-                raise ValueError(f"Row {index}: external_id is required.")
-            rows.append(
-                ImportRow(
-                    date=_parse_date(raw[fields["date"]]),
-                    amount=abs(amount),
-                    type=tx_type if tx_type in TX_TYPES else "expense",
-                    description=(raw.get(fields.get("description", ""), "") or None),
-                    external_id=external_id,
-                    merchant=(raw.get(fields.get("merchant", ""), "") or None),
-                    category_name=(raw.get(fields.get("category", ""), "") or None),
+            try:
+                if debit_col or credit_col:
+                    debit = _parse_amount(raw.get(debit_col, "") or "0") if debit_col else Decimal("0")
+                    credit = _parse_amount(raw.get(credit_col, "") or "0") if credit_col else Decimal("0")
+                    if debit and credit:
+                        raise ValueError("A row cannot contain both debit and credit amounts.")
+                    amount = credit if credit else -abs(debit)
+                    inferred_type = "income" if credit else "expense"
+                else:
+                    amount = _parse_amount(raw.get(amount_col, "") or "")
+                    inferred_type = "income" if amount < 0 else "expense"
+                type_col = fields.get("type", "")
+                tx_type = (raw.get(type_col, "") or inferred_type) if type_col else inferred_type
+                description_col = fields.get("description") or fields.get("narration") or fields.get("details")
+                merchant_col = fields.get("merchant") or fields.get("payee")
+                category_col = fields.get("category")
+                row = _make_row(
+                    raw_date=raw.get(date_col, ""),
+                    amount=amount,
+                    tx_type=tx_type,
+                    description=raw.get(description_col, "") if description_col else None,
+                    external_id=raw.get(fields["external_id"], "") if "external_id" in fields else None,
+                    merchant=raw.get(merchant_col, "") if merchant_col else None,
+                    category=raw.get(category_col, "") if category_col else None,
                 )
-            )
+                rows.append(row)
+            except (ValueError, InvalidOperation) as exc:
+                raise ValueError(f"CSV row {index}: {exc}") from exc
         return rows
 
 
 class StatementImportAdapter:
-    """Bank statement path: date | amount | narrative | reference (pipe or tab)."""
+    """Supports pipe/tab-delimited exports and common CSV statement layouts."""
 
     source = "statement"
 
     def parse(self, content: str) -> list[ImportRow]:
+        if "," in content.splitlines()[0] and "|" not in content.splitlines()[0]:
+            return CsvImportAdapter().parse(content)
         rows: list[ImportRow] = []
         for index, line in enumerate(content.splitlines(), start=1):
             text = line.strip()
-            if not text or text.lower().startswith("date"):
+            if not text or text.lower().startswith(("date", "transaction date")):
                 continue
             parts = [part.strip() for part in text.replace("\t", "|").split("|")]
-            if len(parts) < 4:
-                raise ValueError(f"Statement line {index} needs date|amount|narrative|reference.")
-            amount = _parse_amount(parts[1])
-            tx_type = "income" if amount < 0 else "expense"
-            # signed statement: credits negative in some exports — treat negative as income
-            if amount < 0:
-                amount = abs(amount)
-                tx_type = "income"
+            if len(parts) < 3:
+                continue
+            try:
+                parsed_date = _parse_date(parts[0])
+            except ValueError:
+                continue
+            if len(parts) >= 5:
+                debit = _parse_amount(parts[2] or "0")
+                credit = _parse_amount(parts[3] or "0")
+                if debit and credit:
+                    raise ValueError(f"Statement line {index}: both debit and credit are populated.")
+                amount = credit if credit else -abs(debit)
+                tx_type = "income" if credit else "expense"
+                description, external_id = parts[1], parts[4]
             else:
-                tx_type = "expense"
+                amount = _parse_amount(parts[1])
+                tx_type = "income" if amount < 0 else "expense"
+                description, external_id = parts[2], parts[3] if len(parts) > 3 else ""
             rows.append(
-                ImportRow(
-                    date=_parse_date(parts[0]),
+                _make_row(
+                    raw_date=parsed_date.isoformat(),
                     amount=amount,
-                    type=tx_type,
-                    description=parts[2] or None,
-                    external_id=parts[3],
-                    merchant=parts[2] or None,
+                    tx_type=tx_type,
+                    description=description,
+                    external_id=external_id,
+                    merchant=description,
                 )
             )
+        if not rows:
+            raise ValueError("No supported transaction rows found in statement.")
         return rows
 
 
