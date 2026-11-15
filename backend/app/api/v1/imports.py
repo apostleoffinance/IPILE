@@ -18,7 +18,7 @@ from app.models.account import Account
 from app.models.imports import ImportJob, ImportMailbox
 from app.schemas.imports import ImportBody, ImportJobOut
 from app.services.email_imports import parse_bank_alert
-from app.services.import_adapters import ImportRow, get_adapter
+from app.services.import_adapters import ImportRow
 from app.services.imports import apply_import_rows, run_import
 
 router = APIRouter(prefix="/imports", tags=["imports"])
