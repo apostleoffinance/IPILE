@@ -47,13 +47,33 @@ def parse_pdf_statement(content: bytes) -> list[ImportRow]:
                 if header_index is None:
                     continue
                 headers = [_cell(cell).lower() for cell in table[header_index]]
-                date_idx = next((i for i, value in enumerate(headers) if value in DATE_HEADERS), None)
-                amount_idx = next((i for i, value in enumerate(headers) if value in AMOUNT_HEADERS), None)
-                debit_idx = next((i for i, value in enumerate(headers) if value in DEBIT_HEADERS), None)
-                credit_idx = next((i for i, value in enumerate(headers) if value in CREDIT_HEADERS), None)
-                desc_idx = next((i for i, value in enumerate(headers) if value in DESCRIPTION_HEADERS), None)
-                ref_idx = next((i for i, value in enumerate(headers) if value in REFERENCE_HEADERS), None)
-                if date_idx is None or not (amount_idx is not None or debit_idx is not None or credit_idx is not None):
+                date_idx = next(
+                    (i for i, value in enumerate(headers) if value in DATE_HEADERS),
+                    None,
+                )
+                amount_idx = next(
+                    (i for i, value in enumerate(headers) if value in AMOUNT_HEADERS),
+                    None,
+                )
+                debit_idx = next(
+                    (i for i, value in enumerate(headers) if value in DEBIT_HEADERS),
+                    None,
+                )
+                credit_idx = next(
+                    (i for i, value in enumerate(headers) if value in CREDIT_HEADERS),
+                    None,
+                )
+                desc_idx = next(
+                    (i for i, value in enumerate(headers) if value in DESCRIPTION_HEADERS),
+                    None,
+                )
+                ref_idx = next(
+                    (i for i, value in enumerate(headers) if value in REFERENCE_HEADERS),
+                    None,
+                )
+                if date_idx is None or not any(
+                    index is not None for index in (amount_idx, debit_idx, credit_idx)
+                ):
                     continue
                 for row in table[header_index + 1 :]:
                     if not row or date_idx >= len(row):
@@ -63,17 +83,40 @@ def parse_pdf_statement(content: bytes) -> list[ImportRow]:
                         continue
                     try:
                         if debit_idx is not None or credit_idx is not None:
-                            debit = _zero_or_amount(row[debit_idx] if debit_idx is not None and debit_idx < len(row) else None)
-                            credit = _zero_or_amount(row[credit_idx] if credit_idx is not None and credit_idx < len(row) else None)
+                            debit_cell = (
+                                row[debit_idx]
+                                if debit_idx is not None and debit_idx < len(row)
+                                else None
+                            )
+                            debit = _zero_or_amount(debit_cell)
+                            credit_cell = (
+                                row[credit_idx]
+                                if credit_idx is not None and credit_idx < len(row)
+                                else None
+                            )
+                            credit = _zero_or_amount(credit_cell)
                             if debit and credit:
                                 continue
                             amount = credit if credit else -abs(debit)
                             tx_type = "income" if credit else "expense"
                         else:
-                            amount = _parse_amount(_cell(row[amount_idx]) if amount_idx is not None and amount_idx < len(row) else "")
+                            amount_cell = (
+                                _cell(row[amount_idx])
+                                if amount_idx is not None and amount_idx < len(row)
+                                else ""
+                            )
+                            amount = _parse_amount(amount_cell)
                             tx_type = "income" if amount < 0 else "expense"
-                        description = _cell(row[desc_idx]) if desc_idx is not None and desc_idx < len(row) else None
-                        reference = _cell(row[ref_idx]) if ref_idx is not None and ref_idx < len(row) else None
+                        description = (
+                            _cell(row[desc_idx])
+                            if desc_idx is not None and desc_idx < len(row)
+                            else None
+                        )
+                        reference = (
+                            _cell(row[ref_idx])
+                            if ref_idx is not None and ref_idx < len(row)
+                            else None
+                        )
                         table_rows.append(
                             _make_row(
                                 raw_date=raw_date,
