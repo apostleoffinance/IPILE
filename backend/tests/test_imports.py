@@ -98,8 +98,8 @@ def test_csv_import_supports_separate_debit_and_credit_columns(client: TestClien
 
 
 def test_forwarded_bank_alert_is_reviewed_before_posting(client: TestClient, monkeypatch) -> None:
-    from app.core.config import Settings
     from app.api.v1 import imports as imports_api
+    from app.core.config import Settings
 
     register(client, "import-email@example.com")
     account = client.post(
