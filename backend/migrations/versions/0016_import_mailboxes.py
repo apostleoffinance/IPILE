@@ -17,6 +17,7 @@ depends_on: Union[str, Sequence[str], None] = None
 
 
 def upgrade() -> None:
+    op.alter_column("import_jobs", "status", existing_type=sa.String(length=20), type_=sa.String(length=30), existing_nullable=False)
     op.create_table(
         "import_mailboxes",
         sa.Column("id", sa.Uuid(), primary_key=True),
@@ -34,6 +35,7 @@ def upgrade() -> None:
 
 
 def downgrade() -> None:
+    op.alter_column("import_jobs", "status", existing_type=sa.String(length=30), type_=sa.String(length=20), existing_nullable=False)
     op.drop_index("ix_import_mailboxes_token_hash", table_name="import_mailboxes")
     op.drop_index("ix_import_mailboxes_household_id", table_name="import_mailboxes")
     op.drop_table("import_mailboxes")
