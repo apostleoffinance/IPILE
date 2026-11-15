@@ -109,7 +109,10 @@ def test_forwarded_bank_alert_is_reviewed_before_posting(client: TestClient, mon
     monkeypatch.setattr(
         imports_api,
         "get_settings",
-        lambda: Settings(inbound_email_domain="imports.example.test", inbound_email_webhook_secret="test-secret"),
+        lambda: Settings(
+            inbound_email_domain="imports.example.test",
+            inbound_email_webhook_secret="test-secret",
+        ),
     )
     mailbox = client.post("/api/v1/imports/mailbox")
     assert mailbox.status_code == 200, mailbox.text
