@@ -5,12 +5,7 @@ on:
     paths:
       - "frontend/**"
       - ".github/workflows/cloudflare-preview.yml"
-  push:
-    branches:
-      - "milestone/ipile-fe-01-cloudflare"
-    paths:
-      - "frontend/**"
-      - ".github/workflows/cloudflare-preview.yml"
+      - ".github/workflows/cloudflare-preview-deploy.yml"
 
 permissions:
   contents: read
