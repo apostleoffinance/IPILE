@@ -191,18 +191,27 @@ export default function ImportPage() {
                 <Button type="button" variant="ghost" onClick={() => void refreshReview()}>Refresh</Button>
               </div>
               {review.length === 0 ? (
-                <p className="text-sm text-muted">No bank alerts waiting for review.</p>
+                <p className="text-sm text-muted">No bank alerts in the review queue.</p>
               ) : review.map((job) => (
                 <div key={job.id} className="space-y-2 border border-line p-4 text-sm">
-                  <div className="font-medium">{job.filename || "Bank alert"}</div>
+                  <div className="flex flex-wrap items-center justify-between gap-2">
+                    <div className="font-medium">{job.filename || "Bank alert"}</div>
+                    <span className="text-xs uppercase text-muted">{job.status.replaceAll("_", " ")}</span>
+                  </div>
                   <div className="text-muted">From: {job.result?.sender || "Unknown sender"}</div>
-                  {job.result?.rows?.map((row, index) => (
-                    <div key={index} className="flex flex-wrap justify-between gap-2">
-                      <span>{row.date} · {row.description || row.type}</span>
-                      <span className="font-semibold">{row.amount}</span>
-                    </div>
-                  ))}
-                  <Button type="button" size="sm" onClick={() => void onApprove(job.id)}>Approve into {accounts.find((account) => account.id === accountId)?.name || "selected account"}</Button>
+                  {job.status === "rejected" ? (
+                    <p className="text-sm text-muted">Not imported: {job.result?.errors?.join("; ") || "The alert could not be parsed safely."}</p>
+                  ) : (
+                    <>
+                      {job.result?.rows?.map((row, index) => (
+                        <div key={index} className="flex flex-wrap justify-between gap-2">
+                          <span>{row.date} · {row.description || row.type}</span>
+                          <span className="font-semibold">{row.amount}</span>
+                        </div>
+                      ))}
+                      <Button type="button" size="sm" onClick={() => void onApprove(job.id)}>Approve into {accounts.find((account) => account.id === accountId)?.name || "selected account"}</Button>
+                    </>
+                  )}
                 </div>
               ))}
             </section>
