@@ -420,8 +420,8 @@ def test_imported_transfer_is_not_posted_without_counterparty_account(client: Te
         json={
             "account_id": account["id"],
             "content": (
-                "date,amount,type,description,external_id\\n"
-                "2026-09-01,5000.00,transfer,Transfer to savings,transfer-1\\n"
+                "date,amount,type,description,external_id\n"
+                "2026-09-01,5000.00,transfer,Transfer to savings,transfer-1\n"
             ),
         },
     )
