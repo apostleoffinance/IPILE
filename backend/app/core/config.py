@@ -1,5 +1,6 @@
 from functools import lru_cache
 
+from pydantic import model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -35,6 +36,36 @@ class Settings(BaseSettings):
         if value == "none" and not self.cookie_secure:
             return "lax"
         return value
+
+    @model_validator(mode="after")
+    def validate_production_configuration(self) -> "Settings":
+        if self.environment.lower().strip() not in {"production", "prod"}:
+            return self
+
+        problems: list[str] = []
+        database_url = self.database_url.lower()
+        if not database_url.startswith(("postgresql://", "postgresql+psycopg://")):
+            problems.append("DATABASE_URL must use PostgreSQL in production")
+        if "localhost" in database_url or "127.0.0.1" in database_url:
+            problems.append("DATABASE_URL must not point to localhost in production")
+        if not self.cookie_secure:
+            problems.append("COOKIE_SECURE must be true in production")
+        if self.cookie_samesite.lower().strip() not in {"lax", "strict", "none"}:
+            problems.append("COOKIE_SAMESITE must be lax, strict, or none")
+        if self.cookie_samesite.lower().strip() == "none" and not self.cookie_secure:
+            problems.append("SameSite=None requires secure cookies")
+        if self.seed_on_start:
+            problems.append("SEED_ON_START must be false in production")
+        if "*" in self.cors_origin_list:
+            problems.append("CORS_ORIGINS must not contain wildcard origins with credentials")
+        if self.session_idle_hours < 1 or self.session_absolute_days < 1:
+            problems.append("Session expiry settings must be positive")
+        if self.session_idle_hours > self.session_absolute_days * 24:
+            problems.append("Session idle expiry cannot exceed absolute expiry")
+
+        if problems:
+            raise ValueError("Invalid production configuration: " + "; ".join(problems))
+        return self
 
 
 @lru_cache
