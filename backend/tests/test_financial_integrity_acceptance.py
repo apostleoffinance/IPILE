@@ -3,7 +3,7 @@
 Expected values below are calculated from the stated inputs, not by calling
 production orchestration helpers to derive the expected result.
 """
-from datetime import date
+from datetime import date  # noqa: I001
 from decimal import Decimal
 from types import SimpleNamespace
 from uuid import UUID, uuid4
