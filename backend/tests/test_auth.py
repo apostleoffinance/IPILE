@@ -6,7 +6,12 @@ from tests.conftest import TestingSessionLocal
 
 def test_health(client: TestClient) -> None:
     with TestingSessionLocal() as db:
-        db.execute(text("CREATE TABLE IF NOT EXISTS alembic_version (version_num VARCHAR(32) NOT NULL)"))
+        db.execute(
+            text(
+                "CREATE TABLE IF NOT EXISTS alembic_version "
+                "(version_num VARCHAR(32) NOT NULL)"
+            )
+        )
         db.execute(text("DELETE FROM alembic_version"))
         db.execute(text("INSERT INTO alembic_version (version_num) VALUES ('0015_phase15')"))
         db.commit()
