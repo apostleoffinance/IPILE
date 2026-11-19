@@ -48,7 +48,7 @@ export default function InsightsPage() {
           <PageHeader
             eyebrow="Intelligence"
             title="Insights"
-            description="What is the pattern? Deterministic figures first; AI only explains."
+            description="See what is changing in your household finances and what may need attention."
             actions={
               <Button
                 type="button"
@@ -84,7 +84,7 @@ export default function InsightsPage() {
             </TabsList>
 
             <TabsContent value="patterns">
-              <SectionHeader title="Patterns" description="Flags from engines, not invented narrative." />
+              <SectionHeader title="Patterns" description="Important changes and things that may need your attention." />
               {!data.patterns?.length ? (
                 <EmptyState
                   title="No patterns yet"
@@ -96,7 +96,7 @@ export default function InsightsPage() {
                     <DecisionCard
                       key={pattern.code + pattern.title}
                       title={pattern.title}
-                      body={`${pattern.detail} · ${pattern.code}`}
+                      body={pattern.detail}
                       href={decisionHrefForPattern(pattern.code)}
                       severity={patternSeverity(pattern.severity)}
                     />
@@ -109,7 +109,7 @@ export default function InsightsPage() {
               <section>
                 <SectionHeader title="Net worth" />
                 {!data.net_worth.length ? (
-                  <EmptyState title="No net-worth history" body="Snapshots carry net worth for the chart." />
+                  <EmptyState title="No net-worth history" body="Your saved monthly summaries will appear here." />
                 ) : (
                   <NetWorthChart
                     points={data.net_worth.map((row) => ({
@@ -122,7 +122,7 @@ export default function InsightsPage() {
               <section>
                 <SectionHeader title="Cash-flow trend" />
                 {!data.cash_flow.length ? (
-                  <EmptyState title="No cash-flow history" body="Freeze a period snapshot to start the series." />
+                  <EmptyState title="No cash-flow history" body="Save a monthly summary to start tracking your cash flow." />
                 ) : (
                   <div className="space-y-2">
                     {data.cash_flow.map((row) => (
