@@ -7,6 +7,7 @@ from app.core.config import Settings
 def production_settings(**overrides) -> Settings:
     values = {
         "environment": "production",
+        "secret_key": "test-only-production-secret-key-32chars",
         "database_url": "postgresql+psycopg://app:strong-password@db.example.com/ipile",
         "cookie_secure": True,
         "cookie_samesite": "lax",
@@ -25,6 +26,7 @@ def test_production_configuration_accepts_secure_settings() -> None:
 @pytest.mark.parametrize(
     ("override", "expected"),
     [
+        ({"secret_key": "dev-only-change-me"}, "SECRET_KEY must be a unique value"),
         ({"cookie_secure": False}, "COOKIE_SECURE must be true"),
         ({"database_url": "postgresql://app:pass@localhost/ipile"}, "must not point to localhost"),
         ({"seed_on_start": True}, "SEED_ON_START must be false"),
