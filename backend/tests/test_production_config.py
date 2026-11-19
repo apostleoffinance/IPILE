@@ -42,3 +42,22 @@ def test_production_configuration_fails_closed(override: dict, expected: str) ->
 def test_samesite_none_is_rejected_without_secure_cookie() -> None:
     with pytest.raises(ValidationError, match="SameSite=None requires secure cookies"):
         production_settings(cookie_secure=False, cookie_samesite="none")
+
+
+def test_production_configuration_accepts_separate_migration_database_url() -> None:
+    settings = production_settings(
+        database_migration_url="postgresql+psycopg://migrator:strong-password@db.example.com/ipile"
+    )
+    assert settings.database_migration_url.startswith("postgresql+psycopg://")
+
+
+@pytest.mark.parametrize(
+    "migration_url",
+    [
+        "sqlite:///tmp/ipile.db",
+        "postgresql://migrator:pass@localhost/ipile",
+    ],
+)
+def test_production_migration_database_url_fails_closed(migration_url: str) -> None:
+    with pytest.raises(ValidationError, match="DATABASE_MIGRATION_URL"):
+        production_settings(database_migration_url=migration_url)
