@@ -405,3 +405,31 @@ def test_permanently_unparseable_postmark_alert_is_acknowledged_without_retry(
     assert len(queue) == 1
     assert queue[0]["status"] == "rejected"
     assert "unambiguous" in queue[0]["result"]["errors"][0]
+
+
+def test_imported_transfer_is_not_posted_without_counterparty_account(client: TestClient) -> None:
+    from decimal import Decimal
+
+    register(client, "transfer-import@example.com")
+    account = client.post(
+        "/api/v1/accounts",
+        json={"name": "Current", "type": "bank", "current_balance": "100000.00"},
+    ).json()
+    response = client.post(
+        "/api/v1/imports/csv",
+        json={
+            "account_id": account["id"],
+            "content": (
+                "date,amount,type,description,external_id\\n"
+                "2026-09-01,5000.00,transfer,Transfer to savings,transfer-1\\n"
+            ),
+        },
+    )
+    assert response.status_code == 201, response.text
+    assert response.json()["created_count"] == 0
+    assert response.json()["error_count"] == 1
+    assert response.json()["status"] == "completed_with_errors"
+    assert "counterparty account" in response.json()["result"]["errors"][0]
+    assert client.get("/api/v1/transactions").json() == []
+    balance = Decimal(client.get("/api/v1/accounts").json()[0]["current_balance"])
+    assert balance == Decimal("100000.00")
