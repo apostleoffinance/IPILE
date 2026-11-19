@@ -1,6 +1,7 @@
 from datetime import UTC, datetime, timedelta
 
 from fastapi.testclient import TestClient
+from sqlalchemy import text
 
 from app.models.session import SessionToken
 from tests.conftest import TestingSessionLocal
@@ -79,15 +80,33 @@ def test_csrf_rejects_missing_and_mismatched_tokens(client: TestClient) -> None:
     assert mismatch.status_code == 403
 
 
-def test_readiness_checks_database(client: TestClient) -> None:
+def test_readiness_checks_database_and_migrations(client: TestClient) -> None:
+    with TestingSessionLocal() as db:
+        db.execute(text("CREATE TABLE IF NOT EXISTS alembic_version (version_num VARCHAR(32) NOT NULL)"))
+        db.execute(text("DELETE FROM alembic_version"))
+        db.execute(text("INSERT INTO alembic_version (version_num) VALUES ('0015_phase15')"))
+        db.commit()
+
     response = client.get("/api/v1/health")
     assert response.status_code == 200
     assert response.json() == {
         "status": "ok",
         "service": "ipile",
         "database": "connected",
+        "migrations": "current",
     }
 
     live = client.get("/api/v1/health/live")
     assert live.status_code == 200
     assert live.json()["status"] == "ok"
+
+
+def test_readiness_rejects_outdated_migrations(client: TestClient) -> None:
+    with TestingSessionLocal() as db:
+        db.execute(text("CREATE TABLE IF NOT EXISTS alembic_version (version_num VARCHAR(32) NOT NULL)"))
+        db.execute(text("DELETE FROM alembic_version"))
+        db.execute(text("INSERT INTO alembic_version (version_num) VALUES ('old_revision')"))
+        db.commit()
+
+    response = client.get("/api/v1/health")
+    assert response.status_code == 503
