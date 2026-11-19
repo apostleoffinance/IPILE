@@ -11,7 +11,7 @@ settings = get_settings()
 app = FastAPI(title=settings.app_name, version="0.1.0")
 
 
-@app.get("/", tags=["health"])
+@app.api_route("/", methods=["GET", "HEAD"], tags=["health"])
 def root_health() -> dict[str, str]:
     """Lightweight platform probe; database readiness lives at /api/v1/health."""
     return {"status": "ok", "service": "ipile"}
