@@ -49,7 +49,8 @@ def test_seed_household_is_a_normal_household(client: TestClient) -> None:
     assert overview["period_income"] == "0.00"
     # A zero-cash household can have negative Safe to Spend when seeded obligations are overdue.
     assert Decimal(overview["safe_to_spend"]["current"]) <= Decimal("0.00")
-    assert Decimal(overview["safe_to_spend"]["components"]["committed_obligations"]) > Decimal("0.00")
+    committed = Decimal(overview["safe_to_spend"]["components"]["committed_obligations"])
+    assert committed > Decimal("0.00")
     rules = {row["name"]: row for row in client.get("/api/v1/allocation-rules").json()}
     assert rules["Tithe"]["type"] == "percentage"
     assert rules["Family surplus"]["type"] == "remainder"
