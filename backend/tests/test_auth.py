@@ -1,7 +1,15 @@
 from fastapi.testclient import TestClient
+from sqlalchemy import text
+
+from tests.conftest import TestingSessionLocal
 
 
 def test_health(client: TestClient) -> None:
+    with TestingSessionLocal() as db:
+        db.execute(text("CREATE TABLE IF NOT EXISTS alembic_version (version_num VARCHAR(32) NOT NULL)"))
+        db.execute(text("DELETE FROM alembic_version"))
+        db.execute(text("INSERT INTO alembic_version (version_num) VALUES ('0015_phase15')"))
+        db.commit()
     response = client.get("/api/v1/health")
     assert response.status_code == 200
     assert response.json()["status"] == "ok"
