@@ -204,11 +204,15 @@ class StatementImportAdapter:
                 continue
             parts = [part.strip() for part in text.replace("\t", "|").split("|")]
             if len(parts) < 3:
+                if "|" in text:
+                    raise ValueError(
+                        f"Statement line {index}: expected at least three columns."
+                    )
                 continue
             try:
                 parsed_date = _parse_date(parts[0])
-            except ValueError:
-                continue
+            except ValueError as exc:
+                raise ValueError(f"Statement line {index}: {exc}") from exc
             if len(parts) >= 5:
                 debit = _parse_amount(parts[2] or "0")
                 credit = _parse_amount(parts[3] or "0")
