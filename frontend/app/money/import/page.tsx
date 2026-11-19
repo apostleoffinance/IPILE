@@ -182,7 +182,7 @@ export default function ImportPage() {
                 {mailboxPending ? "Creating..." : "Generate household import address"}
               </Button>
               {mailbox ? <div className="break-all rounded border border-line bg-surface p-3 font-mono text-sm">{mailbox}</div> : null}
-              <p className="text-xs text-muted">This requires inbound email routing and webhook credentials to be configured by the IPÌLẸ̀ operator. Generating a new address invalidates the previous one.</p>
+              <p className="text-xs text-muted">Email forwarding must first be enabled for your household by IPÌLẸ̀ support. Creating a new address will deactivate your previous one.</p>
             </section>
 
             <section className="space-y-3">
