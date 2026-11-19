@@ -481,7 +481,7 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
     });
   } catch {
     throw new Error(
-      `Unable to reach the IPÌLẸ̀ API at ${apiUrl}. Check backend availability and CORS settings.`,
+      `IPÌLẸ̀ is temporarily unavailable. Please try again in a moment.`,
     );
   }
 
