@@ -82,7 +82,12 @@ def test_csrf_rejects_missing_and_mismatched_tokens(client: TestClient) -> None:
 
 def test_readiness_checks_database_and_migrations(client: TestClient) -> None:
     with TestingSessionLocal() as db:
-        db.execute(text("CREATE TABLE IF NOT EXISTS alembic_version (version_num VARCHAR(32) NOT NULL)"))
+        db.execute(
+            text(
+                "CREATE TABLE IF NOT EXISTS alembic_version "
+                "(version_num VARCHAR(32) NOT NULL)"
+            )
+        )
         db.execute(text("DELETE FROM alembic_version"))
         db.execute(text("INSERT INTO alembic_version (version_num) VALUES ('0015_phase15')"))
         db.commit()
@@ -103,7 +108,12 @@ def test_readiness_checks_database_and_migrations(client: TestClient) -> None:
 
 def test_readiness_rejects_outdated_migrations(client: TestClient) -> None:
     with TestingSessionLocal() as db:
-        db.execute(text("CREATE TABLE IF NOT EXISTS alembic_version (version_num VARCHAR(32) NOT NULL)"))
+        db.execute(
+            text(
+                "CREATE TABLE IF NOT EXISTS alembic_version "
+                "(version_num VARCHAR(32) NOT NULL)"
+            )
+        )
         db.execute(text("DELETE FROM alembic_version"))
         db.execute(text("INSERT INTO alembic_version (version_num) VALUES ('old_revision')"))
         db.commit()
