@@ -50,11 +50,13 @@ npm run cf:build
 npm run cf:preview
 ```
 
-To deploy the first remote preview, use a dedicated preview Worker name and do not attach the production domain:
+For a repeatable remote preview, add these **GitHub repository Actions secrets** under Settings → Secrets and variables → Actions:
 
-```bash
-npx wrangler deploy --config wrangler.jsonc --name ipile-web-preview
-```
+- `CLOUDFLARE_API_TOKEN`: a scoped Cloudflare API token with permission to edit Workers scripts and read the account.
+- `CLOUDFLARE_ACCOUNT_ID`: the Cloudflare account ID.
+- `IPILE_STAGING_BACKEND_URL`: the HTTPS origin of a staging FastAPI service backed by an isolated staging Neon branch.
+
+Then run the **Deploy IPÌLẸ̀ Cloudflare preview** workflow manually from the Actions tab. It deploys a separate `ipile-web-preview` Worker on `workers.dev`, sets its backend origin, and publishes the preview. It does not configure a custom domain or touch production traffic.
 
 The preview Worker must have `BACKEND_URL` configured before API smoke tests. Do not point a preview at a production database for write-flow testing. Use a staging FastAPI service and isolated staging Neon branch for registration, household creation, imports, and all other mutating acceptance tests.
 
