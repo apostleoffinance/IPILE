@@ -52,6 +52,56 @@ def test_idle_expired_session_is_rejected(client: TestClient) -> None:
     assert client.get("/api/v1/auth/me").status_code == 401
 
 
+def test_absolute_expired_session_is_rejected(client: TestClient) -> None:
+    payload = {
+        "email": "absolute-expired@example.com",
+        "password": "super-secret-12",
+        "display_name": "Absolute Expired",
+    }
+    assert client.post("/api/v1/auth/register", json=payload).status_code == 201
+    token = client.cookies["ffos_session"]
+
+    from app.core.security import hash_session_token
+
+    with TestingSessionLocal() as db:
+        session = (
+            db.query(SessionToken)
+            .filter(SessionToken.token_hash == hash_session_token(token))
+            .one()
+        )
+        session.absolute_expires_at = datetime.now(UTC) - timedelta(minutes=1)
+        db.commit()
+
+    assert client.get("/api/v1/auth/me").status_code == 401
+
+
+def test_password_change_revokes_other_device_sessions(client: TestClient) -> None:
+    payload = {
+        "email": "password-revoke@example.com",
+        "password": "super-secret-12",
+        "display_name": "Password Revoke",
+    }
+    assert client.post("/api/v1/auth/register", json=payload).status_code == 201
+
+    second = TestClient(client.app)
+    assert second.post(
+        "/api/v1/auth/login",
+        json={"email": payload["email"], "password": payload["password"]},
+    ).status_code == 200
+    assert second.get("/api/v1/auth/me").status_code == 200
+
+    changed = client.post(
+        "/api/v1/auth/password/change",
+        json={
+            "current_password": payload["password"],
+            "new_password": "new-secure-password-12",
+        },
+    )
+    assert changed.status_code == 204
+    assert client.get("/api/v1/auth/me").status_code == 200
+    assert second.get("/api/v1/auth/me").status_code == 401
+
+
 def test_csrf_rejects_missing_and_mismatched_tokens(client: TestClient) -> None:
     payload = {
         "email": "csrf-hardening@example.com",
