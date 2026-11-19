@@ -5,7 +5,7 @@ production orchestration helpers to derive the expected result.
 """
 from datetime import date
 from decimal import Decimal
-from uuid import UUID, uuid4
+from uuid import uuid4
 
 import pytest
 
