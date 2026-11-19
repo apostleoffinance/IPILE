@@ -66,7 +66,7 @@ export default function ForecastPage() {
             <Metric label="Period" amount={data.period} currency={data.currency} />
             <Metric label="Minimum buffer" amount={data.minimum_buffer_amount} currency={data.currency} />
           </section>
-          <SectionHeader title="Components" description="Inputs to the Safe to Spend engine." />
+          <SectionHeader title="How your forecast is calculated" description="The money coming in and the commitments that need to be covered." />
           <div className="grid gap-2 md:grid-cols-2">
             {(
               [
