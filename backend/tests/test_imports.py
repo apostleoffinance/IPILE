@@ -319,3 +319,28 @@ def test_bank_alert_uses_provider_date_only_when_transaction_date_is_absent() ->
         email_date="Sun, 15 Nov 2026 10:00:00 +0100",
     )
     assert row.date == date(2026, 11, 15)
+
+
+def test_text_statement_rejects_malformed_transaction_rows_without_partial_posting(
+    client: TestClient,
+) -> None:
+    register(client, "malformed-statement@example.com")
+    account = client.post(
+        "/api/v1/accounts",
+        json={"name": "Current", "type": "bank", "current_balance": "100000.00"},
+    ).json()
+    response = client.post(
+        "/api/v1/imports/statement",
+        json={
+            "account_id": account["id"],
+            "content": (
+                "date|amount|narrative|reference\\n"
+                "2026-09-10|-50000.00|Salary|good-row\\n"
+                "not-a-date|12000.00|Malformed|bad-row\\n"
+            ),
+        },
+    )
+    assert response.status_code == 400
+    assert client.get("/api/v1/transactions").json() == []
+    balance = Decimal(client.get("/api/v1/accounts").json()[0]["current_balance"])
+    assert balance == Decimal("100000.00")
