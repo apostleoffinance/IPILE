@@ -58,11 +58,11 @@ def parse_bank_alert(
     reference = _REFERENCE.search(text)
     description = subject.strip() or "Bank alert"
     external_id = (
-        f"postmark:{message_id.strip()}"
+        reference.group(1)
+        if reference
+        else f"postmark:{message_id.strip()}"
         if message_id and message_id.strip()
-        else reference.group(1) if reference else hashlib.sha256(
-            f"{sender}|{subject}|{body}".encode()
-        ).hexdigest()
+        else hashlib.sha256(f"{sender}|{subject}|{body}".encode()).hexdigest()
     )
     return ImportRow(
         date=tx_date,
