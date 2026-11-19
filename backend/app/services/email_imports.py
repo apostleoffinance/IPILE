@@ -4,8 +4,8 @@ from __future__ import annotations
 
 import hashlib
 import re
-from email.utils import parsedate_to_datetime
 from decimal import Decimal
+from email.utils import parsedate_to_datetime
 
 from app.money import quantize_money
 from app.services.import_adapters import ImportRow
