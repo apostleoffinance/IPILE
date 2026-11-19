@@ -35,6 +35,11 @@ def upgrade() -> None:
 
 
 def downgrade() -> None:
+    op.execute(
+        sa.text(
+            "UPDATE import_jobs SET status = 'completed' WHERE length(status) > 20"
+        )
+    )
     op.alter_column("import_jobs", "status", existing_type=sa.String(length=30), type_=sa.String(length=20), existing_nullable=False)
     op.drop_index("ix_import_mailboxes_token_hash", table_name="import_mailboxes")
     op.drop_index("ix_import_mailboxes_household_id", table_name="import_mailboxes")
