@@ -7,9 +7,14 @@ from app.api.v1.health import readiness
 from app.core.config import get_settings
 from app.core.csrf import CsrfMiddleware
 from app.core.db import get_db
-from app.core.monitoring import RequestContextMiddleware
+from app.core.monitoring import RequestContextMiddleware, initialize_error_reporting
 
 settings = get_settings()
+initialize_error_reporting(
+    dsn=settings.sentry_dsn,
+    environment=settings.environment,
+    traces_sample_rate=settings.sentry_traces_sample_rate,
+)
 
 app = FastAPI(title=settings.app_name, version="0.1.0")
 
