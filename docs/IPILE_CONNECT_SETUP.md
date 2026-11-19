@@ -27,8 +27,8 @@ Generate the secret in a trusted password manager or local shell. Never commit i
 
    `https://ipile:<INBOUND_EMAIL_WEBHOOK_SECRET>@ipile-bmfz.onrender.com/api/v1/imports/inbound-email`
 
-   Replace the placeholder with the same secret configured in Render. The username must be `ipile`. Postmark Inbound supports HTTP Basic Authentication in the webhook URL; IPÌLẸ̀ also retains the `X-Inbound-Email-Secret` option for compatible providers.
-5. Use Postmark's **Check** action to send a test webhook. The endpoint acknowledges accepted events with HTTP **200** so Postmark does not retry successful deliveries.
+   Replace the placeholder with the same secret configured in Render. The username must be `ipile`. Postmark Inbound supports HTTP Basic Authentication in the webhook URL; IPÌLẸ̀ also retains the `X-Inbound-Email-Secret` option for compatible providers. Postmark does not HMAC-sign inbound webhooks, so keep Basic Auth enabled and consider allowlisting Postmark's published webhook IP ranges at the network edge.
+5. Use Postmark's **Check** action to send a test webhook. The endpoint acknowledges accepted, duplicate, and permanently rejected messages with HTTP **200**; rejected messages are recorded in the household review queue and are never posted to the ledger. This prevents unnecessary retries for messages that cannot be parsed safely.
 
 ## 3. Add the inbound MX record
 
