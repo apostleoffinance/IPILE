@@ -100,7 +100,9 @@ def test_request_id_header_present(client: TestClient) -> None:
             )
         )
         db.execute(text("DELETE FROM alembic_version"))
-        db.execute(text("INSERT INTO alembic_version (version_num) VALUES ('0015_phase15')"))
+        db.execute(
+            text("INSERT INTO alembic_version (version_num) VALUES ('0016_import_mailboxes')")
+        )
         db.commit()
 
     response = client.get("/api/v1/health")

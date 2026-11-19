@@ -20,6 +20,9 @@ class Settings(BaseSettings):
     cookie_samesite: str = "lax"
     seed_on_start: bool = True
     billing_webhook_secret: str = ""
+    inbound_email_domain: str = ""
+    inbound_email_webhook_secret: str = ""
+    max_import_upload_bytes: int = 10 * 1024 * 1024
 
     @property
     def cors_origin_list(self) -> list[str]:
