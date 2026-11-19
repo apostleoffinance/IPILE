@@ -221,3 +221,8 @@ def test_protected_fund_inside_protected_spendable_account_is_not_double_counted
     )
     # The whole account balance already includes and protects the fund balance.
     assert protected_in_spendable([account], [fund]) == D("100000.00")
+
+
+def test_allocation_rejects_negative_recognized_income() -> None:
+    with pytest.raises(ValueError, match="cannot be negative"):
+        allocate(D("-1.00"), [])
