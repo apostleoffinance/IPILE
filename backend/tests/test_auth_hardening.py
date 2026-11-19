@@ -2,7 +2,7 @@ from datetime import UTC, datetime, timedelta
 
 from fastapi.testclient import TestClient
 
-from app.core.db import SessionLocal
+from tests.conftest import TestingSessionLocal
 from app.models.session import SessionToken
 
 
@@ -37,10 +37,7 @@ def test_idle_expired_session_is_rejected(client: TestClient) -> None:
     assert client.post("/api/v1/auth/register", json=payload).status_code == 201
     token = client.cookies["ffos_session"]
 
-    with SessionLocal() as db:
-        record = db.query(SessionToken).filter(SessionToken.token_hash.is_not(None)).all()
-        assert record
-        # Use the session token hash from the cookie-authenticated client.
+    with TestingSessionLocal() as db:
         from app.core.security import hash_session_token
 
         session = (
