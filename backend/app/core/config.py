@@ -20,6 +20,8 @@ class Settings(BaseSettings):
     cookie_samesite: str = "lax"
     seed_on_start: bool = True
     billing_webhook_secret: str = ""
+    sentry_dsn: str = ""
+    sentry_traces_sample_rate: float = 0.0
     inbound_email_domain: str = ""
     inbound_email_webhook_secret: str = ""
     max_import_upload_bytes: int = 10 * 1024 * 1024
