@@ -2,8 +2,8 @@ from datetime import UTC, datetime, timedelta
 
 from fastapi.testclient import TestClient
 
-from tests.conftest import TestingSessionLocal
 from app.models.session import SessionToken
+from tests.conftest import TestingSessionLocal
 
 
 def test_independent_devices_keep_independent_sessions(client: TestClient) -> None:
