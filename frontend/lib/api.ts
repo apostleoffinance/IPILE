@@ -461,8 +461,9 @@ export function clearCsrfToken() {
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
   const apiUrl = requireApiUrl();
   const method = (init?.method ?? "GET").toUpperCase();
+  const isFormData = typeof FormData !== "undefined" && init?.body instanceof FormData;
   const headers: Record<string, string> = {
-    "Content-Type": "application/json",
+    ...(isFormData ? {} : { "Content-Type": "application/json" }),
     ...(householdId ? { "X-Household-Id": householdId } : {}),
     ...((init?.headers as Record<string, string> | undefined) ?? {}),
   };
@@ -655,13 +656,18 @@ export function explainWithAi() {
 
 export type ImportJob = {
   id: string;
+  household_id: string;
   source: string;
   filename: string | null;
   status: string;
   created_count: number;
   skipped_count: number;
   error_count: number;
-  result: { errors?: string[] };
+  result: {
+    errors?: string[];
+    sender?: string;
+    rows?: { date: string; amount: string; type: string; description: string | null; merchant?: string | null }[];
+  };
 };
 
 export function importCsv(body: { account_id: string; content: string; filename?: string }) {
@@ -675,6 +681,31 @@ export function importStatement(body: { account_id: string; content: string; fil
   return request<ImportJob>("/api/v1/imports/statement", {
     method: "POST",
     body: JSON.stringify(body),
+  });
+}
+
+export function uploadStatement(accountId: string, file: File) {
+  const body = new FormData();
+  body.append("account_id", accountId);
+  body.append("file", file);
+  return request<ImportJob>("/api/v1/imports/upload", { method: "POST", body });
+}
+
+export function createImportMailbox() {
+  return request<{ address: string; enabled: boolean; note: string }>("/api/v1/imports/mailbox", {
+    method: "POST",
+    body: JSON.stringify({}),
+  });
+}
+
+export function getImportReview() {
+  return request<ImportJob[]>("/api/v1/imports/review");
+}
+
+export function approveEmailImport(jobId: string, accountId: string) {
+  return request<ImportJob>(`/api/v1/imports/${jobId}/approve`, {
+    method: "POST",
+    body: JSON.stringify({ account_id: accountId }),
   });
 }
 

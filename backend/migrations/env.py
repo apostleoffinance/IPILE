@@ -14,6 +14,7 @@ from app.models import (  # noqa: F401
     AuditLog,
     HouseholdInvite,
     ImportJob,
+    ImportMailbox,
     Notification,
     Report,
     SchedulerTick,
