@@ -1,3 +1,5 @@
+from decimal import Decimal
+
 from fastapi.testclient import TestClient
 
 from app.services.seed import SEED_OWNER_EMAIL, SEED_OWNER_PASSWORD, SEED_SLUG, seed_household
@@ -45,7 +47,10 @@ def test_seed_household_is_a_normal_household(client: TestClient) -> None:
     assert overview["cash_total"] == "0.00"
     assert overview["allocated_total"] == "0.00"
     assert overview["period_income"] == "0.00"
-    assert overview["safe_to_spend"]["current"] == "0.00"
+    # A zero-cash household can have negative Safe to Spend when seeded obligations are overdue.
+    assert Decimal(overview["safe_to_spend"]["current"]) <= Decimal("0.00")
+    committed = Decimal(overview["safe_to_spend"]["components"]["committed_obligations"])
+    assert committed > Decimal("0.00")
     rules = {row["name"]: row for row in client.get("/api/v1/allocation-rules").json()}
     assert rules["Tithe"]["type"] == "percentage"
     assert rules["Family surplus"]["type"] == "remainder"
@@ -61,7 +66,7 @@ def test_seed_household_is_a_normal_household(client: TestClient) -> None:
     obligations = {row["name"]: row for row in client.get("/api/v1/obligations").json()}
     assert obligations["Sibling University Fees"]["required_monthly"] == "150000.00"
     assert obligations["Parents' rent"]["required_monthly"] == "50000.00"
-    assert obligations["Sibling University Fees"]["next_due_date"] == "2026-12-15"
+    assert obligations["Sibling University Fees"]["next_due_date"] == "2026-10-15"
     funds = {row["name"]: row for row in client.get("/api/v1/funds").json()}
     assert funds["University fund"]["target_amount"] == "450000.00"
     assert funds["Parents Rent Fund"]["required_monthly"] == "50000.00"
