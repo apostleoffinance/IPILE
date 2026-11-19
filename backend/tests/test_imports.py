@@ -277,11 +277,6 @@ def test_email_mailbox_and_approval_are_household_scoped(client: TestClient, mon
     register(client, "household-a-import@example.com")
     mailbox = client.post("/api/v1/imports/mailbox")
     assert mailbox.status_code == 200, mailbox.text
-    account_a = client.post(
-        "/api/v1/accounts",
-        json={"name": "A Current", "type": "bank", "current_balance": "100000.00"},
-    ).json()
-
     inbound = client.post(
         "/api/v1/imports/inbound-email",
         headers={"X-Inbound-Email-Secret": "test-secret"},
