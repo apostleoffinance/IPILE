@@ -18,6 +18,9 @@ def test_health(client: TestClient) -> None:
     response = client.get("/api/v1/health")
     assert response.status_code == 200
     assert response.json()["status"] == "ok"
+    root = client.get("/")
+    assert root.status_code == 200
+    assert root.json()["status"] == "ok"
 
 
 def test_register_login_me_logout(client: TestClient) -> None:
