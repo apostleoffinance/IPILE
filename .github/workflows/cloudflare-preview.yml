@@ -1,0 +1,83 @@
+name: Cloudflare frontend validation
+
+on:
+  pull_request:
+    paths:
+      - "frontend/**"
+      - ".github/workflows/cloudflare-preview.yml"
+  push:
+    branches:
+      - "milestone/ipile-fe-01-cloudflare"
+    paths:
+      - "frontend/**"
+      - ".github/workflows/cloudflare-preview.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  cloudflare-worker:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: frontend
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install application dependencies
+        run: npm ci
+
+      - name: Install Cloudflare build tooling
+        run: npm run cf:install
+
+      - name: Typecheck
+        run: npm run typecheck
+
+      - name: Frontend unit tests
+        run: npm test
+
+      - name: Build Next.js application for Workers
+        run: npm run cf:build
+
+      - name: Start local Workers runtime and smoke-test frontend
+        shell: bash
+        env:
+          BACKEND_URL: ${{ secrets.IPILE_STAGING_BACKEND_URL }}
+        run: |
+          if [[ -n "$BACKEND_URL" ]]; then
+            printf 'BACKEND_URL=%s\n' "$BACKEND_URL" > .dev.vars
+          fi
+
+          npx wrangler dev --local --port 8787 > /tmp/ipile-wrangler.log 2>&1 &
+          worker_pid=$!
+          cleanup() {
+            kill "$worker_pid" 2>/dev/null || true
+            rm -f .dev.vars
+          }
+          trap cleanup EXIT
+
+          ready=0
+          for attempt in $(seq 1 40); do
+            if curl --silent --fail http://127.0.0.1:8787/ >/tmp/ipile-home.html; then
+              ready=1
+              break
+            fi
+            sleep 2
+          done
+
+          if [[ "$ready" != "1" ]]; then
+            cat /tmp/ipile-wrangler.log
+            exit 1
+          fi
+
+          if [[ -n "$BACKEND_URL" ]]; then
+            curl --silent --show-error --fail http://127.0.0.1:8787/api/v1/health
+          else
+            echo "API smoke test skipped: set IPILE_STAGING_BACKEND_URL to enable staging API validation."
+          fi
