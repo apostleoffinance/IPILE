@@ -170,3 +170,4 @@ def test_readiness_rejects_outdated_migrations(client: TestClient) -> None:
 
     response = client.get("/api/v1/health")
     assert response.status_code == 503
+    assert client.head("/").status_code == 503
