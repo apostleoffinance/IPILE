@@ -13,7 +13,7 @@ This document distinguishes implementation from live operational evidence. A gre
 | Backup schedule | No backup schedule or restore record could be verified for the database used by IPÌLẸ̀. The connected Neon project visible to this operator is named `sageops-production` and contains SageOps tables; it is not evidence of an IPÌLẸ̀ backup target. | **Release blocker** |
 | Restore | No isolated restore drill with row-count and tenant-integrity evidence has been completed. | **Release blocker** |
 | Application monitoring | Render provides service logs, deploy events and resource metrics. API middleware emits request IDs and structured request/error logs. | Partially implemented |
-| External error reporting | No configured external error-tracking destination or alert delivery evidence has been verified. | **Release blocker for production** |
+| External error reporting | Optional Sentry integration and sensitive-data scrubbing are implemented; no production DSN or alert delivery evidence has been verified. | **Release blocker until configured and test alert delivered** |
 | Privacy | Household isolation, export, soft-delete, session security and audit logging are implemented. A public privacy notice and operational retention schedule are required. | Documentation/action required |
 | Support | Authenticated support-ticket creation and per-user ticket listing exist. No staffed response SLA or customer-facing escalation channel has been verified. | Operational owner required |
 | Billing | Household plan labels and a shared-secret webhook stub exist. No Paystack/Stripe checkout, provider signature verification, subscription lifecycle, reconciliation or refund flow is implemented. | **Paid billing is not ready** |
@@ -78,7 +78,7 @@ Thresholds are initial pilot defaults and must be tuned from real traffic.
 
 ### Error reporting requirements
 
-- Configure an approved error-tracking service before public release.
+- Configure the optional Sentry integration with `SENTRY_DSN` and a low `SENTRY_TRACES_SAMPLE_RATE` before public release.
 - Send unhandled exceptions and release/environment identifiers.
 - Do not send request bodies, passwords, session cookies, CSRF tokens, payment secrets, bank statements, account numbers or financial descriptions.
 - Disable default user/PII capture. Scrub sensitive headers, query strings and request context.
@@ -141,7 +141,7 @@ A release is **GO** only when:
 - [ ] Automated backups and retention are enabled and evidenced.
 - [ ] An isolated restore drill passes and meets RPO/RTO.
 - [ ] Availability/error/latency/database/backup alerts reach a monitored owner.
-- [ ] Error reporting is configured with sensitive-data scrubbing.
+- [ ] Sentry is configured with sensitive-data scrubbing and a test alert is received by the on-call owner.
 - [ ] Privacy notice and retention schedule are approved and published.
 - [ ] Support owner, contact channel and response targets are active.
 - [ ] Billing is either fully implemented and tested or paid features remain disabled and clearly described as pilot-only.
