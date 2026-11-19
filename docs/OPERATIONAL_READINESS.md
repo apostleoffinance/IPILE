@@ -9,9 +9,9 @@ This document distinguishes implementation from live operational evidence. A gre
 | Area | Observed evidence | Status |
 |---|---|---|
 | API hosting | Render service `IPILE`, Free plan, one instance, public HTTPS URL, auto-deploy from `main` | Running; capacity/reliability review required |
-| Database | Render deploy logs show PostgreSQL migrations executing successfully. No Render-managed Postgres instance is present in the connected Render workspace. | Actual production database provider/instance must be confirmed against the service's `DATABASE_URL` without exposing credentials |
-| Backup schedule | No backup schedule or restore record could be verified for the database used by IPÌLẸ̀. The connected Neon project visible to this operator is named `sageops-production` and contains SageOps tables; it is not evidence of an IPÌLẸ̀ backup target. | **Release blocker** |
-| Restore | No isolated restore drill with row-count and tenant-integrity evidence has been completed. | **Release blocker** |
+| Database | Neon project `ipile` (`rough-wave-86185521`), AWS `us-east-2`, PostgreSQL 18, default `production` branch, database `neondb`. Render production environment now uses the Neon `ipile_app` runtime role and separate owner/migration URL. Render deployment `dep-dbvi2ol9el5s739qsdl0` is live; migrations `0001` through `0016` completed; Render HEAD readiness probe returned 200. | **Connected and migrated**; live public GET probe still to be independently verified |
+| Backup schedule | One manual Neon snapshot (`ipile-before-first-migration-2026-11-19`) was created before initial schema migration. Neon reports 6-hour history retention. Scheduled snapshot creation is unavailable for this project on its current plan; no daily schedule or post-migration snapshot is configured. | **Release blocker** |
+| Restore | No isolated restore from the production snapshot has been completed. Current production schema has 45 tables, migration head `0016_import_mailboxes`, and zero households/users/accounts/transactions. | **Release blocker** |
 | Application monitoring | Render provides service logs, deploy events and resource metrics. API middleware emits request IDs and structured request/error logs. | Partially implemented |
 | External error reporting | Optional Sentry integration and sensitive-data scrubbing are implemented; no production DSN or alert delivery evidence has been verified. | **Release blocker until configured and test alert delivered** |
 | Privacy | Household isolation, export, soft-delete, session security and audit logging are implemented. A public privacy notice and operational retention schedule are required. | Documentation/action required |
@@ -154,6 +154,10 @@ A release is **GO** only when:
 |---|---|---|---|---|
 | 2026-11-19 | Render service inspection | One Free web service; no Render Postgres instance in connected workspace | Observed | Release engineering |
 | 2026-11-19 | Application telemetry | Request IDs and structured logs in code; Render logs/events/metrics accessible | Partial | Release engineering |
-| 2026-11-19 | Neon account inspection | Visible Neon project is SageOps schema, not IPÌLẸ̀ | Not a valid backup target | Release engineering |
+| 2026-11-19 | Neon production connection | Project `ipile`, `rough-wave-86185521`, branch `production`, database `neondb`; Render runtime/migration URLs configured without exposing secrets | Connected | Release engineering |
+| 2026-11-19 | Database migration | Render deployment `dep-dbvi2ol9el5s739qsdl0` live; Alembic `0001`–`0016`; root HEAD readiness returned 200; seed disabled; 45 tables; zero household data | Passed | Release engineering |
+| 2026-11-19 | Runtime database privileges | `ipile_app` can read household data, has schema USAGE, and does not have schema CREATE; default DML/sequence privileges configured for migration-created objects | Passed | Database operator |
+| 2026-11-19 | Pre-migration snapshot | Manual snapshot `ipile-before-first-migration-2026-11-19` created before schema bootstrap | Created; not a post-migration restore test | Database operator |
+| 2026-11-19 | Neon scheduled backups | Scheduled snapshot API returned `backup schedule creation is not enabled for this project`; project history retention is 6 hours | **Not passed** | Database operator |
 | 2026-11-19 | Backup/restore | No IPÌLẸ̀ backup schedule or restore evidence verified | **Not passed** | Database operator |
 | 2026-11-19 | Billing | Plan switching and webhook stub only | **Not paid-ready** | Product/finance |
