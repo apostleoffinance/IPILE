@@ -36,6 +36,40 @@ def _mailbox_address(token: str) -> str:
     return f"bank-alert+{token}@{domain}"
 
 
+
+
+def _reject_inbound_email(
+    db: Session,
+    mailbox: ImportMailbox,
+    *,
+    sender: str,
+    subject: str,
+    message_id: str,
+    reason: str,
+) -> dict[str, str]:
+    job = ImportJob(
+        household_id=mailbox.household_id,
+        source="email",
+        filename=subject[:200],
+        status="rejected",
+        error_count=1,
+        result={
+            "sender": sender[:200],
+            "message_id": message_id or None,
+            "errors": [reason],
+        },
+    )
+    mailbox.last_received_at = datetime.now(UTC)
+    db.add(job)
+    db.add(mailbox)
+    db.commit()
+    db.refresh(job)
+    return {
+        "id": str(job.id),
+        "status": job.status,
+        "message": "Alert rejected and not posted.",
+    }
+
 def _scoped_account(db: Session, household_id: UUID, account_id: UUID) -> Account:
     account = (
         db.query(Account)
@@ -215,7 +249,10 @@ def receive_inbound_email(
     subject = str(payload.get("Subject") or payload.get("subject") or "Bank transaction alert")
     body = str(payload.get("TextBody") or payload.get("text_body") or payload.get("text") or "")
     if not body:
-        raise HTTPException(status_code=400, detail="Email contains no plain-text body.")
+        return _reject_inbound_email(
+            db, mailbox, sender=sender, subject=subject,
+            message_id=message_id, reason="Email contains no plain-text body.",
+        )
     try:
         row = parse_bank_alert(
             sender=sender,
@@ -225,7 +262,10 @@ def receive_inbound_email(
             message_id=str(payload.get("MessageID") or payload.get("message_id") or "") or None,
         )
     except ValueError as exc:
-        raise HTTPException(status_code=422, detail=str(exc)) from exc
+        return _reject_inbound_email(
+            db, mailbox, sender=sender, subject=subject,
+            message_id=message_id, reason=str(exc),
+        )
     job = ImportJob(
         household_id=mailbox.household_id,
         source="email",
@@ -263,7 +303,10 @@ def list_import_review(
 ):
     return (
         db.query(ImportJob)
-        .filter(ImportJob.household_id == ctx.household.id, ImportJob.status == "pending_review")
+        .filter(
+            ImportJob.household_id == ctx.household.id,
+            ImportJob.status.in_(["pending_review", "rejected"]),
+        )
         .order_by(ImportJob.created_at.desc())
         .limit(100)
         .all()
