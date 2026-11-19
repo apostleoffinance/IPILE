@@ -455,7 +455,7 @@ export default function OnboardingPage() {
           className="mt-3 font-mono text-xs"
           value={token}
           onChange={(e) => setToken(e.target.value)}
-          placeholder="Invite token"
+          placeholder="Invitation code"
         />
         <Button type="submit" variant="link" size="sm" className="mt-3" disabled={pending}>
           Accept invite
