@@ -90,7 +90,7 @@ export default function GetStartedPage() {
           />
         </label>
         <label className="block text-sm text-muted">
-          Invite token <span className="opacity-70">(optional)</span>
+          Invitation code <span className="opacity-70">(optional)</span>
           <Input
             className="mt-1 w-full border border-line bg-input px-3 py-2.5 font-mono text-xs text-ink outline-none focus:border-gold/50"
             value={inviteToken}

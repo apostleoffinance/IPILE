@@ -22,8 +22,8 @@ import {
   type ImportJob,
 } from "@/lib/api";
 
-const CSV_HINT = "CSV columns: date and amount, or date plus debit/credit. Optional: type, description/narration, merchant, category, external_id.";
-const STATEMENT_HINT = "Supported text layout: date|amount|narrative|reference. Negative amount is treated as income; positive as expense.";
+const CSV_HINT = "Use a bank-exported CSV with a transaction date and amount. If your bank separates money in and money out, include debit and credit columns. A description or merchant name is helpful but optional.";
+const STATEMENT_HINT = "For pasted statements, put the date, amount, description and optional reference on each line, separated by |. Example: 2026-11-01 | 25000 | Grocery shopping | REF123. Negative amounts mean money received; positive amounts mean money spent.";
 
 export default function ImportPage() {
   const [accounts, setAccounts] = useState<Account[] | null>(null);
@@ -140,7 +140,7 @@ export default function ImportPage() {
               </fieldset>
               <p className="text-sm text-muted">{source === "csv" ? CSV_HINT : STATEMENT_HINT}</p>
               <label className="block text-sm">
-                <span className="text-muted">Upload CSV, PDF or TXT (max 10 MB)</span>
+                <span className="text-muted">Upload a CSV, PDF or text file (max 10 MB)</span>
                 <input
                   className="mt-1 block w-full text-sm"
                   type="file"
@@ -148,14 +148,14 @@ export default function ImportPage() {
                   onChange={(event) => setFile(event.target.files?.[0] ?? null)}
                 />
               </label>
-              <p className="text-xs text-muted">PDF support currently requires selectable text. Scanned/image-only PDFs need OCR and are not yet supported.</p>
-              <div className="text-center text-xs text-muted">or paste statement contents</div>
+              <p className="text-xs text-muted">PDFs must contain text you can select and copy. Scanned documents and statement photos are not supported yet.</p>
+              <div className="text-center text-xs text-muted">or paste statement text</div>
               <label className="block text-sm">
                 <span className="text-muted">Filename (optional)</span>
                 <Input className="mt-1" value={filename} onChange={(e) => setFilename(e.target.value)} placeholder="statement-september.csv" />
               </label>
               <label className="block text-sm">
-                <span className="text-muted">Paste file contents</span>
+                <span className="text-muted">Paste statement text</span>
                 <textarea
                   className="mt-1 min-h-40 w-full border border-line bg-surface px-3 py-2 font-mono text-xs"
                   value={content}

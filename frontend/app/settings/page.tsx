@@ -109,7 +109,7 @@ export default function SettingsPage() {
     try {
       await createInvite({ email: inviteEmail, role: inviteRole });
       setInviteEmail("");
-      setMessage("Invite created. Share the token with the invitee.");
+      setMessage("Invitation created. Share the invitation code with the person you invited.");
       await refresh();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Invite failed.");
