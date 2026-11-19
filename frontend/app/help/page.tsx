@@ -11,23 +11,20 @@ export default function HelpPage() {
     <AppShell>
       <ContentContainer className="max-w-2xl">
         <PageHeader
-          eyebrow="IPÌLẸ̀ docs"
+          eyebrow="Support"
           title="Help"
-          description="How the household financial OS fits together."
+          description="Simple guidance for managing your household finances with IPÌLẸ̀."
         />
         <section className="space-y-2 text-sm">
           <SectionHeader title="Get started" />
           <p className="text-muted">
-            Get started, add an account, record income, then use Home for Safe to Spend and health. Your
-            Family Financial Constitution is the ordered allocation rules and policies you configure.
-            Engines stay universal.
+            Add your accounts, record income and expenses, and set the priorities that matter to your household. Your Family Financial Constitution is simply your household money plan: the order in which income is shared across your priorities.
           </p>
         </section>
         <section className="space-y-2 text-sm">
           <SectionHeader title="Invites" />
           <p className="text-muted">
-            Owners create invites under Settings. Share the token; the invitee accepts with the same
-            email.
+            Household owners can invite another person from Settings. Share the invitation code with them; they should accept it using the invited email address.
           </p>
         </section>
         <section className="space-y-2 text-sm">
@@ -39,11 +36,11 @@ export default function HelpPage() {
         <section className="space-y-2 text-sm">
           <SectionHeader title="Support" />
           <p className="text-muted">
-            Open a ticket from{" "}
+            Send us a support request from{" "}
             <Link className="underline" href="/settings">
               Settings
             </Link>
-            . Full write-up lives in the repo at <code>docs/PUBLIC.md</code>.
+            . 
           </p>
         </section>
       </ContentContainer>
