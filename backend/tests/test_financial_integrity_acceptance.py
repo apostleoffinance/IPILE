@@ -5,6 +5,7 @@ production orchestration helpers to derive the expected result.
 """
 from datetime import date
 from decimal import Decimal
+from types import SimpleNamespace
 from uuid import uuid4
 
 import pytest
@@ -13,6 +14,7 @@ from app.services.allocation_engine import AllocationRuleSpec, allocate
 from app.services.balances import account_delta, apply_flags, counterparty_delta
 from app.services.budget_engine import line_status, remaining, spent_from_lines, utilization
 from app.services.obligation_engine import add_months, obligation_monthly
+from app.services.safe_to_spend import protected_in_spendable
 from app.services.safe_to_spend_engine import (
     current_safe_to_spend,
     forecast_safe_to_spend,
@@ -195,3 +197,27 @@ def test_wealth_rollup_matches_independent_assets_minus_liabilities() -> None:
     assert result.total_liabilities == D("650000.00")
     assert result.net_worth == D("3600000.00")
     assert result.investments == D("350000.00")
+
+
+
+def test_protected_fund_inside_protected_spendable_account_is_not_double_counted() -> None:
+    account_id = uuid4()
+    account = SimpleNamespace(
+        id=account_id,
+        status="active",
+        type="bank",
+        include_in_safe_to_spend=True,
+        business_id=None,
+        is_protected=True,
+        available_balance=D("100000.00"),
+    )
+    fund = SimpleNamespace(
+        id=uuid4(),
+        account_id=account_id,
+        is_protected=True,
+        status="active",
+        deleted_at=None,
+        current_amount=D("25000.00"),
+    )
+    # The whole account balance already includes and protects the fund balance.
+    assert protected_in_spendable([account], [fund]) == D("100000.00")
