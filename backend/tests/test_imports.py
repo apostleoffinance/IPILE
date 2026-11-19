@@ -346,3 +346,26 @@ def test_text_statement_rejects_malformed_transaction_rows_without_partial_posti
     assert client.get("/api/v1/transactions").json() == []
     balance = Decimal(client.get("/api/v1/accounts").json()[0]["current_balance"])
     assert balance == Decimal("100000.00")
+
+
+def test_statement_upload_uses_configured_size_limit(client: TestClient, monkeypatch) -> None:
+    from app.api.v1 import imports as imports_api
+    from app.core.config import Settings
+
+    register(client, "upload-limit@example.com")
+    account = client.post(
+        "/api/v1/accounts",
+        json={"name": "Current", "type": "bank", "current_balance": "100000.00"},
+    ).json()
+    monkeypatch.setattr(
+        imports_api,
+        "get_settings",
+        lambda: Settings(max_import_upload_bytes=8),
+    )
+    response = client.post(
+        "/api/v1/imports/upload",
+        data={"account_id": account["id"]},
+        files={"file": ("statement.csv", b"date,amount\\n2026-09-01,500.00\\n", "text/csv")},
+    )
+    assert response.status_code == 413
+    assert "8-byte" in response.json()["detail"]
