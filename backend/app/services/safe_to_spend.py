@@ -69,14 +69,19 @@ def protected_in_spendable(accounts: list[Account], funds: list[SinkingFund]) ->
         for account in accounts
         if counts_toward_current_sts(account)
     }
+    protected_account_ids = {
+        account.id
+        for account in accounts
+        if account.id in spendable_ids and account.is_protected
+    }
     total = Decimal("0.00")
     for account in accounts:
-        if account.id in spendable_ids and account.is_protected:
+        if account.id in protected_account_ids:
             total += Decimal(str(account.available_balance))
     for fund in funds:
         if not fund.is_protected or fund.status != "active" or fund.deleted_at is not None:
             continue
-        if fund.account_id in spendable_ids:
+        if fund.account_id in spendable_ids and fund.account_id not in protected_account_ids:
             total += Decimal(str(fund.current_amount))
     return quantize_money(total)
 

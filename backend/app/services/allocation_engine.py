@@ -81,6 +81,8 @@ def allocate(
     source_amounts: dict[UUID, Decimal] | None = None,
 ) -> AllocationResult:
     income = quantize_money(recognized_income)
+    if income < 0:
+        raise ValueError("Recognized income cannot be negative.")
     remaining = income
     ordered = sorted(rules, key=lambda rule: (rule.priority, rule.created_at, rule.name))
     lines: list[AllocationLineResult] = []
