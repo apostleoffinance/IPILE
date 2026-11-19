@@ -292,6 +292,8 @@ def test_email_mailbox_and_approval_are_household_scoped(client: TestClient, mon
     assert inbound.status_code == 200, inbound.text
     job_id = inbound.json()["id"]
 
+    logout = client.post("/api/v1/auth/logout")
+    assert logout.status_code == 204
     register(client, "household-b-import@example.com")
     account_b = client.post(
         "/api/v1/accounts",
