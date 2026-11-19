@@ -228,7 +228,7 @@ def test_csv_import_rejects_empty_debit_and_credit(client: TestClient) -> None:
         "/api/v1/imports/csv",
         json={
             "account_id": account["id"],
-            "content": "date,description,debit,credit,reference\\n2026-09-01,Empty,,,empty-1\\n",
+            "content": "date,description,debit,credit,reference\n2026-09-01,Empty,,,empty-1\n",
         },
     )
     assert response.status_code == 400
@@ -249,9 +249,9 @@ def test_identical_transactions_without_references_keep_distinct_ids(client: Tes
         json={
             "account_id": account["id"],
             "content": (
-                "date,description,amount\\n"
-                "2026-09-01,POS purchase,500.00\\n"
-                "2026-09-01,POS purchase,500.00\\n"
+                "date,description,amount\n"
+                "2026-09-01,POS purchase,500.00\n"
+                "2026-09-01,POS purchase,500.00\n"
             ),
         },
     )
@@ -336,9 +336,9 @@ def test_text_statement_rejects_malformed_transaction_rows_without_partial_posti
         json={
             "account_id": account["id"],
             "content": (
-                "date|amount|narrative|reference\\n"
-                "2026-09-10|-50000.00|Salary|good-row\\n"
-                "not-a-date|12000.00|Malformed|bad-row\\n"
+                "date|amount|narrative|reference\n"
+                "2026-09-10|-50000.00|Salary|good-row\n"
+                "not-a-date|12000.00|Malformed|bad-row\n"
             ),
         },
     )
@@ -365,7 +365,7 @@ def test_statement_upload_uses_configured_size_limit(client: TestClient, monkeyp
     response = client.post(
         "/api/v1/imports/upload",
         data={"account_id": account["id"]},
-        files={"file": ("statement.csv", b"date,amount\\n2026-09-01,500.00\\n", "text/csv")},
+        files={"file": ("statement.csv", b"date,amount\n2026-09-01,500.00\n", "text/csv")},
     )
     assert response.status_code == 413
     assert "8-byte" in response.json()["detail"]
