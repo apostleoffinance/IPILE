@@ -9,6 +9,12 @@ from app.core.monitoring import RequestContextMiddleware
 settings = get_settings()
 
 app = FastAPI(title=settings.app_name, version="0.1.0")
+
+
+@app.get("/", tags=["health"])
+def root_health() -> dict[str, str]:
+    """Lightweight platform probe; database readiness lives at /api/v1/health."""
+    return {"status": "ok", "service": "ipile"}
 app.add_middleware(RequestContextMiddleware)
 app.add_middleware(CsrfMiddleware)
 app.add_middleware(

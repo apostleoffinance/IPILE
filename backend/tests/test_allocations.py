@@ -1,4 +1,5 @@
 from datetime import date
+from decimal import Decimal
 
 from fastapi.testclient import TestClient
 
@@ -58,7 +59,9 @@ def test_seed_two_million_allocation_matches_spec(client: TestClient) -> None:
     overview = client.get("/api/v1/overview").json()
     assert overview["period_income"] == "2000000.00"
     assert overview["allocated_total"] == "2000000.00"
-    assert overview["safe_to_spend"]["current"] == "2000000.00"
+    # Safe to Spend must reserve overdue commitments even when income was just posted.
+    assert Decimal(overview["safe_to_spend"]["current"]) < Decimal("2000000.00")
+    assert Decimal(overview["safe_to_spend"]["current"]) > Decimal("0.00")
     assert overview["health_ready"] is True
     assert overview["health"]["label"] in {"Healthy", "Watch", "Strained", "Critical"}
     assert "period_income" in overview

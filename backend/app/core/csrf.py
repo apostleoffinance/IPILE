@@ -34,17 +34,10 @@ def set_csrf_cookie(response: Response, token: str | None = None) -> str:
         value=value,
         httponly=False,
         secure=settings.cookie_secure,
-        samesite=_cookie_samesite(),
+        samesite=settings.resolved_cookie_samesite,
         max_age=settings.session_absolute_days * 24 * 60 * 60,
         path="/",
     )
-    return value
-
-
-def _cookie_samesite() -> str:
-    value = get_settings().cookie_samesite.lower()
-    if value not in {"lax", "strict", "none"}:
-        return "lax"
     return value
 
 
