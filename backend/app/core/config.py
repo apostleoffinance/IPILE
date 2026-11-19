@@ -11,6 +11,7 @@ class Settings(BaseSettings):
     environment: str = "development"
     secret_key: str = "dev-only-change-me"
     database_url: str = "postgresql+psycopg://familyos:familyos_dev_only@localhost:5432/familyos"
+    database_migration_url: str = ""
     cors_origins: str = "http://localhost:3000"
     session_cookie_name: str = "ffos_session"
     csrf_cookie_name: str = "ffos_csrf"
@@ -50,6 +51,11 @@ class Settings(BaseSettings):
             problems.append("DATABASE_URL must use PostgreSQL in production")
         if "localhost" in database_url or "127.0.0.1" in database_url:
             problems.append("DATABASE_URL must not point to localhost in production")
+        migration_url = self.database_migration_url.lower().strip()
+        if migration_url and not migration_url.startswith(("postgresql://", "postgresql+psycopg://")):
+            problems.append("DATABASE_MIGRATION_URL must use PostgreSQL in production")
+        if migration_url and ("localhost" in migration_url or "127.0.0.1" in migration_url):
+            problems.append("DATABASE_MIGRATION_URL must not point to localhost in production")
         if self.secret_key == "dev-only-change-me" or len(self.secret_key) < 32:
             problems.append("SECRET_KEY must be a unique value of at least 32 characters")
         if not self.cookie_secure:
