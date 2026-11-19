@@ -369,3 +369,39 @@ def test_statement_upload_uses_configured_size_limit(client: TestClient, monkeyp
     )
     assert response.status_code == 413
     assert "8-byte" in response.json()["detail"]
+
+
+def test_permanently_unparseable_postmark_alert_is_acknowledged_without_retry(
+    client: TestClient, monkeypatch
+) -> None:
+    from app.api.v1 import imports as imports_api
+    from app.core.config import Settings
+
+    register(client, "rejected-alert@example.com")
+    monkeypatch.setattr(
+        imports_api,
+        "get_settings",
+        lambda: Settings(
+            inbound_email_domain="imports.example.test",
+            inbound_email_webhook_secret="test-secret",
+        ),
+    )
+    mailbox = client.post("/api/v1/imports/mailbox")
+    response = client.post(
+        "/api/v1/imports/inbound-email",
+        auth=("ipile", "test-secret"),
+        json={
+            "To": mailbox.json()["address"],
+            "From": "alerts@bank.example",
+            "Subject": "Debit Alert",
+            "TextBody": "Debited NGN 5,000.00. Available balance NGN 45,000.00.",
+            "Date": "Sun, 15 Nov 2026 10:00:00 +0100",
+            "MessageID": "postmark-rejected-0001",
+        },
+    )
+    assert response.status_code == 200
+    assert response.json()["status"] == "rejected"
+    queue = client.get("/api/v1/imports/review").json()
+    assert len(queue) == 1
+    assert queue[0]["status"] == "rejected"
+    assert "unambiguous" in queue[0]["result"]["errors"][0]
