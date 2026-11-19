@@ -262,3 +262,65 @@ def test_identical_transactions_without_references_keep_distinct_ids(client: Tes
     assert rows[0]["external_id"] != rows[1]["external_id"]
     balance = Decimal(client.get("/api/v1/accounts").json()[0]["current_balance"])
     assert balance == Decimal("99000.00")
+
+
+def test_email_mailbox_and_approval_are_household_scoped(client: TestClient, monkeypatch) -> None:
+    from app.api.v1 import imports as imports_api
+    from app.core.config import Settings
+
+    settings = Settings(
+        inbound_email_domain="imports.example.test",
+        inbound_email_webhook_secret="test-secret",
+    )
+    monkeypatch.setattr(imports_api, "get_settings", lambda: settings)
+
+    register(client, "household-a-import@example.com")
+    mailbox = client.post("/api/v1/imports/mailbox")
+    assert mailbox.status_code == 200, mailbox.text
+    account_a = client.post(
+        "/api/v1/accounts",
+        json={"name": "A Current", "type": "bank", "current_balance": "100000.00"},
+    ).json()
+
+    inbound = client.post(
+        "/api/v1/imports/inbound-email",
+        headers={"X-Inbound-Email-Secret": "test-secret"},
+        json={
+            "To": mailbox.json()["address"],
+            "From": "alerts@bank.example",
+            "Subject": "Debit Alert",
+            "TextBody": "Your account was debited NGN 5,000.00 on 15/11/2026. Ref: TENANT123",
+            "Date": "Sun, 15 Nov 2026 10:00:00 +0100",
+            "MessageID": "tenant-a-message-0001",
+        },
+    )
+    assert inbound.status_code == 200, inbound.text
+    job_id = inbound.json()["id"]
+
+    register(client, "household-b-import@example.com")
+    account_b = client.post(
+        "/api/v1/accounts",
+        json={"name": "B Current", "type": "bank", "current_balance": "200000.00"},
+    ).json()
+    assert client.get("/api/v1/imports/review").json() == []
+
+    approval = client.post(
+        f"/api/v1/imports/{job_id}/approve",
+        json={"account_id": account_b["id"]},
+    )
+    assert approval.status_code == 404
+    assert client.get("/api/v1/transactions").json() == []
+
+
+def test_bank_alert_uses_provider_date_only_when_transaction_date_is_absent() -> None:
+    from datetime import date
+
+    from app.services.email_imports import parse_bank_alert
+
+    row = parse_bank_alert(
+        sender="alerts@bank.example",
+        subject="Debit Alert",
+        body="Your account was debited NGN 5,000.00. Ref: PM123456",
+        email_date="Sun, 15 Nov 2026 10:00:00 +0100",
+    )
+    assert row.date == date(2026, 11, 15)
