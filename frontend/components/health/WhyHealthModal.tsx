@@ -20,7 +20,7 @@ export function WhyHealthModal({
     <Modal title={`Why ${health.score}?`} onClose={onClose}>
       <div className="max-h-[70vh] space-y-4 overflow-y-auto text-sm">
         <p className="text-muted">
-          {health.label} · components sum to {health.score}. Weights are from the household health engine.
+          {health.label}. Your score reflects the areas below and how each one contributes to your overall financial health.
         </p>
         {error ? <p className="text-critical">{error}</p> : null}
         {health.components.map((row) => (
