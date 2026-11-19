@@ -1,47 +1,50 @@
-# Billing (PSP-ready)
+# Billing readiness and payment acceptance
 
-IPÌLẸ̀ currently tracks household `plan` and `billing_status` in-app without charging a card.
-This document explains how to wire **Paystack** or **Stripe** later without changing tenancy.
+## Current implementation — pilot only
 
-## Current surface
+IPÌLẸ̀ currently stores household `plan` and `billing_status` fields and exposes:
 
-| Endpoint | Purpose |
+| Endpoint | Current behavior |
 |---|---|
-| `GET /api/v1/billing` | Plan snapshot for owner/partner |
-| `POST /api/v1/billing/plan` | Switch plan in-app (owner) |
-| `POST /api/v1/billing/webhook` | PSP webhook stub |
+| `GET /api/v1/billing` | Returns the household plan snapshot |
+| `POST /api/v1/billing/plan` | Owner can change the plan label in-app |
+| `POST /api/v1/billing/webhook` | Shared-secret audit stub; not a payment processor |
 
-Plans today: `pilot` (₦0) and `family` (list price in `app/services/billing.py`).
+The current webhook accepts a shared secret and records an audit event. It does **not** verify Paystack or Stripe signatures, reconcile a payment, deduplicate provider event IDs, issue receipts, handle refunds, or enforce subscription lifecycle state.
 
-## Webhook stub
+**A plan label is not evidence of payment.** Do not sell or advertise paid access as active until a real provider integration and the acceptance cases below are complete. Keep the product in pilot/free mode in the meantime.
 
-`POST /api/v1/billing/webhook`
+## Required provider integration
 
-1. Set env `BILLING_WEBHOOK_SECRET` (settings field `billing_webhook_secret`).
-2. If the secret is empty, the endpoint returns **503** (not configured).
-3. Callers must send header `X-Billing-Secret` matching the configured value.
-4. On success the event is written to `audit_logs` (`entity_type=billing`, `action=webhook`) and the API returns **202**.
+Choose one provider and implement its server-side integration:
 
-This is intentionally provider-agnostic. Replace the shared-secret check with the PSP’s signature scheme when you go live.
+- Paystack: initialize checkout server-side; verify `x-paystack-signature` using HMAC SHA-512 over the raw body; verify transaction status server-side before granting entitlements.
+- Stripe: use Checkout/Customer Portal; verify `Stripe-Signature` against the raw body with the endpoint signing secret.
 
-## Wiring Paystack later
+For either provider:
+1. Persist provider customer/subscription IDs against the household.
+2. Persist processed webhook event IDs with a unique constraint.
+3. Verify signature before parsing/processing the event.
+4. Make webhook processing idempotent under retries and concurrent delivery.
+5. Reconcile payment amount, currency, household, plan and provider status.
+6. Handle pending, active, past-due, canceled, expired and refunded states.
+7. Grant entitlements only from verified server-side payment/subscription state.
+8. Record an audit event for every billing state transition.
+9. Provide customer-visible receipts, renewal/cancellation terms and refund route.
+10. Never expose provider secret keys in frontend bundles or logs.
 
-1. Create a Paystack plan / subscription for the Family tier.
-2. On checkout success, map `customer_code` / `subscription_code` → `household_id` (store on household or a `billing_customers` table).
-3. Point Paystack webhooks at `/api/v1/billing/webhook`.
-4. Verify `x-paystack-signature` (HMAC SHA512 of raw body with secret) instead of `X-Billing-Secret`.
-5. On `subscription.create` / `charge.success` / `subscription.disable`, update `household.plan` and `household.billing_status`, then `write_audit`.
+## Required sandbox acceptance
 
-## Wiring Stripe later
+- Successful checkout activates only the intended household.
+- Failed/canceled checkout grants no paid entitlement.
+- Invalid signature is rejected.
+- Duplicate event delivery changes state once.
+- Out-of-order events cannot reactivate a canceled/expired subscription.
+- Wrong amount/currency/household mapping is rejected and alerted.
+- Refund and chargeback revoke or adjust entitlements according to policy.
+- Customer cancellation stops renewal and is reflected in the app.
+- Reconciliation job detects provider/app state mismatch.
 
-1. Create Products/Prices for Family.
-2. Use Checkout or Customer Portal; store `stripe_customer_id` per household.
-3. Point Stripe webhooks at the same route (or `/api/v1/billing/webhook/stripe` if you prefer separate paths).
-4. Verify `Stripe-Signature` with the webhook signing secret.
-5. Handle `customer.subscription.updated` / `deleted` / `invoice.paid` to sync plan + status.
+## Launch gate
 
-## Security notes
-
-- Never trust client-reported plan changes from the browser alone once PSP is live — prefer webhook + server-side portal.
-- Keep secrets in env only; do not commit live keys.
-- Webhook handlers must stay idempotent (dedupe by provider event id in audit or a processed-events table).
+Until all required cases pass in provider sandbox and the live cutover is approved, label plans accurately as pilot access and do not collect subscription payments.
