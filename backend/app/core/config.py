@@ -45,6 +45,8 @@ class Settings(BaseSettings):
             problems.append("DATABASE_URL must use PostgreSQL in production")
         if "localhost" in database_url or "127.0.0.1" in database_url:
             problems.append("DATABASE_URL must not point to localhost in production")
+        if self.secret_key == "dev-only-change-me" or len(self.secret_key) < 32:
+            problems.append("SECRET_KEY must be a unique value of at least 32 characters")
         if not self.cookie_secure:
             problems.append("COOKIE_SECURE must be true in production")
         if self.cookie_samesite.lower().strip() not in {"lax", "strict", "none"}:
