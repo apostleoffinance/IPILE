@@ -21,6 +21,7 @@ def test_health(client: TestClient) -> None:
     root = client.get("/")
     assert root.status_code == 200
     assert root.json()["status"] == "ok"
+    assert client.head("/").status_code == 200
 
 
 def test_register_login_me_logout(client: TestClient) -> None:
