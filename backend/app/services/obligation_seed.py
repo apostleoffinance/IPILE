@@ -10,7 +10,7 @@ from app.services.funds import attach_fund
 from app.services.obligation_engine import obligation_monthly
 from app.services.obligations import generate_occurrences, obligation_category
 
-UNIVERSITY_DUE = date(2026, 12, 15)
+UNIVERSITY_DUE = date(2026, 10, 15)
 RENT_DUE = date(2027, 1, 15)
 
 
@@ -32,7 +32,7 @@ def seed_obligations(db: Session, household: Household) -> None:
         amount=Decimal("100000.00"),
         currency="NGN",
         frequency="monthly",
-        next_due_date=date(2026, 12, 1),
+        next_due_date=date(2026, 10, 1),
         priority="high",
         sinking_fund=False,
         auto_allocate=False,
