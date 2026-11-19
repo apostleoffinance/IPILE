@@ -50,7 +50,7 @@ export default function ReportsPage() {
         <PageHeader
           eyebrow="Intelligence"
           title="Reports"
-          description="What should we remember? Period reviews from engine snapshots."
+          description="A clear record of how your household finances change over time."
         />
         <Tabs value={kind} onValueChange={(value) => setKind(value as (typeof kinds)[number])}>
           <TabsList>
