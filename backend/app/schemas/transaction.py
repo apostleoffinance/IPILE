@@ -31,8 +31,6 @@ class TransactionCreate(BaseModel):
             raise ValueError("access_scope must be shared or personal.")
         if self.access_scope == "personal" and self.member_id is None:
             raise ValueError("Personal transactions require a member_id.")
-        if self.access_scope == "shared" and self.member_id is not None:
-            raise ValueError("Shared transactions cannot have a personal owner.")
         return self
 
 
