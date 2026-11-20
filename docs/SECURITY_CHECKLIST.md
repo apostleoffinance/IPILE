@@ -23,4 +23,4 @@
 | 19 | Monitoring / error tracking | Done | `RequestContextMiddleware` + `X-Request-Id` structured logs |
 | 20 | Dashboard/engine query performance | Done | Indexes on `(household_id, date/type)` transactions and alerts status |
 | 21 | CSRF for cookie mutations | Done | Double-submit `ffos_csrf` + `X-CSRF-Token` (`app/core/csrf.py`); login/register exempt |
-| 22 | Cross-origin cookies | Done | `COOKIE_SAMESITE=none` + `COOKIE_SECURE=true` for Vercel↔API; default `lax` locally |
+| 22 | Same-origin cookies | Done | Cloudflare Worker same-origin API proxy; `COOKIE_SAMESITE=lax` + `COOKIE_SECURE=true` in production |
