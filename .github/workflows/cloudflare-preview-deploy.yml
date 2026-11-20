@@ -55,8 +55,13 @@ jobs:
       - name: Build Worker
         run: npm run cf:build
 
-      - name: Publish preview Worker with staging API binding
+      - name: Create preview Worker
+        run: npx wrangler deploy --name ipile-web-preview
+
+      - name: Set staging API origin on preview Worker
         shell: bash
         run: |
           printf '%s' "$IPILE_STAGING_BACKEND_URL" | npx wrangler secret put BACKEND_URL --name ipile-web-preview
-          npx wrangler deploy --name ipile-web-preview
+
+      - name: Publish preview Worker with staging API binding
+        run: npx wrangler deploy --name ipile-web-preview
