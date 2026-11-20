@@ -129,11 +129,6 @@ def create_transaction(
             status_code=403,
             detail="Members may only create their own personal transactions.",
         )
-    if payload.access_scope == 'shared' and payload.member_id is not None:
-        raise HTTPException(
-            status_code=400,
-            detail="Shared transactions cannot specify a personal owner.",
-        )
     if payload.type not in TX_TYPES:
         raise HTTPException(status_code=400, detail="Invalid transaction type.")
     if payload.status not in TX_STATUSES or payload.status == "voided":
