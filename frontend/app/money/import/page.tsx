@@ -11,13 +11,10 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
 import {
-  approveEmailImport,
-  createImportMailbox,
   getAccounts,
-  getImportReview,
-  importCsv,
-  importStatement,
-  uploadStatement,
+  commitStagedImport,
+  previewImport,
+  previewStatementUpload,
   type Account,
   type ImportJob,
 } from "@/lib/api";
@@ -35,17 +32,6 @@ export default function ImportPage() {
   const [pending, setPending] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [result, setResult] = useState<ImportJob | null>(null);
-  const [mailbox, setMailbox] = useState<string | null>(null);
-  const [review, setReview] = useState<ImportJob[]>([]);
-  const [mailboxPending, setMailboxPending] = useState(false);
-
-  async function refreshReview() {
-    try {
-      setReview(await getImportReview());
-    } catch {
-      // Inbound email may not be configured yet; manual statement imports remain available.
-    }
-  }
 
   useEffect(() => {
     getAccounts()
@@ -54,7 +40,6 @@ export default function ImportPage() {
         if (rows[0]) setAccountId(rows[0].id);
       })
       .catch((err: Error) => setError(err.message));
-    void refreshReview();
   }, []);
 
   async function onSubmit(event: FormEvent) {
@@ -65,15 +50,9 @@ export default function ImportPage() {
     setResult(null);
     try {
       const job = file
-        ? await uploadStatement(accountId, file)
-        : source === "csv"
-          ? await importCsv({ account_id: accountId, content, filename: filename || undefined })
-          : await importStatement({ account_id: accountId, content, filename: filename || undefined });
+        ? await previewStatementUpload(accountId, file)
+        : await previewImport({ account_id: accountId, source, content, filename: filename || undefined });
       setResult(job);
-      setContent("");
-      setFile(null);
-      setFilename("");
-      await refreshReview();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Import failed.");
     } finally {
@@ -81,29 +60,20 @@ export default function ImportPage() {
     }
   }
 
-  async function onCreateMailbox() {
-    setMailboxPending(true);
+  async function onCommit(jobId: string) {
+    if (!accountId) return;
+    setPending(true);
     setError(null);
     try {
-      const created = await createImportMailbox();
-      setMailbox(created.address);
+      const committed = await commitStagedImport(jobId, accountId);
+      setResult(committed);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Could not create an import address.");
+      setError(err instanceof Error ? err.message : "Could not confirm this import.");
     } finally {
-      setMailboxPending(false);
+      setPending(false);
     }
   }
 
-  async function onApprove(jobId: string) {
-    if (!accountId) return;
-    setError(null);
-    try {
-      await approveEmailImport(jobId, accountId);
-      await refreshReview();
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Could not approve this bank alert.");
-    }
-  }
 
   if (!accounts) {
     return <AppShell><LoadingState /></AppShell>;
@@ -115,7 +85,7 @@ export default function ImportPage() {
         <PageHeader
           eyebrow="Money"
           title="Import transactions"
-          description="Bring bank statement data into your household ledger, then review forwarded bank alerts before they affect your balances."
+          description="Import a bank statement, review the parsed transactions, and confirm before anything changes your household ledger."
         />
         {error ? <ErrorState message={error} /> : null}
         {accounts.length === 0 ? (
@@ -148,7 +118,7 @@ export default function ImportPage() {
                   onChange={(event) => setFile(event.target.files?.[0] ?? null)}
                 />
               </label>
-              <p className="text-xs text-muted">PDFs must contain text you can select and copy. Scanned documents and statement photos are not supported yet.</p>
+              <p className="text-xs text-muted">PDFs must contain selectable text. Scanned documents and receipt photos are not supported yet.</p>
               <div className="text-center text-xs text-muted">or paste statement text</div>
               <label className="block text-sm">
                 <span className="text-muted">Filename (optional)</span>
@@ -165,31 +135,38 @@ export default function ImportPage() {
               <Button type="button" disabled={pending || (!file && !content.trim())} onClick={() => {
                 const form = document.getElementById("statement-import-form") as HTMLFormElement | null;
                 form?.requestSubmit();
-              }}>{pending ? "Importing..." : "Import statement"}</Button>
+              }}>{pending ? "Preparing..." : "Preview import"}</Button>
               <form id="statement-import-form" onSubmit={onSubmit} />
               {result ? (
-                <div className="border border-line px-4 py-3 text-sm">
-                  <p>{result.source} · {result.status}: created {result.created_count}, skipped {result.skipped_count}, errors {result.error_count}</p>
-                  {result.result?.errors?.length ? <ul className="mt-2 list-disc pl-5 text-muted">{result.result.errors.map((row) => <li key={row}>{row}</li>)}</ul> : null}
+                <div className="space-y-3 border border-line px-4 py-3 text-sm">
+                  <p className="font-medium">{result.source} · {result.status.replaceAll("_", " ")}</p>
+                  {result.status === "pending_review" ? (
+                    <>
+                      <p>{result.result?.row_count ?? result.result?.rows?.length ?? 0} transactions parsed · {result.result?.duplicate_count_at_preview ?? 0} possible duplicates already found</p>
+                      <div className="max-h-80 space-y-2 overflow-auto">
+                        {result.result?.rows?.map((row, index) => (
+                          <div key={row.external_id || index} className="flex flex-wrap justify-between gap-2 border-b border-line py-2">
+                            <span>{row.date} · {row.description || row.merchant || row.type}</span>
+                            <span className="font-semibold">{row.amount}</span>
+                          </div>
+                        ))}
+                      </div>
+                      <p className="text-xs text-muted">Review the rows and destination account before confirming. No balances have changed yet.</p>
+                      <Button type="button" disabled={pending} onClick={() => void onCommit(result.id)}>
+                        {pending ? "Confirming..." : "Confirm and import transactions"}
+                      </Button>
+                    </>
+                  ) : (
+                    <>
+                      <p>Created {result.created_count}, skipped {result.skipped_count}, errors {result.error_count}</p>
+                      {result.result?.errors?.length ? <ul className="list-disc pl-5 text-muted">{result.result.errors.map((row) => <li key={row}>{row}</li>)}</ul> : null}
+                    </>
+                  )}
                 </div>
               ) : null}
             </section>
 
-            <section className="space-y-3 border border-line p-4">
-              <h2 className="font-semibold">2. Forward bank alert emails</h2>
-              <p className="text-sm text-muted">Create a private household address and forward bank transaction alerts to it. Alerts are parsed into a review queue; they do not change balances until approved.</p>
-              <Button type="button" variant="outline" disabled={mailboxPending} onClick={onCreateMailbox}>
-                {mailboxPending ? "Creating..." : "Generate household import address"}
-              </Button>
-              {mailbox ? <div className="break-all rounded border border-line bg-surface p-3 font-mono text-sm">{mailbox}</div> : null}
-              <p className="text-xs text-muted">Email forwarding must first be enabled for your household by IPÌLẸ̀ support. Creating a new address will deactivate your previous one.</p>
-            </section>
-
-            <section className="space-y-3">
-              <div className="flex items-center justify-between">
-                <h2 className="font-semibold">3. Bank alert review queue</h2>
-                <Button type="button" variant="ghost" onClick={() => void refreshReview()}>Refresh</Button>
-              </div>
+          </div>
               {review.length === 0 ? (
                 <p className="text-sm text-muted">No bank alerts in the review queue.</p>
               ) : review.map((job) => (

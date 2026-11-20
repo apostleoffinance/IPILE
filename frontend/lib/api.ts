@@ -692,30 +692,32 @@ export type ImportJob = {
   error_count: number;
   result: {
     errors?: string[];
-    sender?: string;
-    rows?: { date: string; amount: string; type: string; description: string | null; merchant?: string | null }[];
+    account_id?: string;
+    row_count?: number;
+    duplicate_count_at_preview?: number;
+    rows?: { date: string; amount: string; type: string; description: string | null; external_id?: string; merchant?: string | null; category_name?: string | null }[];
   };
 };
 
-export function importCsv(body: { account_id: string; content: string; filename?: string }) {
-  return request<ImportJob>("/api/v1/imports/csv", {
+export function previewImport(body: { account_id: string; source: "csv" | "statement"; content: string; filename?: string }) {
+  return request<ImportJob>("/api/v1/imports/preview", {
     method: "POST",
     body: JSON.stringify(body),
   });
 }
 
-export function importStatement(body: { account_id: string; content: string; filename?: string }) {
-  return request<ImportJob>("/api/v1/imports/statement", {
-    method: "POST",
-    body: JSON.stringify(body),
-  });
-}
-
-export function uploadStatement(accountId: string, file: File) {
+export function previewStatementUpload(accountId: string, file: File) {
   const body = new FormData();
   body.append("account_id", accountId);
   body.append("file", file);
-  return request<ImportJob>("/api/v1/imports/upload", { method: "POST", body });
+  return request<ImportJob>("/api/v1/imports/preview-upload", { method: "POST", body });
+}
+
+export function commitStagedImport(jobId: string, accountId: string) {
+  return request<ImportJob>(`/api/v1/imports/jobs/${jobId}/commit`, {
+    method: "POST",
+    body: JSON.stringify({ account_id: accountId }),
+  });
 }
 
 export function createImportMailbox() {
