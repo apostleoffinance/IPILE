@@ -193,17 +193,7 @@ def update_transaction(
     ctx: HouseholdContext = Depends(get_household_context),
     db: Session = Depends(get_db),
 ):
-    transaction = (
-        db.query(Transaction)
-        .filter(
-            Transaction.id == transaction_id,
-            Transaction.household_id == ctx.household.id,
-            Transaction.deleted_at.is_(None),
-        )
-        .first()
-    )
-    if transaction is None:
-        raise HTTPException(status_code=404, detail="Transaction not found.")
+    transaction = _visible_transaction(db, ctx, transaction_id)
     _authorize_write(ctx, payload.member_id or transaction.member_id)
     if ctx.role == "member" and transaction.member_id != ctx.member.id:
         raise HTTPException(status_code=403, detail="Members may only edit their own transactions.")
@@ -232,23 +222,13 @@ def void_transaction(
     ctx: HouseholdContext = Depends(require_roles("owner", "partner")),
     db: Session = Depends(get_db),
 ):
-    transaction = (
-        db.query(Transaction)
-        .filter(
-            Transaction.id == transaction_id,
-            Transaction.household_id == ctx.household.id,
-            Transaction.deleted_at.is_(None),
-        )
-        .first()
-    )
-    if transaction is None:
-        raise HTTPException(status_code=404, detail="Transaction not found.")
+    transaction = _visible_transaction(db, ctx, transaction_id)
     if transaction.status == "voided":
         raise HTTPException(status_code=400, detail="Transaction is already voided.")
-    account = _get_account(db, ctx.household.id, transaction.account_id)
+    account = _visible_account(db, ctx, transaction.account_id)
     counterparty = None
     if transaction.counterparty_account_id:
-        counterparty = _get_account(db, ctx.household.id, transaction.counterparty_account_id)
+        counterparty = _visible_account(db, ctx, transaction.counterparty_account_id)
     apply_transaction_effect(
         db,
         account=account,
