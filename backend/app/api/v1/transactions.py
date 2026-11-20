@@ -44,18 +44,26 @@ def _get_account(db: Session, household_id: UUID, account_id: UUID) -> Account:
 
 
 def _visible_account(db: Session, ctx: HouseholdContext, account_id: UUID) -> Account:
-    account = account_visibility(_scoped_accounts(db, ctx.household.id), Account, ctx).filter(Account.id == account_id).first()
+    account = account_visibility(
+        _scoped_accounts(db, ctx.household.id), Account, ctx
+    ).filter(Account.id == account_id).first()
     if account is None:
         raise HTTPException(status_code=404, detail="Account not found.")
     return account
 
 
 def _visible_account_ids(db: Session, ctx: HouseholdContext):
-    return account_visibility(_scoped_accounts(db, ctx.household.id), Account, ctx).with_entities(Account.id)
+    return account_visibility(
+        _scoped_accounts(db, ctx.household.id), Account, ctx
+    ).with_entities(Account.id)
 
 
 def _visible_transaction(db: Session, ctx: HouseholdContext, transaction_id: UUID) -> Transaction:
-    query = db.query(Transaction).filter(Transaction.id == transaction_id, Transaction.household_id == ctx.household.id, Transaction.deleted_at.is_(None))
+    query = db.query(Transaction).filter(
+        Transaction.id == transaction_id,
+        Transaction.household_id == ctx.household.id,
+        Transaction.deleted_at.is_(None),
+    )
     query = transaction_visibility(query, Transaction, ctx)
     transaction = query.filter(Transaction.account_id.in_(_visible_account_ids(db, ctx))).first()
     if transaction is None:
@@ -98,7 +106,10 @@ def list_transactions(
     if view == "household":
         query = query.filter(Transaction.access_scope == "shared")
     elif view == "personal":
-        query = query.filter(Transaction.access_scope == "personal", Transaction.member_id == ctx.member.id)
+        query = query.filter(
+            Transaction.access_scope == "personal",
+            Transaction.member_id == ctx.member.id,
+        )
     return query.order_by(Transaction.date.desc(), Transaction.created_at.desc()).limit(limit).all()
 
 
@@ -114,9 +125,15 @@ def create_transaction(
     if payload.access_scope == 'personal' and member_id is None:
         raise HTTPException(status_code=400, detail='Personal transactions require a member owner.')
     if payload.access_scope == 'personal' and ctx.role == 'member' and member_id != ctx.member.id:
-        raise HTTPException(status_code=403, detail='Members may only create their own personal transactions.')
+        raise HTTPException(
+            status_code=403,
+            detail="Members may only create their own personal transactions.",
+        )
     if payload.access_scope == 'shared' and payload.member_id is not None:
-        raise HTTPException(status_code=400, detail='Shared transactions cannot specify a personal owner.')
+        raise HTTPException(
+            status_code=400,
+            detail="Shared transactions cannot specify a personal owner.",
+        )
     if payload.type not in TX_TYPES:
         raise HTTPException(status_code=400, detail="Invalid transaction type.")
     if payload.status not in TX_STATUSES or payload.status == "voided":
