@@ -11,6 +11,7 @@ from app.services.allocations import ensure_period_allocation
 from app.services.audit import write_audit
 from app.services.balances import TRANSFER_TYPE, apply_transaction_effect
 from app.services.budgets import evaluate_budget_alerts
+from app.services.finance_access import account_visibility, transaction_visibility
 
 router = APIRouter(prefix="/transactions", tags=["transactions"])
 TX_TYPES = {
@@ -41,6 +42,35 @@ def _get_account(db: Session, household_id: UUID, account_id: UUID) -> Account:
     return account
 
 
+
+def _visible_account(db: Session, ctx: HouseholdContext, account_id: UUID) -> Account:
+    account = account_visibility(
+        _scoped_accounts(db, ctx.household.id), Account, ctx
+    ).filter(Account.id == account_id).first()
+    if account is None:
+        raise HTTPException(status_code=404, detail="Account not found.")
+    return account
+
+
+def _visible_account_ids(db: Session, ctx: HouseholdContext):
+    return account_visibility(
+        _scoped_accounts(db, ctx.household.id), Account, ctx
+    ).with_entities(Account.id)
+
+
+def _visible_transaction(db: Session, ctx: HouseholdContext, transaction_id: UUID) -> Transaction:
+    query = db.query(Transaction).filter(
+        Transaction.id == transaction_id,
+        Transaction.household_id == ctx.household.id,
+        Transaction.deleted_at.is_(None),
+    )
+    query = transaction_visibility(query, Transaction, ctx)
+    transaction = query.filter(Transaction.account_id.in_(_visible_account_ids(db, ctx))).first()
+    if transaction is None:
+        raise HTTPException(status_code=404, detail="Transaction not found.")
+    return transaction
+
+
 def _authorize_write(ctx: HouseholdContext, member_id: UUID | None) -> UUID | None:
     if ctx.role in {"viewer", "advisor"}:
         raise HTTPException(status_code=403, detail="Insufficient permissions.")
@@ -61,6 +91,7 @@ def list_transactions(
     type: str | None = Query(default=None),
     account_id: UUID | None = Query(default=None),
     limit: int = Query(default=100, le=200),
+    view: str | None = Query(default=None, pattern="^(household|personal)$"),
 ):
     query = db.query(Transaction).filter(
         Transaction.household_id == ctx.household.id,
@@ -70,6 +101,15 @@ def list_transactions(
         query = query.filter(Transaction.type == type)
     if account_id:
         query = query.filter(Transaction.account_id == account_id)
+    query = transaction_visibility(query, Transaction, ctx)
+    query = query.filter(Transaction.account_id.in_(_visible_account_ids(db, ctx)))
+    if view == "household":
+        query = query.filter(Transaction.access_scope == "shared")
+    elif view == "personal":
+        query = query.filter(
+            Transaction.access_scope == "personal",
+            Transaction.member_id == ctx.member.id,
+        )
     return query.order_by(Transaction.date.desc(), Transaction.created_at.desc()).limit(limit).all()
 
 
@@ -80,6 +120,15 @@ def create_transaction(
     db: Session = Depends(get_db),
 ):
     member_id = _authorize_write(ctx, payload.member_id)
+    if payload.access_scope not in {'shared', 'personal'}:
+        raise HTTPException(status_code=400, detail='Invalid transaction access scope.')
+    if payload.access_scope == 'personal' and member_id is None:
+        raise HTTPException(status_code=400, detail='Personal transactions require a member owner.')
+    if payload.access_scope == 'personal' and ctx.role == 'member' and member_id != ctx.member.id:
+        raise HTTPException(
+            status_code=403,
+            detail="Members may only create their own personal transactions.",
+        )
     if payload.type not in TX_TYPES:
         raise HTTPException(status_code=400, detail="Invalid transaction type.")
     if payload.status not in TX_STATUSES or payload.status == "voided":
@@ -90,16 +139,17 @@ def create_transaction(
     if payload.counterparty_account_id == payload.account_id:
         raise HTTPException(status_code=400, detail="Transfer accounts must be different.")
 
-    account = _get_account(db, ctx.household.id, payload.account_id)
+    account = _visible_account(db, ctx, payload.account_id)
     counterparty = None
     if payload.counterparty_account_id:
-        counterparty = _get_account(db, ctx.household.id, payload.counterparty_account_id)
+        counterparty = _visible_account(db, ctx, payload.counterparty_account_id)
 
     transaction = Transaction(
         household_id=ctx.household.id,
         account_id=account.id,
         counterparty_account_id=counterparty.id if counterparty else None,
         member_id=member_id,
+        access_scope=payload.access_scope,
         amount=payload.amount,
         currency=payload.currency or ctx.household.base_currency,
         type=payload.type,
@@ -150,18 +200,7 @@ def get_transaction(
     ctx: HouseholdContext = Depends(get_household_context),
     db: Session = Depends(get_db),
 ):
-    transaction = (
-        db.query(Transaction)
-        .filter(
-            Transaction.id == transaction_id,
-            Transaction.household_id == ctx.household.id,
-            Transaction.deleted_at.is_(None),
-        )
-        .first()
-    )
-    if transaction is None:
-        raise HTTPException(status_code=404, detail="Transaction not found.")
-    return transaction
+    return _visible_transaction(db, ctx, transaction_id)
 
 
 @router.patch("/{transaction_id}", response_model=TransactionOut)
@@ -171,17 +210,7 @@ def update_transaction(
     ctx: HouseholdContext = Depends(get_household_context),
     db: Session = Depends(get_db),
 ):
-    transaction = (
-        db.query(Transaction)
-        .filter(
-            Transaction.id == transaction_id,
-            Transaction.household_id == ctx.household.id,
-            Transaction.deleted_at.is_(None),
-        )
-        .first()
-    )
-    if transaction is None:
-        raise HTTPException(status_code=404, detail="Transaction not found.")
+    transaction = _visible_transaction(db, ctx, transaction_id)
     _authorize_write(ctx, payload.member_id or transaction.member_id)
     if ctx.role == "member" and transaction.member_id != ctx.member.id:
         raise HTTPException(status_code=403, detail="Members may only edit their own transactions.")
@@ -210,23 +239,13 @@ def void_transaction(
     ctx: HouseholdContext = Depends(require_roles("owner", "partner")),
     db: Session = Depends(get_db),
 ):
-    transaction = (
-        db.query(Transaction)
-        .filter(
-            Transaction.id == transaction_id,
-            Transaction.household_id == ctx.household.id,
-            Transaction.deleted_at.is_(None),
-        )
-        .first()
-    )
-    if transaction is None:
-        raise HTTPException(status_code=404, detail="Transaction not found.")
+    transaction = _visible_transaction(db, ctx, transaction_id)
     if transaction.status == "voided":
         raise HTTPException(status_code=400, detail="Transaction is already voided.")
-    account = _get_account(db, ctx.household.id, transaction.account_id)
+    account = _visible_account(db, ctx, transaction.account_id)
     counterparty = None
     if transaction.counterparty_account_id:
-        counterparty = _get_account(db, ctx.household.id, transaction.counterparty_account_id)
+        counterparty = _visible_account(db, ctx, transaction.counterparty_account_id)
     apply_transaction_effect(
         db,
         account=account,

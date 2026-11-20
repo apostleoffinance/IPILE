@@ -16,6 +16,7 @@ from app.schemas.calendar import CalendarEventOut
 from app.schemas.household import HouseholdOut
 from app.schemas.transaction import TransactionOut
 from app.services.allocations import latest_run, serialize_run
+from app.services.finance_access import account_visibility, transaction_visibility
 from app.services.health import household_health
 from app.services.obligation_engine import coverage, coverage_label
 from app.services.safe_to_spend import compute_safe_to_spend
@@ -26,35 +27,42 @@ router = APIRouter(tags=["overview"])
 
 @router.get("/overview")
 def overview(ctx: HouseholdContext = Depends(get_household_context), db: Session = Depends(get_db)):
-    accounts = (
-        db.query(Account)
-        .filter(Account.household_id == ctx.household.id, Account.deleted_at.is_(None))
-        .order_by(Account.created_at)
-        .all()
+    accounts_query = db.query(Account).filter(
+        Account.household_id == ctx.household.id,
+        Account.deleted_at.is_(None),
     )
-    transactions = (
-        db.query(Transaction)
-        .filter(Transaction.household_id == ctx.household.id, Transaction.deleted_at.is_(None))
-        .order_by(Transaction.date.desc(), Transaction.created_at.desc())
-        .limit(10)
-        .all()
+    accounts = account_visibility(accounts_query, Account, ctx).order_by(Account.created_at).all()
+    transactions_query = db.query(Transaction).filter(
+        Transaction.household_id == ctx.household.id,
+        Transaction.deleted_at.is_(None),
     )
+    transactions_query = transaction_visibility(transactions_query, Transaction, ctx)
+    visible_account_ids = account_visibility(
+        db.query(Account).filter(
+            Account.household_id == ctx.household.id,
+            Account.deleted_at.is_(None),
+        ),
+        Account, ctx,
+    ).with_entities(Account.id)
+    transactions = transactions_query.filter(
+        Transaction.account_id.in_(visible_account_ids)
+    ).order_by(
+        Transaction.date.desc(), Transaction.created_at.desc()
+    ).limit(10).all()
     today = date.today()
     start = date(today.year, today.month, 1)
     end_day = monthrange(today.year, today.month)[1]
     end = date(today.year, today.month, end_day)
-    income_rows = (
-        db.query(Transaction)
-        .filter(
-            Transaction.household_id == ctx.household.id,
-            Transaction.type == "income",
-            Transaction.status.in_(("cleared", "reconciled")),
-            Transaction.deleted_at.is_(None),
-            Transaction.date >= start,
-            Transaction.date <= end,
-        )
-        .all()
+    income_query = db.query(Transaction).filter(
+        Transaction.household_id == ctx.household.id,
+        Transaction.type == "income",
+        Transaction.status.in_(("cleared", "reconciled")),
+        Transaction.deleted_at.is_(None),
+        Transaction.date >= start,
+        Transaction.date <= end,
     )
+    income_query = transaction_visibility(income_query, Transaction, ctx)
+    income_rows = income_query.filter(Transaction.account_id.in_(visible_account_ids)).all()
     cash_accounts = [
         account
         for account in accounts

@@ -25,6 +25,7 @@ class Transaction(Base):
     member_id: Mapped[uuid.UUID | None] = mapped_column(
         Uuid, ForeignKey("household_members.id", ondelete="SET NULL"), nullable=True
     )
+    access_scope: Mapped[str] = mapped_column(String(20), default="shared", nullable=False)
     amount: Mapped[Decimal] = mapped_column(Numeric(18, 2))
     currency: Mapped[str] = mapped_column(String(3), default="NGN")
     type: Mapped[str] = mapped_column(String(32))
@@ -40,50 +41,40 @@ class Transaction(Base):
     obligation_id: Mapped[uuid.UUID | None] = mapped_column(
         Uuid,
         ForeignKey(
-            "obligations.id",
-            ondelete="SET NULL",
-            use_alter=True,
-            name="fk_transactions_obligation_id",
+            "obligations.id", ondelete="SET NULL", use_alter=True,
+            name="fk_transactions_obligation_id"
         ),
         nullable=True,
     )
     fund_id: Mapped[uuid.UUID | None] = mapped_column(
         Uuid,
         ForeignKey(
-            "sinking_funds.id",
-            ondelete="SET NULL",
-            use_alter=True,
-            name="fk_transactions_fund_id",
+            "sinking_funds.id", ondelete="SET NULL", use_alter=True,
+            name="fk_transactions_fund_id"
         ),
         nullable=True,
     )
     goal_id: Mapped[uuid.UUID | None] = mapped_column(
         Uuid,
         ForeignKey(
-            "goals.id",
-            ondelete="SET NULL",
-            use_alter=True,
-            name="fk_transactions_goal_id",
+            "goals.id", ondelete="SET NULL", use_alter=True,
+            name="fk_transactions_goal_id"
         ),
         nullable=True,
     )
     business_id: Mapped[uuid.UUID | None] = mapped_column(
         Uuid,
         ForeignKey(
-            "businesses.id",
-            ondelete="SET NULL",
-            use_alter=True,
-            name="fk_transactions_business_id",
+            "businesses.id", ondelete="SET NULL", use_alter=True,
+            name="fk_transactions_business_id"
         ),
         nullable=True,
     )
     giving_record_id: Mapped[uuid.UUID | None] = mapped_column(
         Uuid,
         ForeignKey(
-            "giving_records.id",
-            ondelete="SET NULL",
-            use_alter=True,
-            name="fk_transactions_giving_record_id",
+            "giving_records.id", ondelete="SET NULL", use_alter=True,
+            name="fk_transactions_giving_record_id"
         ),
         nullable=True,
     )

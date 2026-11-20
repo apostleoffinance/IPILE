@@ -1,13 +1,15 @@
 from decimal import Decimal
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy.orm import Session
 
 from app.api.deps import HouseholdContext, get_db, get_household_context, require_roles
 from app.models.account import Account
+from app.models.member import HouseholdMember
 from app.schemas.account import AccountCreate, AccountOut, AccountUpdate
 from app.services.balances import snapshot_balance
+from app.services.finance_access import account_visibility
 
 router = APIRouter(prefix="/accounts", tags=["accounts"])
 ACCOUNT_TYPES = {"bank", "savings", "cash", "wallet", "investment", "business", "credit", "other"}
@@ -20,12 +22,25 @@ def _accounts(db: Session, household_id: UUID):
     )
 
 
+def _visible_accounts(db: Session, ctx: HouseholdContext):
+    return account_visibility(_accounts(db, ctx.household.id), Account, ctx)
+
+
 @router.get("", response_model=list[AccountOut])
 def list_accounts(
+    view: str | None = Query(default=None, pattern="^(household|personal)$"),
     ctx: HouseholdContext = Depends(get_household_context),
     db: Session = Depends(get_db),
 ):
-    return _accounts(db, ctx.household.id).order_by(Account.created_at).all()
+    query = _visible_accounts(db, ctx)
+    if view == "household":
+        query = query.filter(Account.access_scope == "shared")
+    elif view == "personal":
+        query = query.filter(
+            Account.access_scope == "personal",
+            Account.owner_member_id == ctx.member.id,
+        )
+    return query.order_by(Account.created_at).all()
 
 
 @router.post("", response_model=AccountOut, status_code=status.HTTP_201_CREATED)
@@ -36,22 +51,26 @@ def create_account(
 ):
     if payload.type not in ACCOUNT_TYPES:
         raise HTTPException(status_code=400, detail="Invalid account type.")
+    if payload.access_scope == "personal":
+        owner = db.query(HouseholdMember).filter(
+            HouseholdMember.id == payload.owner_member_id,
+            HouseholdMember.household_id == ctx.household.id,
+            HouseholdMember.deleted_at.is_(None),
+        ).first()
+        if owner is None:
+            raise HTTPException(
+                status_code=404,
+                detail="Personal account owner not found in this household.",
+            )
     opening = Decimal(payload.current_balance)
     include_sts = False if payload.type == "business" else payload.include_in_safe_to_spend
     account = Account(
-        household_id=ctx.household.id,
-        name=payload.name,
-        type=payload.type,
-        currency=payload.currency,
-        institution=payload.institution,
-        owner_member_id=payload.owner_member_id,
-        business_id=payload.business_id,
-        current_balance=opening,
-        available_balance=opening,
-        is_protected=payload.is_protected,
-        is_emergency=payload.is_emergency,
-        include_in_safe_to_spend=include_sts,
-        include_in_net_worth=payload.include_in_net_worth,
+        household_id=ctx.household.id, name=payload.name, type=payload.type,
+        currency=payload.currency, institution=payload.institution,
+        owner_member_id=payload.owner_member_id, access_scope=payload.access_scope,
+        business_id=payload.business_id, current_balance=opening, available_balance=opening,
+        is_protected=payload.is_protected, is_emergency=payload.is_emergency,
+        include_in_safe_to_spend=include_sts, include_in_net_worth=payload.include_in_net_worth,
         status="active",
     )
     db.add(account)
@@ -68,7 +87,7 @@ def get_account(
     ctx: HouseholdContext = Depends(get_household_context),
     db: Session = Depends(get_db),
 ):
-    account = _accounts(db, ctx.household.id).filter(Account.id == account_id).first()
+    account = _visible_accounts(db, ctx).filter(Account.id == account_id).first()
     if account is None:
         raise HTTPException(status_code=404, detail="Account not found.")
     return account

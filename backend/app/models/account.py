@@ -22,6 +22,7 @@ class Account(Base):
     owner_member_id: Mapped[uuid.UUID | None] = mapped_column(
         Uuid, ForeignKey("household_members.id", ondelete="SET NULL"), nullable=True
     )
+    access_scope: Mapped[str] = mapped_column(String(20), default="shared", nullable=False)
     business_id: Mapped[uuid.UUID | None] = mapped_column(
         Uuid,
         ForeignKey(

@@ -125,7 +125,7 @@ def test_release_acceptance_health_readiness_requires_current_database_schema(
         db.execute(
             text(
                 "INSERT INTO alembic_version (version_num) "
-                "VALUES ('0017_contributions')"
+                "VALUES ('0018_personal_shared_finance')"
             )
         )
         db.commit()
