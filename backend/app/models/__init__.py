@@ -7,6 +7,7 @@ from app.models.automation import Notification, SchedulerTick
 from app.models.budget import Budget, BudgetCategory
 from app.models.business import Business, BusinessEmployee, BusinessTransaction
 from app.models.category import Category
+from app.models.contribution import ContributionAgreement, ContributionRecord
 from app.models.fund import FundContribution, SinkingFund
 from app.models.giving import GivingPolicy, GivingRecord
 from app.models.goal import Goal, GoalContribution
@@ -41,6 +42,8 @@ __all__ = [
     "BusinessEmployee",
     "BusinessTransaction",
     "Category",
+    "ContributionAgreement",
+    "ContributionRecord",
     "FundContribution",
     "GivingPolicy",
     "GivingRecord",

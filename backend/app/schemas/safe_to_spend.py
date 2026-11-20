@@ -1,6 +1,6 @@
 from uuid import UUID
 
-from pydantic import BaseModel
+from pydantic import BaseModel, field_validator
 
 from app.schemas.money import MoneyAmount, MoneySigned
 
@@ -29,6 +29,13 @@ class PurchaseCheckIn(BaseModel):
     amount: MoneyAmount
     category_id: UUID | None = None
     account_id: UUID | None = None
+
+    @field_validator("amount")
+    @classmethod
+    def amount_must_be_positive(cls, value):
+        if value <= 0:
+            raise ValueError("Purchase amount must be greater than zero.")
+        return value
 
 
 class PurchaseCheckOut(BaseModel):

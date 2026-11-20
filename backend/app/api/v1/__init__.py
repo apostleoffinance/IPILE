@@ -14,6 +14,7 @@ from app.api.v1 import (
     calendar,
     cash_flow,
     categories,
+    contributions,
     debts,
     export,
     funds,
@@ -40,6 +41,7 @@ api_router.include_router(health.router)
 api_router.include_router(auth.router)
 api_router.include_router(households.router)
 api_router.include_router(members.router)
+api_router.include_router(contributions.router)
 api_router.include_router(accounts.router)
 api_router.include_router(categories.router)
 api_router.include_router(income.router)

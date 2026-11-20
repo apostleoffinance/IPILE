@@ -1,6 +1,10 @@
 from decimal import Decimal
 from pathlib import Path
 
+import pytest
+from pydantic import ValidationError
+
+from app.schemas.safe_to_spend import PurchaseCheckIn
 from app.services.safe_to_spend_engine import (
     current_safe_to_spend,
     forecast_safe_to_spend,
@@ -72,3 +76,12 @@ def test_sts_engine_has_no_religious_hardcoding() -> None:
     text = Path("app/services/safe_to_spend_engine.py").read_text().lower()
     for banned in ("tithe", "christian", "church", "religion"):
         assert banned not in text
+
+
+def test_purchase_check_rejects_zero_and_negative_amounts() -> None:
+    with pytest.raises(ValidationError):
+        PurchaseCheckIn(amount="0.00")
+    with pytest.raises(ValidationError):
+        PurchaseCheckIn(amount="-1.00")
+    with pytest.raises(ValueError, match="greater than zero"):
+        purchase_check(Decimal("0.00"), Decimal("100.00"), Decimal("10.00"))

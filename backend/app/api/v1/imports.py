@@ -15,10 +15,16 @@ from app.api.deps import HouseholdContext, get_db, require_roles
 from app.core.config import get_settings
 from app.models.account import Account
 from app.models.imports import ImportJob, ImportMailbox
-from app.schemas.imports import ImportBody, ImportJobOut
+from app.schemas.imports import ImportBody, ImportCommitBody, ImportJobOut, ImportPreviewBody
 from app.services.email_imports import parse_bank_alert
 from app.services.import_adapters import ImportRow
-from app.services.imports import apply_import_rows, run_import
+from app.services.imports import (
+    apply_import_rows,
+    commit_staged_import,
+    run_import,
+    stage_import,
+    stage_import_rows,
+)
 from app.services.pdf_imports import parse_pdf_statement
 
 router = APIRouter(prefix="/imports", tags=["imports"])
@@ -84,6 +90,48 @@ def _scoped_account(db: Session, household_id: UUID, account_id: UUID) -> Accoun
         raise HTTPException(status_code=404, detail="Account not found.")
     return account
 
+
+
+@router.post("/preview", response_model=ImportJobOut, status_code=status.HTTP_201_CREATED)
+def preview_statement_import(
+    payload: ImportPreviewBody,
+    ctx: HouseholdContext = Depends(require_roles("owner", "partner")),
+    db: Session = Depends(get_db),
+):
+    """Parse a statement for review. This endpoint never posts ledger transactions."""
+    try:
+        job = stage_import(
+            db, ctx.household, account_id=payload.account_id, source=payload.source,
+            content=payload.content, filename=payload.filename,
+        )
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    db.commit()
+    db.refresh(job)
+    return job
+
+
+@router.post("/jobs/{job_id}/commit", response_model=ImportJobOut)
+def commit_statement_import(
+    job_id: UUID,
+    payload: ImportCommitBody,
+    ctx: HouseholdContext = Depends(require_roles("owner", "partner")),
+    db: Session = Depends(get_db),
+):
+    job = db.query(ImportJob).filter(
+        ImportJob.id == job_id, ImportJob.household_id == ctx.household.id
+    ).first()
+    if job is None:
+        raise HTTPException(status_code=404, detail="Import job not found.")
+    try:
+        committed = commit_staged_import(
+            db, ctx.household, job=job, account_id=payload.account_id
+        )
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    db.commit()
+    db.refresh(committed)
+    return committed
 
 @router.post("/csv", response_model=ImportJobOut, status_code=status.HTTP_201_CREATED)
 def import_csv(
@@ -169,6 +217,54 @@ async def upload_statement(
     db.refresh(job)
     return job
 
+
+
+@router.post("/preview-upload", response_model=ImportJobOut, status_code=status.HTTP_201_CREATED)
+async def preview_statement_upload(
+    account_id: UUID = Form(...),
+    file: UploadFile = File(...),
+    ctx: HouseholdContext = Depends(require_roles("owner", "partner")),
+    db: Session = Depends(get_db),
+):
+    """Upload and parse a supported statement into review without posting transactions."""
+    filename = (file.filename or "statement").strip()
+    suffix = filename.lower().rsplit(".", 1)[-1] if "." in filename else ""
+    if suffix not in {"csv", "pdf", "txt"}:
+        raise HTTPException(status_code=415, detail="Upload a CSV, PDF, or TXT statement.")
+    upload_limit = get_settings().max_import_upload_bytes
+    if upload_limit < 1:
+        raise HTTPException(status_code=503, detail="Statement uploads are not configured.")
+    raw = await file.read(upload_limit + 1)
+    if len(raw) > upload_limit:
+        raise HTTPException(
+            status_code=413,
+            detail=f"Statement exceeds the configured {upload_limit}-byte upload limit.",
+        )
+    account = _scoped_account(db, ctx.household.id, account_id)
+    try:
+        if suffix == "pdf":
+            rows = parse_pdf_statement(raw)
+            source = "statement"
+        else:
+            content = raw.decode("utf-8-sig")
+            source = "csv" if suffix == "csv" else "statement"
+            from app.services.import_adapters import get_adapter
+
+            rows = get_adapter(source).parse(content)
+        job = stage_import_rows(
+            db, ctx.household, account, rows, source=source, filename=filename
+        )
+    except (ValueError, UnicodeDecodeError) as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    except Exception as exc:
+        if suffix == "pdf":
+            raise HTTPException(
+                status_code=400, detail="Could not read this PDF statement."
+            ) from exc
+        raise
+    db.commit()
+    db.refresh(job)
+    return job
 
 @router.post("/mailbox")
 def create_mailbox(
