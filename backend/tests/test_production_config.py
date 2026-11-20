@@ -12,7 +12,7 @@ def production_settings(**overrides) -> Settings:
         "cookie_secure": True,
         "cookie_samesite": "lax",
         "seed_on_start": False,
-        "cors_origins": "https://ipile-two.vercel.app",
+        "cors_origins": "https://ipile-web.ipile-71a.workers.dev",
     }
     values.update(overrides)
     return Settings(_env_file=None, **values)
