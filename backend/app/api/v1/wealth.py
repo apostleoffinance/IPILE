@@ -34,7 +34,7 @@ router = APIRouter(tags=["wealth"])
 
 @router.get("/net-worth", response_model=NetWorthOut)
 def get_net_worth(
-    ctx: HouseholdContext = Depends(get_household_context),
+    ctx: HouseholdContext = Depends(require_roles("owner", "partner")),
     db: Session = Depends(get_db),
 ):
     payload = serialize_net_worth(db, ctx.household)
@@ -44,7 +44,7 @@ def get_net_worth(
 
 @router.get("/assets", response_model=list[AssetOut])
 def list_assets(
-    ctx: HouseholdContext = Depends(get_household_context),
+    ctx: HouseholdContext = Depends(require_roles("owner", "partner")),
     db: Session = Depends(get_db),
 ):
     return (
@@ -69,7 +69,7 @@ def post_asset(
 
 @router.get("/liabilities", response_model=list[LiabilityOut])
 def list_liabilities(
-    ctx: HouseholdContext = Depends(get_household_context),
+    ctx: HouseholdContext = Depends(require_roles("owner", "partner")),
     db: Session = Depends(get_db),
 ):
     rows = (
@@ -121,7 +121,7 @@ def post_liability_payment(
 
 @router.get("/investments", response_model=list[InvestmentOut])
 def list_investments(
-    ctx: HouseholdContext = Depends(get_household_context),
+    ctx: HouseholdContext = Depends(require_roles("owner", "partner")),
     db: Session = Depends(get_db),
 ):
     return (

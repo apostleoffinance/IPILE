@@ -40,7 +40,7 @@ def post_simulation(
 @router.get("/simulations/{run_id}", response_model=SimulationRunOut)
 def read_simulation(
     run_id: UUID,
-    ctx: HouseholdContext = Depends(get_household_context),
+    ctx: HouseholdContext = Depends(require_roles("owner", "partner")),
     db: Session = Depends(get_db),
 ):
     run = get_run(db, ctx.household.id, run_id)
