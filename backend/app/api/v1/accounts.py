@@ -16,7 +16,10 @@ ACCOUNT_TYPES = {"bank", "savings", "cash", "wallet", "investment", "business", 
 
 
 def _accounts(db: Session, household_id: UUID):
-    return db.query(Account).filter(Account.household_id == household_id, Account.deleted_at.is_(None))
+    return db.query(Account).filter(
+        Account.household_id == household_id,
+        Account.deleted_at.is_(None),
+    )
 
 
 def _visible_accounts(db: Session, ctx: HouseholdContext):
@@ -33,12 +36,19 @@ def list_accounts(
     if view == "household":
         query = query.filter(Account.access_scope == "shared")
     elif view == "personal":
-        query = query.filter(Account.access_scope == "personal", Account.owner_member_id == ctx.member.id)
+        query = query.filter(
+            Account.access_scope == "personal",
+            Account.owner_member_id == ctx.member.id,
+        )
     return query.order_by(Account.created_at).all()
 
 
 @router.post("", response_model=AccountOut, status_code=status.HTTP_201_CREATED)
-def create_account(payload: AccountCreate, ctx: HouseholdContext = Depends(require_roles("owner", "partner")), db: Session = Depends(get_db)):
+def create_account(
+    payload: AccountCreate,
+    ctx: HouseholdContext = Depends(require_roles("owner", "partner")),
+    db: Session = Depends(get_db),
+):
     if payload.type not in ACCOUNT_TYPES:
         raise HTTPException(status_code=400, detail="Invalid account type.")
     if payload.access_scope == "personal":
@@ -48,7 +58,10 @@ def create_account(payload: AccountCreate, ctx: HouseholdContext = Depends(requi
             HouseholdMember.deleted_at.is_(None),
         ).first()
         if owner is None:
-            raise HTTPException(status_code=404, detail="Personal account owner not found in this household.")
+            raise HTTPException(
+                status_code=404,
+                detail="Personal account owner not found in this household.",
+            )
     opening = Decimal(payload.current_balance)
     include_sts = False if payload.type == "business" else payload.include_in_safe_to_spend
     account = Account(
@@ -69,7 +82,11 @@ def create_account(payload: AccountCreate, ctx: HouseholdContext = Depends(requi
 
 
 @router.get("/{account_id}", response_model=AccountOut)
-def get_account(account_id: UUID, ctx: HouseholdContext = Depends(get_household_context), db: Session = Depends(get_db)):
+def get_account(
+    account_id: UUID,
+    ctx: HouseholdContext = Depends(get_household_context),
+    db: Session = Depends(get_db),
+):
     account = _visible_accounts(db, ctx).filter(Account.id == account_id).first()
     if account is None:
         raise HTTPException(status_code=404, detail="Account not found.")
@@ -77,7 +94,12 @@ def get_account(account_id: UUID, ctx: HouseholdContext = Depends(get_household_
 
 
 @router.patch("/{account_id}", response_model=AccountOut)
-def update_account(account_id: UUID, payload: AccountUpdate, ctx: HouseholdContext = Depends(require_roles("owner", "partner")), db: Session = Depends(get_db)):
+def update_account(
+    account_id: UUID,
+    payload: AccountUpdate,
+    ctx: HouseholdContext = Depends(require_roles("owner", "partner")),
+    db: Session = Depends(get_db),
+):
     account = _accounts(db, ctx.household.id).filter(Account.id == account_id).first()
     if account is None:
         raise HTTPException(status_code=404, detail="Account not found.")
