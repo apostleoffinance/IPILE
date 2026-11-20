@@ -2,6 +2,12 @@ name: Deploy IPÌLẸ̀ Cloudflare preview
 
 on:
   workflow_dispatch:
+    inputs:
+      source_ref:
+        description: "Branch or tag containing the Cloudflare-ready frontend"
+        required: true
+        default: "milestone/ipile-fe-01-cloudflare"
+        type: string
 
 permissions:
   contents: read
@@ -17,7 +23,10 @@ jobs:
       CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
       IPILE_STAGING_BACKEND_URL: ${{ secrets.IPILE_STAGING_BACKEND_URL }}
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout Cloudflare-ready source
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.source_ref }}
 
       - uses: actions/setup-node@v4
         with:
@@ -35,6 +44,10 @@ jobs:
 
       - name: Install application dependencies
         run: npm ci
+
+      - name: Verify Cloudflare scripts exist
+        run: |
+          node -e "const s=require('./package.json').scripts||{}; for (const k of ['cf:install','cf:build']) { if (!s[k]) { console.error('Missing frontend script: '+k); process.exitCode=1; } }"
 
       - name: Install Cloudflare build tooling
         run: npm run cf:install
