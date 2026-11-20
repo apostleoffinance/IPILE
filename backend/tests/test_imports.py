@@ -453,7 +453,8 @@ def test_preview_does_not_post_transactions_until_explicit_commit(client: TestCl
     assert preview.json()["status"] == "pending_review"
     assert preview.json()["result"]["row_count"] == 1
     assert client.get("/api/v1/transactions").json() == []
-    assert Decimal(client.get("/api/v1/accounts").json()[0]["current_balance"]) == Decimal("100000.00")
+    balance = Decimal(client.get("/api/v1/accounts").json()[0]["current_balance"])
+    assert balance == Decimal("100000.00")
 
     committed = client.post(
         f"/api/v1/imports/jobs/{preview.json()['id']}/commit",
@@ -463,7 +464,8 @@ def test_preview_does_not_post_transactions_until_explicit_commit(client: TestCl
     assert committed.json()["status"] == "committed"
     assert committed.json()["created_count"] == 1
     assert len(client.get("/api/v1/transactions").json()) == 1
-    assert Decimal(client.get("/api/v1/accounts").json()[0]["current_balance"]) == Decimal("97500.00")
+    balance = Decimal(client.get("/api/v1/accounts").json()[0]["current_balance"])
+    assert balance == Decimal("97500.00")
 
 
 def test_staged_import_commit_is_idempotent_and_household_scoped(client: TestClient) -> None:
