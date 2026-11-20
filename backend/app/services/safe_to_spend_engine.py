@@ -68,6 +68,8 @@ def purchase_check(
     budget_exceeded: bool = False,
     raids_protected: bool = False,
 ) -> PurchaseCheckResult:
+    if amount <= 0:
+        raise ValueError("Purchase amount must be greater than zero.")
     purchase = quantize_money(amount)
     remaining = quantize_money(quantize_money(current_sts) - purchase)
     buffer = quantize_money(minimum_buffer)
