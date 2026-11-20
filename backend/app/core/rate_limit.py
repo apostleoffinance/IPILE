@@ -10,7 +10,7 @@ def reset_rate_limits() -> None:
     _hits.clear()
 
 
-def requester_key(request: Request, action: str, identity: str = "") -> str:
+def requester_key(request: Request, action: str) -> str:
     """Build a per-client auth throttle key behind Cloudflare/Render proxies."""
     client_ip = (
         request.headers.get("cf-connecting-ip")
@@ -18,7 +18,7 @@ def requester_key(request: Request, action: str, identity: str = "") -> str:
         or request.headers.get("x-forwarded-for", "").split(",")[0].strip()
         or (request.client.host if request.client else "unknown")
     )
-    return f"{action}:{client_ip}:{identity.strip().lower()}"
+    return f"{action}:{client_ip}"
 
 
 def enforce_rate_limit(key: str, limit: int = 10, window_seconds: int = 60) -> None:
