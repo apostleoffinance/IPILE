@@ -161,6 +161,25 @@ def stage_import(
     if source not in {"csv", "statement"}:
         raise ValueError("Only CSV and text statements can be staged.")
     rows = get_adapter(source).parse(content)
+    return stage_import_rows(
+        db, household, account, rows, source=source, filename=filename
+    )
+
+
+def stage_import_rows(
+    db: Session,
+    household: Household,
+    account: Account,
+    rows: list[ImportRow],
+    *,
+    source: str,
+    filename: str | None = None,
+) -> ImportJob:
+    """Persist normalized rows for review, never posting ledger effects."""
+    if account.household_id != household.id or account.deleted_at is not None:
+        raise ValueError("Account not found.")
+    if source not in {"csv", "statement"}:
+        raise ValueError("Only CSV and text statements can be staged.")
     serialized = [
         {
             "date": row.date.isoformat(),
@@ -192,7 +211,6 @@ def stage_import(
     db.add(job)
     db.flush()
     return job
-
 
 def commit_staged_import(
     db: Session,
