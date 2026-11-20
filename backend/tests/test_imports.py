@@ -442,8 +442,8 @@ def test_preview_does_not_post_transactions_until_explicit_commit(client: TestCl
         json={"name": "Current", "type": "bank", "current_balance": "100000.00"},
     ).json()
     content = (
-        "date,amount,type,description,external_id\\n"
-        "2026-09-01,2500.00,expense,Market,stage-1\\n"
+        "date,amount,type,description,external_id\n"
+        "2026-09-01,2500.00,expense,Market,stage-1\n"
     )
     preview = client.post(
         "/api/v1/imports/preview",
@@ -479,7 +479,7 @@ def test_staged_import_commit_is_idempotent_and_household_scoped(client: TestCli
         json={
             "account_id": account_a["id"],
             "source": "csv",
-            "content": "date,amount,external_id\\n2026-09-01,500.00,stage-scope-1\\n",
+            "content": "date,amount,external_id\n2026-09-01,500.00,stage-scope-1\n",
         },
     )
     assert preview.status_code == 201, preview.text
