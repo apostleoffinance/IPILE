@@ -1,7 +1,7 @@
 from decimal import Decimal
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy.orm import Session
 
 from app.api.deps import HouseholdContext, get_db, get_household_context, require_roles
@@ -24,8 +24,17 @@ def _visible_accounts(db: Session, ctx: HouseholdContext):
 
 
 @router.get("", response_model=list[AccountOut])
-def list_accounts(ctx: HouseholdContext = Depends(get_household_context), db: Session = Depends(get_db)):
-    return _visible_accounts(db, ctx).order_by(Account.created_at).all()
+def list_accounts(
+    view: str | None = Query(default=None, pattern="^(household|personal)$"),
+    ctx: HouseholdContext = Depends(get_household_context),
+    db: Session = Depends(get_db),
+):
+    query = _visible_accounts(db, ctx)
+    if view == "household":
+        query = query.filter(Account.access_scope == "shared")
+    elif view == "personal":
+        query = query.filter(Account.access_scope == "personal", Account.owner_member_id == ctx.member.id)
+    return query.order_by(Account.created_at).all()
 
 
 @router.post("", response_model=AccountOut, status_code=status.HTTP_201_CREATED)
