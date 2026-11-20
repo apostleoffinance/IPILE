@@ -8,7 +8,7 @@ from app.api.deps import get_current_user
 from app.core.config import get_settings
 from app.core.csrf import set_csrf_cookie
 from app.core.db import get_db
-from app.core.rate_limit import enforce_rate_limit
+from app.core.rate_limit import enforce_rate_limit, requester_key
 from app.core.security import (
     hash_password,
     hash_session_token,
@@ -86,7 +86,7 @@ def register(
     response: Response,
     db: Session = Depends(get_db),
 ) -> User:
-    enforce_rate_limit(f"register:{request.client.host if request.client else 'unknown'}")
+    enforce_rate_limit(requester_key(request, "register"))
     email = payload.email.lower()
     existing = db.query(User).filter(func.lower(User.email) == email).first()
     if existing:
@@ -128,7 +128,7 @@ def login(
     response: Response,
     db: Session = Depends(get_db),
 ) -> User:
-    enforce_rate_limit(f"login:{request.client.host if request.client else 'unknown'}")
+    enforce_rate_limit(requester_key(request, "login"))
     email = payload.email.lower()
     user = db.query(User).filter(func.lower(User.email) == email).first()
     if user is None or not verify_password(payload.password, user.password_hash):

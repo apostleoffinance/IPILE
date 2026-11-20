@@ -504,10 +504,37 @@ async function parseResponse<T>(response: Response): Promise<T> {
   if (response.status === 204) {
     return undefined as T;
   }
-  const data = await response.json().catch(() => ({}));
+
+  const contentType = response.headers.get("content-type") ?? "";
+  let data: Record<string, unknown> = {};
+  let rawText = "";
+
+  if (contentType.includes("application/json")) {
+    data = (await response.json().catch(() => ({}))) as Record<string, unknown>;
+  } else {
+    rawText = await response.text().catch(() => "");
+    try {
+      data = rawText ? (JSON.parse(rawText) as Record<string, unknown>) : {};
+    } catch {
+      data = {};
+    }
+  }
+
   if (!response.ok) {
-    const message = data.detail ?? data.error?.message ?? "Request failed.";
-    throw new Error(typeof message === "string" ? message : "Request failed.");
+    const retryAfter = response.headers.get("retry-after");
+    const errorObject = data.error as { message?: string } | undefined;
+    const detail = data.detail ?? errorObject?.message;
+    const message =
+      typeof detail === "string"
+        ? detail
+        : response.status === 429
+          ? "Too many requests. Please wait a moment before trying again."
+          : rawText.trim() || `Request failed (HTTP ${response.status}).`;
+    throw new Error(retryAfter && response.status === 429 ? `${message} Try again in ${retryAfter} seconds.` : message);
+  }
+
+  if (!contentType.includes("application/json") && rawText) {
+    throw new Error("The server returned an unexpected response. Please try again shortly.");
   }
   return data as T;
 }
