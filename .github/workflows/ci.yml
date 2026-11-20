@@ -1,5 +1,7 @@
 name: CI
 
+# Cloudflare Workers is the only production frontend deployment target.
+
 on:
   push:
   pull_request:
