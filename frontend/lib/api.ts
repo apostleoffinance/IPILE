@@ -522,7 +522,8 @@ async function parseResponse<T>(response: Response): Promise<T> {
 
   if (!response.ok) {
     const retryAfter = response.headers.get("retry-after");
-    const detail = data.detail ?? data.error?.message;
+    const errorObject = data.error as { message?: string } | undefined;
+    const detail = data.detail ?? errorObject?.message;
     const message =
       typeof detail === "string"
         ? detail
