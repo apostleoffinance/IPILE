@@ -83,6 +83,7 @@ def list_transactions(
     type: str | None = Query(default=None),
     account_id: UUID | None = Query(default=None),
     limit: int = Query(default=100, le=200),
+    view: str | None = Query(default=None, pattern="^(household|personal)$"),
 ):
     query = db.query(Transaction).filter(
         Transaction.household_id == ctx.household.id,
@@ -94,6 +95,10 @@ def list_transactions(
         query = query.filter(Transaction.account_id == account_id)
     query = transaction_visibility(query, Transaction, ctx)
     query = query.filter(Transaction.account_id.in_(_visible_account_ids(db, ctx)))
+    if view == "household":
+        query = query.filter(Transaction.access_scope == "shared")
+    elif view == "personal":
+        query = query.filter(Transaction.access_scope == "personal", Transaction.member_id == ctx.member.id)
     return query.order_by(Transaction.date.desc(), Transaction.created_at.desc()).limit(limit).all()
 
 
