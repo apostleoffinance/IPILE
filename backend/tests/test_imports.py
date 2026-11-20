@@ -433,3 +433,73 @@ def test_imported_transfer_is_not_posted_without_counterparty_account(client: Te
     assert client.get("/api/v1/transactions").json() == []
     balance = Decimal(client.get("/api/v1/accounts").json()[0]["current_balance"])
     assert balance == Decimal("100000.00")
+
+
+def test_preview_does_not_post_transactions_until_explicit_commit(client: TestClient) -> None:
+    register(client, "staged-import@example.com")
+    account = client.post(
+        "/api/v1/accounts",
+        json={"name": "Current", "type": "bank", "current_balance": "100000.00"},
+    ).json()
+    content = (
+        "date,amount,type,description,external_id\\n"
+        "2026-09-01,2500.00,expense,Market,stage-1\\n"
+    )
+    preview = client.post(
+        "/api/v1/imports/preview",
+        json={"account_id": account["id"], "source": "csv", "content": content},
+    )
+    assert preview.status_code == 201, preview.text
+    assert preview.json()["status"] == "pending_review"
+    assert preview.json()["result"]["row_count"] == 1
+    assert client.get("/api/v1/transactions").json() == []
+    assert Decimal(client.get("/api/v1/accounts").json()[0]["current_balance"]) == Decimal("100000.00")
+
+    committed = client.post(
+        f"/api/v1/imports/jobs/{preview.json()['id']}/commit",
+        json={"account_id": account["id"]},
+    )
+    assert committed.status_code == 200, committed.text
+    assert committed.json()["status"] == "committed"
+    assert committed.json()["created_count"] == 1
+    assert len(client.get("/api/v1/transactions").json()) == 1
+    assert Decimal(client.get("/api/v1/accounts").json()[0]["current_balance"]) == Decimal("97500.00")
+
+
+def test_staged_import_commit_is_idempotent_and_household_scoped(client: TestClient) -> None:
+    register(client, "staged-scope-a@example.com")
+    account_a = client.post(
+        "/api/v1/accounts",
+        json={"name": "A Current", "type": "bank", "current_balance": "10000.00"},
+    ).json()
+    preview = client.post(
+        "/api/v1/imports/preview",
+        json={
+            "account_id": account_a["id"],
+            "source": "csv",
+            "content": "date,amount,external_id\\n2026-09-01,500.00,stage-scope-1\\n",
+        },
+    )
+    assert preview.status_code == 201, preview.text
+    job_id = preview.json()["id"]
+    assert client.post(
+        f"/api/v1/imports/jobs/{job_id}/commit",
+        json={"account_id": account_a["id"]},
+    ).status_code == 200
+    second = client.post(
+        f"/api/v1/imports/jobs/{job_id}/commit",
+        json={"account_id": account_a["id"]},
+    )
+    assert second.status_code == 400
+
+    client.post("/api/v1/auth/logout")
+    register(client, "staged-scope-b@example.com")
+    account_b = client.post(
+        "/api/v1/accounts",
+        json={"name": "B Current", "type": "bank", "current_balance": "10000.00"},
+    ).json()
+    foreign = client.post(
+        f"/api/v1/imports/jobs/{job_id}/commit",
+        json={"account_id": account_b["id"]},
+    )
+    assert foreign.status_code == 404

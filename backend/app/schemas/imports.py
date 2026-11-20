@@ -21,3 +21,14 @@ class ImportJobOut(BaseModel):
     result: dict
 
     model_config = {"from_attributes": True}
+
+
+class ImportPreviewBody(BaseModel):
+    account_id: UUID
+    source: str = Field(pattern="^(csv|statement)$")
+    content: str = Field(min_length=1)
+    filename: str | None = Field(default=None, max_length=200)
+
+
+class ImportCommitBody(BaseModel):
+    account_id: UUID
