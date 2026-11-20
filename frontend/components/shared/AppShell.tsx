@@ -77,6 +77,7 @@ const primaryNav: NavGroup[] = [
     children: [
       { href: "/family/members", label: "Members" },
       { href: "/family/giving", label: "Giving" },
+      { href: "/family/contributions", label: "Contributions" },
     ],
   },
   {
