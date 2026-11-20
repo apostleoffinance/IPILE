@@ -1,7 +1,7 @@
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 
-from app.api.deps import HouseholdContext, get_db, get_household_context
+from app.api.deps import HouseholdContext, get_db, require_roles
 from app.services.ai_analyst import explain_household
 
 router = APIRouter(tags=["ai"])
@@ -9,7 +9,7 @@ router = APIRouter(tags=["ai"])
 
 @router.post("/ai/explain")
 def post_ai_explain(
-    ctx: HouseholdContext = Depends(get_household_context),
+    ctx: HouseholdContext = Depends(require_roles("owner", "partner")),
     db: Session = Depends(get_db),
 ):
     try:

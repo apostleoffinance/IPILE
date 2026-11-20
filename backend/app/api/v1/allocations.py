@@ -1,7 +1,7 @@
 from fastapi import APIRouter, Depends, status
 from sqlalchemy.orm import Session
 
-from app.api.deps import HouseholdContext, get_db, get_household_context, require_roles
+from app.api.deps import HouseholdContext, get_db, require_roles
 from app.models.allocation import AllocationRule
 from app.schemas.allocation import AllocationRuleCreate, AllocationRuleOut, AllocationRunOut
 from app.services.allocations import (
@@ -18,7 +18,7 @@ router = APIRouter(tags=["allocations"])
 
 @router.get("/allocation-rules", response_model=list[AllocationRuleOut])
 def list_allocation_rules(
-    ctx: HouseholdContext = Depends(get_household_context),
+    ctx: HouseholdContext = Depends(require_roles("owner", "partner")),
     db: Session = Depends(get_db),
 ):
     rows = (
@@ -95,7 +95,7 @@ def run_allocation(
 
 @router.get("/allocations/latest", response_model=AllocationRunOut)
 def get_latest_allocation(
-    ctx: HouseholdContext = Depends(get_household_context),
+    ctx: HouseholdContext = Depends(require_roles("owner", "partner")),
     db: Session = Depends(get_db),
 ):
     run = latest_run(db, ctx.household.id)

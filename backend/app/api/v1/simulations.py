@@ -3,7 +3,7 @@ from uuid import UUID
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 
-from app.api.deps import HouseholdContext, get_db, get_household_context, require_roles
+from app.api.deps import HouseholdContext, get_db, require_roles
 from app.models.account import Account
 from app.schemas.simulation import SimulationIn, SimulationRunOut
 from app.services.simulations import get_run, run_simulation, serialize_run
@@ -40,7 +40,7 @@ def post_simulation(
 @router.get("/simulations/{run_id}", response_model=SimulationRunOut)
 def read_simulation(
     run_id: UUID,
-    ctx: HouseholdContext = Depends(get_household_context),
+    ctx: HouseholdContext = Depends(require_roles("owner", "partner")),
     db: Session = Depends(get_db),
 ):
     run = get_run(db, ctx.household.id, run_id)
