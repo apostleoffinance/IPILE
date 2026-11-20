@@ -86,7 +86,7 @@ def register(
     response: Response,
     db: Session = Depends(get_db),
 ) -> User:
-    enforce_rate_limit(requester_key(request, "register", payload.email))
+    enforce_rate_limit(requester_key(request, "register"))
     email = payload.email.lower()
     existing = db.query(User).filter(func.lower(User.email) == email).first()
     if existing:
@@ -128,7 +128,7 @@ def login(
     response: Response,
     db: Session = Depends(get_db),
 ) -> User:
-    enforce_rate_limit(requester_key(request, "login", payload.email))
+    enforce_rate_limit(requester_key(request, "login"))
     email = payload.email.lower()
     user = db.query(User).filter(func.lower(User.email) == email).first()
     if user is None or not verify_password(payload.password, user.password_hash):
