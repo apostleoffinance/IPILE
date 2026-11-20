@@ -7,7 +7,11 @@
     "build": "next build",
     "start": "next start --port 3000",
     "typecheck": "tsc --noEmit",
-    "test": "node lib/run-tests.cjs"
+    "test": "node lib/run-tests.cjs",
+    "cf:install": "npm install --no-save --package-lock=false --legacy-peer-deps @opennextjs/cloudflare@latest wrangler@latest",
+    "cf:build": "opennextjs-cloudflare build",
+    "cf:preview": "opennextjs-cloudflare build && opennextjs-cloudflare preview",
+    "cf:deploy": "opennextjs-cloudflare build && opennextjs-cloudflare deploy"
   },
   "dependencies": {
     "@hookform/resolvers": "^5.9.1",
