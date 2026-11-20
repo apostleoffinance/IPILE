@@ -22,6 +22,8 @@ from app.models import (  # noqa: F401
     Budget,
     BudgetCategory,
     Category,
+    ContributionAgreement,
+    ContributionRecord,
     FundContribution,
     Household,
     HouseholdMember,

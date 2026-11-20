@@ -24,6 +24,8 @@ from app.models import (  # noqa: F401
     BusinessEmployee,
     BusinessTransaction,
     Category,
+    ContributionAgreement,
+    ContributionRecord,
     FinancialScore,
     FinancialSnapshot,
     FundContribution,
