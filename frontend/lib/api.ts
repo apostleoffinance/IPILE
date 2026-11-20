@@ -1366,3 +1366,82 @@ export const api = {
   rejectGiving: (id: string) =>
     request<GivingRecord>(`/api/v1/giving/${id}/reject`, { method: "POST" }),
 };
+
+
+export type ContributionAgreement = {
+  id: string;
+  household_id: string;
+  member_id: string;
+  name: string;
+  amount: string;
+  currency: string;
+  cadence: string;
+  due_day: number | null;
+  start_date: string;
+  end_date: string | null;
+  status: string;
+  notes: string | null;
+};
+
+export type ContributionRecord = {
+  id: string;
+  household_id: string;
+  agreement_id: string;
+  member_id: string;
+  amount: string;
+  currency: string;
+  contributed_on: string;
+  transaction_id: string | null;
+  note: string | null;
+};
+
+export function listContributionAgreements() {
+  return request<ContributionAgreement[]>("/api/v1/contributions");
+}
+
+export function createContributionAgreement(body: {
+  member_id: string;
+  name: string;
+  amount: string;
+  currency: string;
+  cadence: string;
+  due_day?: number;
+  start_date: string;
+  end_date?: string;
+  notes?: string;
+}) {
+  return request<ContributionAgreement>("/api/v1/contributions", {
+    method: "POST",
+    body: JSON.stringify(body),
+  });
+}
+
+export function updateContributionAgreement(id: string, body: {
+  amount?: string;
+  cadence?: string;
+  due_day?: number;
+  end_date?: string;
+  status?: string;
+  notes?: string;
+}) {
+  return request<ContributionAgreement>(`/api/v1/contributions/${id}`, {
+    method: "PATCH",
+    body: JSON.stringify(body),
+  });
+}
+
+export function listContributionRecords(id: string) {
+  return request<ContributionRecord[]>(`/api/v1/contributions/${id}/records`);
+}
+
+export function recordContribution(id: string, body: {
+  amount: string;
+  contributed_on: string;
+  transaction_id?: string;
+  note?: string;
+}) {
+  return request<ContributionRecord>(`/api/v1/contributions/${id}/records`, {
+    method: "POST",
+    body: JSON.stringify(body),
+  });
+}
