@@ -19,7 +19,7 @@ npx wrangler secret put ALLOWED_BANK_SENDER_DOMAINS
 2. Set `BACKEND_URL` in `wrangler.toml` to the active IPÌLẸ̀ API origin.
 3. Set the two secrets above.
 4. Deploy with `npx wrangler deploy`.
-5. Create a Cloudflare Email Routing rule for each generated household recipient pattern, or use a carefully scoped Worker route for the dedicated inbound subdomain. Do not enable a catch-all on the apex domain.
+5. Enable Email Routing subaddressing in the domain's Email Routing settings. Create one routing rule for the base address `bank-alert@inbox.<owned-domain>` and choose **Send to a Worker** → `ipile-inbound-email`. Subaddressing preserves the `+token` suffix in `message.to`, allowing household-specific aliases to reach one Worker rule. Do not enable a catch-all on the apex domain.
 6. Test with an allowlisted bank alert and a second household.
 
 ## Safety
