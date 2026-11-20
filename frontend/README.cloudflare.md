@@ -1,6 +1,6 @@
 # IPÌLẸ̀ frontend on Cloudflare Workers
 
-This is a reversible deployment path. The Next.js application remains a Next.js 15 application; OpenNext adapts its production build for Cloudflare Workers. The existing Vercel deployment remains available until the Cloudflare preview passes the release gates and the production domain is deliberately switched.
+The Next.js application remains a Next.js 15 application; OpenNext adapts its production build for Cloudflare Workers. Cloudflare Workers is the sole supported deployment target.
 
 ## Architecture
 
@@ -24,7 +24,7 @@ npm run cf:build
 npm run cf:preview
 ```
 
-`cf:install` installs the Cloudflare adapter and Wrangler without adding them to the application's dependency manifest or changing the normal Next.js lockfile. This keeps the existing Vercel/Next.js development install unchanged while the migration is evaluated.
+`cf:install` installs the Cloudflare adapter and Wrangler without adding them to the application's dependency manifest or changing the normal Next.js lockfile.
 
 ## Cloudflare Worker configuration
 
@@ -83,6 +83,6 @@ After merge and approval:
 2. Configure the production Worker `BACKEND_URL` to the existing Render API.
 3. Add the production custom domain in Cloudflare only after confirming DNS ownership and the exact intended hostname.
 4. Verify login and read-only production health immediately after cutover, then monitor errors and latency.
-5. Keep Vercel deployment and its domain configuration intact for immediate rollback. Rollback means restoring the previous DNS/domain routing to Vercel; do not delete the Vercel project.
+5. Keep the previous DNS and domain configuration documented until the Cloudflare cutover is verified. Rollback requires restoring the previously active DNS routing; this repository does not maintain a second frontend hosting provider.
 
 The current Vercel URL is not assumed to be the final custom domain. No DNS or domain changes are performed by this repository configuration.
