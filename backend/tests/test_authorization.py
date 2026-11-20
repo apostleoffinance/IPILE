@@ -181,33 +181,81 @@ def test_members_cannot_read_each_others_personal_finances(client: TestClient) -
 
     login(client, "privacy-owner@example.com")
     headers = {"X-Household-Id": household["id"]}
-    member_a = client.post("/api/v1/members", headers=headers, json={
-        "display_name": "Member A", "role": "member", "relationship": "other", "email": "privacy-a@example.com"
-    }).json()
-    member_b = client.post("/api/v1/members", headers=headers, json={
-        "display_name": "Member B", "role": "member", "relationship": "other", "email": "privacy-b@example.com"
-    }).json()
-    shared = client.post("/api/v1/accounts", headers=headers, json={"name": "Household", "type": "bank"}).json()
-    private_a = client.post("/api/v1/accounts", headers=headers, json={
-        "name": "A private", "type": "bank", "access_scope": "personal", "owner_member_id": member_a["id"]
-    })
-    private_b = client.post("/api/v1/accounts", headers=headers, json={
-        "name": "B private", "type": "bank", "access_scope": "personal", "owner_member_id": member_b["id"]
-    })
+    member_a = client.post(
+        "/api/v1/members",
+        headers=headers,
+        json={
+            "display_name": "Member A",
+            "role": "member",
+            "relationship": "other",
+            "email": "privacy-a@example.com",
+        },
+    ).json()
+    member_b = client.post(
+        "/api/v1/members",
+        headers=headers,
+        json={
+            "display_name": "Member B",
+            "role": "member",
+            "relationship": "other",
+            "email": "privacy-b@example.com",
+        },
+    ).json()
+    shared = client.post(
+        "/api/v1/accounts",
+        headers=headers,
+        json={"name": "Household", "type": "bank"},
+    ).json()
+    private_a = client.post(
+        "/api/v1/accounts",
+        headers=headers,
+        json={
+            "name": "A private",
+            "type": "bank",
+            "access_scope": "personal",
+            "owner_member_id": member_a["id"],
+        },
+    )
+    private_b = client.post(
+        "/api/v1/accounts",
+        headers=headers,
+        json={
+            "name": "B private",
+            "type": "bank",
+            "access_scope": "personal",
+            "owner_member_id": member_b["id"],
+        },
+    )
     assert private_a.status_code == 201, private_a.text
     assert private_b.status_code == 201, private_b.text
     private_a = private_a.json()
     private_b = private_b.json()
-    tx_a = client.post("/api/v1/transactions", headers=headers, json={
-        "account_id": private_a["id"], "amount": "41.00", "type": "expense",
-        "date": date.today().isoformat(), "member_id": member_a["id"], "access_scope": "personal",
-        "description": "A private purchase",
-    })
-    tx_b = client.post("/api/v1/transactions", headers=headers, json={
-        "account_id": private_b["id"], "amount": "92.00", "type": "expense",
-        "date": date.today().isoformat(), "member_id": member_b["id"], "access_scope": "personal",
-        "description": "B private purchase",
-    })
+    tx_a = client.post(
+        "/api/v1/transactions",
+        headers=headers,
+        json={
+            "account_id": private_a["id"],
+            "amount": "41.00",
+            "type": "expense",
+            "date": date.today().isoformat(),
+            "member_id": member_a["id"],
+            "access_scope": "personal",
+            "description": "A private purchase",
+        },
+    )
+    tx_b = client.post(
+        "/api/v1/transactions",
+        headers=headers,
+        json={
+            "account_id": private_b["id"],
+            "amount": "92.00",
+            "type": "expense",
+            "date": date.today().isoformat(),
+            "member_id": member_b["id"],
+            "access_scope": "personal",
+            "description": "B private purchase",
+        },
+    )
     assert tx_a.status_code == 201, tx_a.text
     assert tx_b.status_code == 201, tx_b.text
     tx_b_id = tx_b.json()["id"]
