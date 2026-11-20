@@ -1,0 +1,54 @@
+name: Deploy IPÌLẸ̀ Cloudflare preview
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  deploy-preview:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: frontend
+    env:
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+      IPILE_STAGING_BACKEND_URL: ${{ secrets.IPILE_STAGING_BACKEND_URL }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Verify deployment secrets
+        shell: bash
+        run: |
+          [[ -n "$CLOUDFLARE_API_TOKEN" ]] || { echo "Missing CLOUDFLARE_API_TOKEN repository secret."; exit 1; }
+          [[ -n "$CLOUDFLARE_ACCOUNT_ID" ]] || { echo "Missing CLOUDFLARE_ACCOUNT_ID repository secret."; exit 1; }
+          [[ -n "$IPILE_STAGING_BACKEND_URL" ]] || { echo "Missing IPILE_STAGING_BACKEND_URL repository secret. Use an isolated staging API and database."; exit 1; }
+          [[ "$IPILE_STAGING_BACKEND_URL" == https://* ]] || { echo "IPILE_STAGING_BACKEND_URL must use HTTPS."; exit 1; }
+
+      - name: Install application dependencies
+        run: npm ci
+
+      - name: Install Cloudflare build tooling
+        run: npm run cf:install
+
+      - name: Build Worker
+        run: npm run cf:build
+
+      - name: Create preview Worker
+        run: npx wrangler deploy --name ipile-web-preview
+
+      - name: Set staging API origin on preview Worker
+        shell: bash
+        run: |
+          printf '%s' "$IPILE_STAGING_BACKEND_URL" | npx wrangler secret put BACKEND_URL --name ipile-web-preview
+
+      - name: Publish preview Worker with staging API binding
+        run: npx wrangler deploy --name ipile-web-preview
