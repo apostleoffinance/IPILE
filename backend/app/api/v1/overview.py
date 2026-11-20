@@ -114,7 +114,11 @@ def overview(ctx: HouseholdContext = Depends(get_household_context), db: Session
         or period_income > Decimal("0.00")
         or cash_total != Decimal("0.00")
     )
-    health = household_health(db, ctx.household) if has_baseline and can_view_household_finances else None
+    health = (
+        household_health(db, ctx.household)
+        if has_baseline and can_view_household_finances
+        else None
+    )
     foundation = {
         "household": True,
         "accounts": len(accounts) > 0,
@@ -150,7 +154,11 @@ def overview(ctx: HouseholdContext = Depends(get_household_context), db: Session
         } if wealth is not None else None),
         "health": health,
         "health_ready": has_baseline,
-        "foundation": ({**foundation, "completed": completed, "total": len(foundation)} if can_view_household_finances else None),
+        "foundation": (
+            {**foundation, "completed": completed, "total": len(foundation)}
+            if can_view_household_finances
+            else None
+        ),
         "accounts": [AccountOut.model_validate(account) for account in accounts],
         "recent_transactions": [TransactionOut.model_validate(row) for row in transactions],
         "upcoming_obligations": upcoming,
