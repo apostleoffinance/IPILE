@@ -14,7 +14,7 @@ def test_health(client: TestClient) -> None:
         )
         db.execute(text("DELETE FROM alembic_version"))
         db.execute(
-            text("INSERT INTO alembic_version (version_num) VALUES ('0017_contributions')")
+            text("INSERT INTO alembic_version (version_num) VALUES ('0018_personal_shared_finance')")
         )
         db.commit()
     response = client.get("/api/v1/health")
