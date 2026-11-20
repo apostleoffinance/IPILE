@@ -5,7 +5,7 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy import extract, func
 from sqlalchemy.orm import Session
 
-from app.api.deps import HouseholdContext, get_db, get_household_context, require_roles
+from app.api.deps import HouseholdContext, get_db, require_roles
 from app.api.v1.transactions import create_transaction
 from app.models.account import Account
 from app.models.giving import GivingPolicy, GivingRecord
@@ -94,7 +94,7 @@ def _post_giving_transaction(
 
 @router.get("/policies", response_model=list[GivingPolicyOut])
 def list_policies(
-    ctx: HouseholdContext = Depends(get_household_context),
+    ctx: HouseholdContext = Depends(require_roles("owner", "partner")),
     db: Session = Depends(get_db),
 ):
     rows = _policies(db, ctx.household.id).order_by(GivingPolicy.name)
@@ -125,7 +125,7 @@ def create_policy(
 
 @router.get("/summary", response_model=GivingSummaryOut)
 def giving_summary(
-    ctx: HouseholdContext = Depends(get_household_context),
+    ctx: HouseholdContext = Depends(require_roles("owner", "partner")),
     db: Session = Depends(get_db),
 ):
     today = date.today()
@@ -159,7 +159,7 @@ def giving_summary(
 
 @router.get("", response_model=list[GivingRecordOut])
 def list_giving(
-    ctx: HouseholdContext = Depends(get_household_context),
+    ctx: HouseholdContext = Depends(require_roles("owner", "partner")),
     db: Session = Depends(get_db),
 ):
     rows = _records(db, ctx.household.id).order_by(GivingRecord.date.desc())

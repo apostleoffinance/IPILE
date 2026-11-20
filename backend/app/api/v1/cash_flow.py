@@ -3,7 +3,7 @@ from datetime import date
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
 
-from app.api.deps import HouseholdContext, get_db, get_household_context
+from app.api.deps import HouseholdContext, get_db, require_roles
 from app.schemas.cash_flow import CashFlowDayOut, CashFlowOut
 from app.services.cash_flow import compute_cash_flow
 
@@ -12,7 +12,7 @@ router = APIRouter(prefix="/cash-flow", tags=["cash-flow"])
 
 @router.get("", response_model=CashFlowOut)
 def get_cash_flow(
-    ctx: HouseholdContext = Depends(get_household_context),
+    ctx: HouseholdContext = Depends(require_roles("owner", "partner")),
     db: Session = Depends(get_db),
     period_start: date | None = Query(default=None),
     period_end: date | None = Query(default=None),

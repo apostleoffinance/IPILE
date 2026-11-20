@@ -27,6 +27,7 @@ router = APIRouter(tags=["overview"])
 
 @router.get("/overview")
 def overview(ctx: HouseholdContext = Depends(get_household_context), db: Session = Depends(get_db)):
+    can_view_household_finances = ctx.role in {"owner", "partner"}
     accounts_query = db.query(Account).filter(
         Account.household_id == ctx.household.id,
         Account.deleted_at.is_(None),
@@ -87,7 +88,7 @@ def overview(ctx: HouseholdContext = Depends(get_household_context), db: Session
         )
         .order_by(ObligationOccurrence.due_date)
         .all()
-    )
+    ) if can_view_household_finances else []
     upcoming = [
         CalendarEventOut(
             id=occurrence.id,
@@ -102,18 +103,18 @@ def overview(ctx: HouseholdContext = Depends(get_household_context), db: Session
         )
         for occurrence, obligation in upcoming_rows
     ]
-    run = latest_run(db, ctx.household.id)
+    run = latest_run(db, ctx.household.id) if can_view_household_finances else None
     allocation = serialize_run(db, run) if run else None
     allocated_total = allocation.total_allocated if allocation else Decimal("0.00")
     surplus = allocation.surplus if allocation else Decimal("0.00")
-    sts = compute_safe_to_spend(db, ctx.household)
-    wealth = household_net_worth(db, ctx.household)
+    sts = compute_safe_to_spend(db, ctx.household) if can_view_household_finances else None
+    wealth = household_net_worth(db, ctx.household) if can_view_household_finances else None
     has_baseline = len(accounts) > 0 and (
         len(transactions) > 0
         or period_income > Decimal("0.00")
         or cash_total != Decimal("0.00")
     )
-    health = household_health(db, ctx.household) if has_baseline else None
+    health = household_health(db, ctx.household) if has_baseline and can_view_household_finances else None
     foundation = {
         "household": True,
         "accounts": len(accounts) > 0,
@@ -137,19 +138,19 @@ def overview(ctx: HouseholdContext = Depends(get_household_context), db: Session
         "currency": ctx.household.base_currency,
         "cash_total": format_money(cash_total),
         "period_income": format_money(period_income),
-        "allocated_total": format_money(allocated_total),
-        "surplus": format_money(surplus),
+        "allocated_total": format_money(allocated_total) if can_view_household_finances else None,
+        "surplus": format_money(surplus) if can_view_household_finances else None,
         "allocation": allocation,
         "safe_to_spend": sts,
-        "wealth": {
+        "wealth": ({
             "net_worth": format_money(wealth.net_worth),
             "investments": format_money(wealth.investments),
             "emergency_fund": format_money(wealth.emergency_fund),
             "debt": format_money(wealth.debt),
-        },
+        } if wealth is not None else None),
         "health": health,
         "health_ready": has_baseline,
-        "foundation": {**foundation, "completed": completed, "total": len(foundation)},
+        "foundation": ({**foundation, "completed": completed, "total": len(foundation)} if can_view_household_finances else None),
         "accounts": [AccountOut.model_validate(account) for account in accounts],
         "recent_transactions": [TransactionOut.model_validate(row) for row in transactions],
         "upcoming_obligations": upcoming,

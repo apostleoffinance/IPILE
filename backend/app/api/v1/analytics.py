@@ -3,7 +3,7 @@ from datetime import date
 from fastapi import APIRouter, Depends, Query
 from sqlalchemy.orm import Session
 
-from app.api.deps import HouseholdContext, get_db, get_household_context, require_roles
+from app.api.deps import HouseholdContext, get_db, require_roles
 from app.schemas.analytics import HealthOut, ReportOut, SnapshotOut
 from app.services.analytics import (
     annual_report,

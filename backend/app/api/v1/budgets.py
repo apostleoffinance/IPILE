@@ -4,7 +4,7 @@ from uuid import UUID
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 
-from app.api.deps import HouseholdContext, get_db, get_household_context, require_roles
+from app.api.deps import HouseholdContext, get_db, require_roles
 from app.models.budget import Budget, BudgetCategory
 from app.models.category import Category
 from app.models.member import HouseholdMember
@@ -81,7 +81,7 @@ def _replace_categories(db: Session, budget: Budget, lines) -> None:
 
 @router.get("/budget", response_model=list[BudgetOut])
 def list_budgets(
-    ctx: HouseholdContext = Depends(get_household_context),
+    ctx: HouseholdContext = Depends(require_roles("owner", "partner")),
     db: Session = Depends(get_db),
 ):
     budgets = _active_budgets(db, ctx.household.id).order_by(Budget.start_date.desc()).all()
@@ -133,7 +133,7 @@ def create_budget(
 @router.get("/budget/{budget_id}", response_model=BudgetOut)
 def get_budget(
     budget_id: UUID,
-    ctx: HouseholdContext = Depends(get_household_context),
+    ctx: HouseholdContext = Depends(require_roles("owner", "partner")),
     db: Session = Depends(get_db),
 ):
     budget = _active_budgets(db, ctx.household.id).filter(Budget.id == budget_id).first()

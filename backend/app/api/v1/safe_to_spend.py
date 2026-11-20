@@ -1,7 +1,7 @@
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 
-from app.api.deps import HouseholdContext, get_db, get_household_context, require_roles
+from app.api.deps import HouseholdContext, get_db, require_roles
 from app.models.account import Account
 from app.models.category import Category
 from app.schemas.safe_to_spend import PurchaseCheckIn, PurchaseCheckOut, SafeToSpendOut
