@@ -1,3 +1,5 @@
+from datetime import date
+from decimal import Decimal
 from uuid import UUID
 
 from sqlalchemy.orm import Session
@@ -217,9 +219,6 @@ def commit_staged_import(
     )
     if account is None:
         raise ValueError("Account not found.")
-    from datetime import date
-    from decimal import Decimal
-
     rows = [
         ImportRow(
             date=date.fromisoformat(item["date"]),
