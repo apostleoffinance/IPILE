@@ -139,3 +139,23 @@ def test_income_cut_fee_hike_and_shock_bands() -> None:
     assert len(result.months) == 6
     allocation = allocate(scaled.expected_income, list(scaled.rules))
     assert allocation.recognized_income == Decimal("1600000.00")
+
+
+def test_simulation_rejects_inputs_that_create_negative_financial_values() -> None:
+    import pytest
+    from pydantic import ValidationError
+
+    from app.schemas.simulation import SimulationIn
+
+    with pytest.raises(ValidationError):
+        SimulationIn(income_change_rate="-1.01")
+    with pytest.raises(ValidationError):
+        SimulationIn(expense_category_deltas={"food": "-1.1"})
+    with pytest.raises(ValidationError):
+        SimulationIn(unexpected_expense="-100.00")
+    valid = SimulationIn(
+        income_change_rate="-0.25",
+        expense_category_deltas={"food": "-0.10"},
+        horizon_months=6,
+    )
+    assert valid.horizon_months == 6
