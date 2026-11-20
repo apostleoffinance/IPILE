@@ -24,7 +24,9 @@ def test_contribution_agreement_and_record_are_scoped(client: TestClient) -> Non
     assert Decimal(rows.json()[0]["amount"]) == Decimal("25000.00")
 
 
-def test_contribution_agreement_rejects_invalid_dates_and_foreign_member(client: TestClient) -> None:
+def test_contribution_agreement_rejects_invalid_dates_and_foreign_member(
+    client: TestClient,
+) -> None:
     register(client, "contribution-validation@example.com")
     invalid = client.post("/api/v1/contributions", json={
         "member_id": "00000000-0000-0000-0000-000000000000", "name": "Bad plan",
