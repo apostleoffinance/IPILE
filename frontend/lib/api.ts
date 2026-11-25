@@ -41,6 +41,7 @@ export type Member = {
   relationship: string;
   member_type: string;
   is_financial_contributor: boolean;
+  permissions: { view_all_contributions: boolean; view_all_obligations: boolean };
 };
 
 export type Account = {
@@ -54,6 +55,8 @@ export type Account = {
   is_protected: boolean;
   is_emergency?: boolean;
   status: string;
+  access_scope: "shared" | "personal";
+  owner_member_id: string | null;
 };
 
 export type Category = {
@@ -1247,7 +1250,13 @@ export const api = {
     relationship: string;
     member_type: string;
   }) => request<Member>("/api/v1/members", { method: "POST", body: JSON.stringify(body) }),
-  updateMember: (id: string, body: { display_name?: string; role?: string; relationship?: string; member_type?: string }) =>
+  updateMember: (id: string, body: {
+    display_name?: string;
+    role?: string;
+    relationship?: string;
+    member_type?: string;
+    permissions?: { view_all_contributions?: boolean; view_all_obligations?: boolean };
+  }) =>
     request<Member>(`/api/v1/members/${id}`, { method: "PATCH", body: JSON.stringify(body) }),
   deleteMember: (id: string) => request<void>(`/api/v1/members/${id}`, { method: "DELETE" }),
   transferOwnership: (member_id: string) =>
@@ -1262,7 +1271,10 @@ export const api = {
     institution?: string;
     current_balance?: string;
     is_protected?: boolean;
+    access_scope?: "shared" | "personal";
+    owner_member_id?: string;
   }) => request<Account>("/api/v1/accounts", { method: "POST", body: JSON.stringify(body) }),
+  currentMember: () => request<Member>("/api/v1/members/me"),
   categories: () => request<Category[]>("/api/v1/categories"),
   incomeSources: () => request<IncomeSource[]>("/api/v1/income/sources"),
   createIncomeSource: (body: { name: string; expected_amount: string; type?: string }) =>
