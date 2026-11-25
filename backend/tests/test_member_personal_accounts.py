@@ -85,12 +85,12 @@ def test_member_can_create_and_update_only_their_own_personal_accounts(
     assert updated.status_code == 200, updated.text
     assert updated.json()["name"] == "Member A emergency savings"
 
-    owner_only_update = client.patch(
+    protected_update = client.patch(
         f"/api/v1/accounts/{own_id}",
         headers=headers,
         json={"is_protected": True},
     )
-    assert owner_only_update.status_code == 200
+    assert protected_update.status_code == 403
 
     _logout(client)
     login(client, "personal-account-member-b@example.com")
