@@ -206,7 +206,8 @@ export default function SimulatePage() {
                   <span className="tabular">
                     Income <MoneyAmount amount={row.income} currency={currency ?? "NGN"} /> (contributions{" "}
                     <MoneyAmount amount={row.contributions} currency={currency ?? "NGN"} />) · debt{" "}
-                    <MoneyAmount amount={row.debt_payments} currency={currency ?? "NGN"} /> · surplus{" "}
+                    <MoneyAmount amount={row.debt_payments} currency={currency ?? "NGN"} /> (interest{" "}
+                    <MoneyAmount amount={row.debt_interest} currency={currency ?? "NGN"} />) · surplus{" "}
                     <MoneyAmount amount={row.surplus} currency={currency ?? "NGN"} /> · {row.cash_flow}
                   </span>
                 </div>
