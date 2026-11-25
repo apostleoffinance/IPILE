@@ -84,13 +84,17 @@ jobs:
         working-directory: frontend
         run: npx wrangler deploy --dry-run --name ipile-web
 
-      - name: Verify production backend health before frontend deployment
+      - name: Verify production backend liveness before frontend deployment
         shell: bash
         run: |
-          curl --fail --silent --show-error --retry 5 --retry-all-errors --retry-delay 5 --max-time 15 \
-            "$IPILE_PRODUCTION_BACKEND_URL/health/live"
-          curl --fail --silent --show-error --retry 5 --retry-all-errors --retry-delay 5 --max-time 15 \
-            "$IPILE_PRODUCTION_BACKEND_URL/health"
+          curl --fail --silent --show-error --retry 5 --retry-connrefused --retry-delay 5 --max-time 15 \
+            "$IPILE_PRODUCTION_BACKEND_URL/api/v1/health/live"
+
+      - name: Verify production backend readiness before frontend deployment
+        shell: bash
+        run: |
+          curl --fail --silent --show-error --retry 5 --retry-connrefused --retry-delay 5 --max-time 15 \
+            "$IPILE_PRODUCTION_BACKEND_URL/api/v1/health"
 
       - name: Bind production API and deploy once
         working-directory: frontend
