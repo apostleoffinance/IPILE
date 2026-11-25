@@ -1,0 +1,124 @@
+name: Deploy IPÌLẸ̀ Cloudflare staging
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - "frontend/**"
+      - ".github/workflows/cloudflare-staging-deploy.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ipile-cloudflare-staging
+  cancel-in-progress: false
+
+jobs:
+  deploy-staging:
+    runs-on: ubuntu-latest
+    env:
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+      IPILE_STAGING_BACKEND_URL: https://ipile-staging-api-v2.onrender.com
+      IPILE_STAGING_WORKER_NAME: ipile-web-staging
+
+    steps:
+      - name: Checkout merged source
+        uses: actions/checkout@v4
+        with:
+          ref: main
+
+      - name: Verify staging deployment configuration
+        shell: bash
+        run: |
+          [[ -n "$CLOUDFLARE_API_TOKEN" ]] || { echo "Missing CLOUDFLARE_API_TOKEN repository secret."; exit 1; }
+          [[ -n "$CLOUDFLARE_ACCOUNT_ID" ]] || { echo "Missing CLOUDFLARE_ACCOUNT_ID repository secret."; exit 1; }
+          [[ "$IPILE_STAGING_BACKEND_URL" == "https://ipile-staging-api-v2.onrender.com" ]] || { echo "Unexpected staging backend URL."; exit 1; }
+
+      - name: Verify staging backend liveness
+        shell: bash
+        run: |
+          curl --fail --silent --show-error --retry 5 --retry-connrefused --retry-delay 5 --max-time 20 \
+            "$IPILE_STAGING_BACKEND_URL/api/v1/health/live"
+
+      - name: Verify staging backend readiness
+        shell: bash
+        run: |
+          curl --fail --silent --show-error --retry 5 --retry-connrefused --retry-delay 5 --max-time 20 \
+            "$IPILE_STAGING_BACKEND_URL/api/v1/health"
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install application dependencies
+        working-directory: frontend
+        run: npm ci
+
+      - name: Dependency audit
+        working-directory: frontend
+        run: npm audit --omit=dev --audit-level=high
+
+      - name: Typecheck
+        working-directory: frontend
+        run: npm run typecheck
+
+      - name: Frontend unit tests
+        working-directory: frontend
+        run: npm test
+
+      - name: Install Cloudflare build tooling
+        working-directory: frontend
+        run: npm run cf:install
+
+      - name: Build staging Worker
+        working-directory: frontend
+        env:
+          BACKEND_URL: ${{ env.IPILE_STAGING_BACKEND_URL }}
+        run: npm run cf:build
+
+      - name: Verify staging Worker deployment configuration
+        working-directory: frontend
+        run: npx wrangler deploy --dry-run --name "$IPILE_STAGING_WORKER_NAME"
+
+      - name: Bind staging API and deploy staging Worker
+        working-directory: frontend
+        shell: bash
+        run: |
+          printf '%s' "$IPILE_STAGING_BACKEND_URL" | npx wrangler secret put BACKEND_URL --name "$IPILE_STAGING_WORKER_NAME"
+          set -o pipefail
+          npx wrangler deploy --name "$IPILE_STAGING_WORKER_NAME" 2>&1 | tee /tmp/ipile-staging-wrangler-deploy.log
+
+      - name: Smoke-test deployed staging frontend and API proxy
+        shell: bash
+        run: |
+          set -euo pipefail
+          STAGING_FRONTEND_URL="$(grep -Eo 'https://[[:alnum:]-]+\.workers\.dev' /tmp/ipile-staging-wrangler-deploy.log | tail -n 1 || true)"
+          if [[ -z "$STAGING_FRONTEND_URL" ]]; then
+            echo "Could not discover the staging workers.dev URL from Wrangler deploy output."
+            cat /tmp/ipile-staging-wrangler-deploy.log
+            exit 1
+          fi
+
+          curl --fail --silent --show-error --retry 5 --retry-connrefused --retry-delay 5 --max-time 20 \
+            "$STAGING_FRONTEND_URL/" -o /tmp/ipile-staging-home.html
+          grep -qi "<html" /tmp/ipile-staging-home.html
+
+          curl --fail --silent --show-error --retry 5 --retry-connrefused --retry-delay 5 --max-time 20 \
+            "$STAGING_FRONTEND_URL/api/v1/health" -o /tmp/ipile-staging-api-health.json
+          grep -q '"status"[[:space:]]*:[[:space:]]*"ok"' /tmp/ipile-staging-api-health.json
+
+          {
+            echo "## IPÌLẸ̀ staging frontend deployment"
+            echo
+            echo "- Worker: `$IPILE_STAGING_WORKER_NAME`"
+            echo "- Frontend URL: $STAGING_FRONTEND_URL"
+            echo "- Backend: $IPILE_STAGING_BACKEND_URL"
+            echo "- Source commit: `$GITHUB_SHA`"
+            echo "- Frontend and proxied API smoke tests: passed"
+          } >> "$GITHUB_STEP_SUMMARY"
