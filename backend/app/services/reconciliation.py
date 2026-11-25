@@ -98,9 +98,14 @@ def create_statement_session(db: Session, *, household_id: UUID, member_id: UUID
     db.add(session)
     db.flush()
     duplicates = 0
+    seen_references: set[str] = set()
     for row in rows:
         if not row.external_id:
             raise ValueError("Every statement row must have a stable transaction reference.")
+        if row.external_id in seen_references:
+            duplicates += 1
+            continue
+        seen_references.add(row.external_id)
         exists = db.query(ReconciliationItem.id).filter(ReconciliationItem.household_id == household_id, ReconciliationItem.account_id == account.id, ReconciliationItem.source == "statement", ReconciliationItem.source_reference == row.external_id).first()
         if exists:
             duplicates += 1
@@ -134,10 +139,15 @@ def create_mono_session(db: Session, *, connection: BankConnection, account: Acc
     db.add(session)
     db.flush()
     dates, duplicates = [], 0
+    seen_references: set[str] = set()
     for raw in raw_rows:
         reference, kind = str(raw.get("id") or raw.get("_id") or "").strip(), str(raw.get("type") or "").lower()
         if not reference or kind not in {"debit", "credit"}:
             continue
+        if reference in seen_references:
+            duplicates += 1
+            continue
+        seen_references.add(reference)
         try:
             amount = minor_to_major(raw.get("amount"), currency)
             tx_date = parse_provider_date(str(raw.get("date") or ""))
