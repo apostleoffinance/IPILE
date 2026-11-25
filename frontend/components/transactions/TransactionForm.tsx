@@ -77,8 +77,13 @@ export function TransactionForm({
           date: values.date,
           counterparty_account_id: values.type === "transfer" ? values.counterparty_account_id : undefined,
           category_id: values.category_id || undefined,
-          member_id: values.member_id || undefined,
-          access_scope: accounts.find((account) => account.id === values.account_id)?.access_scope ?? "shared",
+          member_id:
+            values.member_id ||
+            (accounts.find((account) => account.id === values.account_id)?.access_scope === "personal"
+              ? accounts.find((account) => account.id === values.account_id)?.owner_member_id ?? undefined
+              : undefined),
+          access_scope:
+            accounts.find((account) => account.id === values.account_id)?.access_scope ?? "shared",
           description: values.description || undefined,
         });
         reset({
