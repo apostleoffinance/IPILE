@@ -25,16 +25,19 @@ jobs:
         run: |
           pip install pip-audit
           for attempt in 1 2 3; do
-            if pip-audit --timeout 60; then
+            set +e
+            pip-audit --timeout 60
+            status=$?
+            set -e
+            if [ "$status" -eq 0 ]; then
               exit 0
             fi
-            status=$?
             if [ "$attempt" -lt 3 ]; then
-              echo "pip-audit failed (attempt $attempt/3); retrying in $((attempt * 10))s"
+              echo "pip-audit failed with exit code $status (attempt $attempt/3); retrying in $((attempt * 10))s"
               sleep $((attempt * 10))
             fi
           done
-          exit 1
+          exit "$status"
       - name: Lint
         run: ruff check app tests
       - name: Test
