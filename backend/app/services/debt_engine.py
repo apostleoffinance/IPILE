@@ -52,9 +52,11 @@ def _apr(value: Decimal | None) -> Decimal:
     rate = Decimal(str(value or 0))
     # Older records may have stored APR as whole percentages (18 = 18%).
     # New API writes use decimal fractions; normalize legacy values safely.
+    if not rate.is_finite():
+        raise ValueError("Interest rate must be finite.")
     if rate > Decimal("5") and rate <= Decimal("500"):
         rate /= Decimal("100")
-    if not rate.is_finite() or rate < ZERO or rate > Decimal("5"):
+    if rate < ZERO or rate > Decimal("5"):
         raise ValueError("Interest rate must be between 0 and 5 as an APR fraction.")
     return rate
 
