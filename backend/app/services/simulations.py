@@ -61,10 +61,8 @@ def clone_state(db: Session, household: Household, today: date | None = None) ->
     today = today or date.today()
     start, end = period_bounds(household, today)
     monthly_income = expected_income(db, household.id)
-    first_month_income = max(
-        Decimal("0.00"),
-        monthly_income - recognized_income(db, household.id, start, end),
-    )
+    income_received = quantize_money(recognized_income(db, household.id, start, end))
+    first_month_income = max(Decimal("0.00"), monthly_income - income_received)
     # Start from actual household Safe-to-Spend, not total account balances.
     # This excludes personal accounts, protected cash, pending outflows, and
     # obligations already due today; expected income/contributions remain separate.
@@ -194,6 +192,7 @@ def clone_state(db: Session, household: Household, today: date | None = None) ->
         minimum_buffer=quantize_money(Decimal(str(household.minimum_buffer_amount))),
         essentials=quantize_money(essentials),
         first_month_essentials=quantize_money(first_month_essentials),
+        recognized_income=income_received,
         planned_investment=quantize_money(planned_investment),
         rules=rules,
         obligations=tuple(obligations),
@@ -242,6 +241,7 @@ def baseline_snapshot(state: SimState) -> dict:
             if state.first_month_income is not None
             else state.expected_income
         ),
+        "recognized_income": format_money(state.recognized_income),
         "expected_contributions": format_money(state.expected_contributions),
         "first_month_contributions": format_money(state.first_month_contributions),
         "minimum_buffer": format_money(state.minimum_buffer),
