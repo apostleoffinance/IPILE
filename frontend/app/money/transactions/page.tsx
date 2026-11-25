@@ -17,6 +17,7 @@ export default function TransactionsPage() {
   const [accounts, setAccounts] = useState<Account[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
   const [members, setMembers] = useState<Member[]>([]);
+  const [currentMember, setCurrentMember] = useState<Member | null>(null);
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [type, setType] = useState("");
   const [accountId, setAccountId] = useState("");
@@ -29,15 +30,17 @@ export default function TransactionsPage() {
     if (type) params.set("type", type);
     if (accountId) params.set("account_id", accountId);
     const query = params.toString() ? `?${params.toString()}` : "";
-    const [nextAccounts, nextCategories, nextMembers, nextTransactions] = await Promise.all([
+    const [nextAccounts, nextCategories, nextMembers, me, nextTransactions] = await Promise.all([
       api.accounts(),
       api.categories(),
       api.members(),
+      api.currentMember(),
       api.transactions(query),
     ]);
     setAccounts(nextAccounts);
     setCategories(nextCategories);
-    setMembers(nextMembers);
+    setCurrentMember(me);
+    setMembers(me.role === "member" ? nextMembers.filter((member) => member.id === me.id) : nextMembers);
     setTransactions(nextTransactions);
   }
 
