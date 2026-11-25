@@ -92,7 +92,7 @@ export default function SimulatePage() {
               value={contributionRate}
               onChange={(event) => setContributionRate(event.target.value)}
             />
-            <p className="mt-1 text-xs text-muted">Change to expected recurring household contributions, separate from other income.</p>
+            <p className="mt-1 text-xs text-muted">Only include agreements not already counted in expected income sources.</p>
           </div>
           <div>
             <Label htmlFor="sim-unexpected">Unexpected expense</Label>
