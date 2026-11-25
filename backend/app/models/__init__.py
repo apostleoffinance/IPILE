@@ -17,6 +17,7 @@ from app.models.income import IncomeSource
 from app.models.member import HouseholdMember
 from app.models.obligation import Obligation, ObligationOccurrence
 from app.models.public import HouseholdInvite, SupportTicket
+from app.models.receipt import ReceiptDocument
 from app.models.recurring import RecurringTransaction
 from app.models.session import SessionToken
 from app.models.simulation import Simulation, SimulationRun
@@ -62,6 +63,7 @@ __all__ = [
     "Notification",
     "Obligation",
     "ObligationOccurrence",
+    "ReceiptDocument",
     "RecurringTransaction",
     "SchedulerTick",
     "SessionToken",

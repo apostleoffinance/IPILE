@@ -28,6 +28,7 @@ from app.api.v1 import (
     members,
     obligations,
     overview,
+    receipts,
     recurring,
     safe_to_spend,
     simulations,
@@ -66,6 +67,7 @@ api_router.include_router(simulations.router)
 api_router.include_router(automation.router)
 api_router.include_router(ai.router)
 api_router.include_router(imports.router)
+api_router.include_router(receipts.router)
 api_router.include_router(export.router)
 api_router.include_router(invites.router)
 api_router.include_router(billing.router)
