@@ -14,15 +14,19 @@ import {
   createContributionAgreement,
   listContributionAgreements,
   listContributionRecords,
+  listContributionSchedule,
   recordContribution,
   type ContributionAgreement,
   type ContributionRecord,
   type Member,
+  type ContributionScheduleRow,
   api,
 } from "@/lib/api";
 
 export default function ContributionsPage() {
   const [members, setMembers] = useState<Member[]>([]);
+  const [currentMember, setCurrentMember] = useState<Member | null>(null);
+  const [schedule, setSchedule] = useState<ContributionScheduleRow[]>([]);
   const [agreements, setAgreements] = useState<ContributionAgreement[]>([]);
   const [records, setRecords] = useState<Record<string, ContributionRecord[]>>({});
   const [memberId, setMemberId] = useState("");
@@ -39,11 +43,20 @@ export default function ContributionsPage() {
   const [loaded, setLoaded] = useState(false);
 
   async function refresh() {
-    const [memberRows, agreementRows] = await Promise.all([api.members(), listContributionAgreements()]);
+    const [memberRows, me, agreementRows, scheduleRows] = await Promise.all([
+      api.members(),
+      api.currentMember(),
+      listContributionAgreements(),
+      listContributionSchedule(),
+    ]);
     setMembers(memberRows);
+    setCurrentMember(me);
+    setSchedule(scheduleRows);
     setAgreements(agreementRows);
     if (!memberId && memberRows[0]) setMemberId(memberRows[0].id);
-    const entries = await Promise.all(agreementRows.map(async (row) => [row.id, await listContributionRecords(row.id)] as const));
+    const entries = await Promise.all(
+      agreementRows.map(async (row) => [row.id, await listContributionRecords(row.id)] as const),
+    );
     setRecords(Object.fromEntries(entries));
   }
 
@@ -100,6 +113,7 @@ export default function ContributionsPage() {
           description="Set expected household contributions, track what has been received, and keep an auditable record."
         />
         {error ? <ErrorState message={error} /> : null}
+        {currentMember && ["owner", "partner"].includes(currentMember.role) ? (
         <form onSubmit={onCreate} className="mb-8 grid gap-4 border border-line bg-surface p-5 md:grid-cols-2">
           <div className="md:col-span-2"><h2 className="font-semibold">Create an agreement</h2></div>
           <div>
@@ -138,6 +152,41 @@ export default function ContributionsPage() {
           </div>
           <div className="md:col-span-2"><Button type="submit" disabled={busy || members.length === 0}>{busy ? "Saving..." : "Create agreement"}</Button></div>
         </form>
+        ) : null}
+
+        <section className="mb-8 space-y-3">
+          <h2 className="font-semibold">Contribution schedule</h2>
+          {schedule.length === 0 ? (
+            <p className="border border-line p-4 text-sm text-muted">No scheduled contributions in this period.</p>
+          ) : (
+            <div className="overflow-x-auto border border-line bg-surface">
+              <table className="w-full text-left text-sm">
+                <thead className="border-b border-line text-xs uppercase tracking-wide text-muted">
+                  <tr>
+                    <th className="px-4 py-3">Due date</th>
+                    <th className="px-4 py-3">Agreement</th>
+                    <th className="px-4 py-3 text-right">Expected</th>
+                    <th className="px-4 py-3 text-right">Paid</th>
+                    <th className="px-4 py-3 text-right">Outstanding</th>
+                    <th className="px-4 py-3">Status</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {schedule.map((row) => (
+                    <tr key={`${row.agreement_id}-${row.due_date}`} className="border-b border-line last:border-0">
+                      <td className="px-4 py-3">{row.due_date}</td>
+                      <td className="px-4 py-3">{row.name}</td>
+                      <td className="px-4 py-3 text-right tabular-nums">{row.currency} {row.expected_amount}</td>
+                      <td className="px-4 py-3 text-right tabular-nums">{row.currency} {row.paid_amount}</td>
+                      <td className="px-4 py-3 text-right tabular-nums">{row.currency} {row.outstanding_amount}</td>
+                      <td className="px-4 py-3 capitalize">{row.status}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </section>
 
         <div className="space-y-5">
           {agreements.length === 0 ? <p className="border border-line p-5 text-sm text-muted">No contribution agreements yet.</p> : agreements.map((agreement) => {
@@ -149,11 +198,13 @@ export default function ContributionsPage() {
                 <p className="font-semibold tabular-nums">{agreement.currency} {agreement.amount}</p>
               </div>
               <p className="text-xs text-muted">Status: {agreement.status} · Starts {agreement.start_date}{agreement.end_date ? ` · Ends ${agreement.end_date}` : ""}</p>
+              {currentMember && ["owner", "partner", "member"].includes(currentMember.role) ? (
               <form onSubmit={(event) => void onRecord(event, agreement.id)} className="grid gap-3 border-t border-line pt-3 md:grid-cols-3">
                 <div><Label htmlFor={`record-amount-${agreement.id}`}>Amount received</Label><Input id={`record-amount-${agreement.id}`} className="mt-1" type="number" min="0.01" step="0.01" value={recordAmounts[agreement.id] ?? ""} onChange={(e) => setRecordAmounts((current) => ({ ...current, [agreement.id]: e.target.value }))} required /></div>
                 <div><Label htmlFor={`record-date-${agreement.id}`}>Received on</Label><Input id={`record-date-${agreement.id}`} className="mt-1" type="date" value={recordDates[agreement.id] ?? ""} onChange={(e) => setRecordDates((current) => ({ ...current, [agreement.id]: e.target.value }))} required /></div>
                 <div className="flex items-end"><Button type="submit" disabled={busy}>{busy ? "Saving..." : "Record contribution"}</Button></div>
               </form>
+              ) : null}
               <div className="space-y-2">
                 <h3 className="text-sm font-medium">Contribution history</h3>
                 {history.length === 0 ? <p className="text-sm text-muted">No contributions recorded.</p> : history.map((row) => <div key={row.id} className="flex justify-between gap-3 border-t border-line pt-2 text-sm"><span>{row.contributed_on}{row.note ? ` · ${row.note}` : ""}</span><span className="font-medium tabular-nums">{row.currency} {row.amount}</span></div>)}
