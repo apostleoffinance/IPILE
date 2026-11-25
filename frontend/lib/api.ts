@@ -628,6 +628,7 @@ export type SimulationMonth = {
   income: string;
   contributions: string;
   debt_payments: string;
+  debt_interest: string;
   surplus: string;
   cash: string;
   emergency: string;
