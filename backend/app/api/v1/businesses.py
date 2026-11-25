@@ -136,6 +136,21 @@ def post_transaction(
     if payload.type not in BUSINESS_TX_TYPES:
         raise HTTPException(status_code=400, detail="Invalid business transaction type.")
     business = _get(db, ctx.household.id, business_id)
+    if payload.account_id:
+        get_account(db, ctx.household.id, payload.account_id)
+    if payload.employee_id:
+        employee = (
+            db.query(BusinessEmployee)
+            .filter(
+                BusinessEmployee.id == payload.employee_id,
+                BusinessEmployee.business_id == business.id,
+                BusinessEmployee.household_id == ctx.household.id,
+                BusinessEmployee.deleted_at.is_(None),
+            )
+            .first()
+        )
+        if employee is None:
+            raise HTTPException(status_code=404, detail="Business employee not found.")
     if business.status not in BUSINESS_STATUSES:
         raise HTTPException(status_code=400, detail="Business is not active.")
     vault = ensure_business_account(db, business)
