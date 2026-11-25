@@ -17,7 +17,7 @@ const navItems = [
 export function LandingNav() {
   const [open, setOpen] = useState(false);
   return (
-    <header className="relative z-20 border-b border-line/70 bg-canvas/95">
+    <header className="ipile-landing-nav relative z-20 border-b border-line/70 bg-canvas/95">
       <div className="mx-auto flex max-w-7xl items-center justify-between px-5 py-5 md:px-10">
         <Wordmark size="sm" priority />
         <nav className="hidden items-center gap-8 text-sm text-muted md:flex" aria-label="Main navigation">
@@ -26,7 +26,7 @@ export function LandingNav() {
         <div className="hidden items-center gap-5 text-sm md:flex">
           <ThemeToggle />
           <Link href="/login" className="text-muted transition-colors hover:text-ink">Sign in</Link>
-          <Link href="/get-started" className="bg-accent px-4 py-2.5 text-inverse transition-colors hover:bg-accent-deep">Build your foundation <ArrowUpRight className="ml-1 inline h-4 w-4" aria-hidden="true" /></Link>
+          <Link href="/get-started" className="ipile-nav-cta rounded-full bg-brand px-5 py-3 text-sm text-inverse transition-colors hover:bg-accent">Build your foundation <ArrowUpRight className="ml-1 inline h-4 w-4" aria-hidden="true" /></Link>
         </div>
         <button type="button" className="flex h-10 w-10 items-center justify-center border border-line md:hidden" onClick={() => setOpen((value) => !value)} aria-label={open ? "Close menu" : "Open menu"} aria-expanded={open}>
           {open ? <X className="h-5 w-5" aria-hidden="true" /> : <Menu className="h-5 w-5" aria-hidden="true" />}

@@ -166,8 +166,8 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   const household = households.find((h) => h.id === activeId) ?? households[0];
 
   return (
-    <div className="min-h-screen md:grid md:grid-cols-[248px_1fr]">
-      <aside className="hidden border-r border-line bg-surface px-5 py-7 md:flex md:flex-col">
+    <div className="ipile-app-shell min-h-screen md:grid md:grid-cols-[248px_1fr]">
+      <aside className="ipile-sidebar hidden border-r border-line bg-surface px-5 py-7 md:flex md:flex-col">
         <Wordmark href="/overview" tone="light" size="sm" />
         {households.length > 1 ? (
           <label className="mt-4 block text-sm">
@@ -185,7 +185,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
             </select>
           </label>
         ) : (
-          <p className="mt-3 text-sm text-muted">{household?.name ?? "Household"}</p>
+          <p className="ipile-household mt-3 text-sm text-muted">{household?.name ?? "Household"}</p>
         )}
         <nav className="mt-8 flex-1 space-y-1 text-sm">
           {primaryNav.map((link) => {
@@ -243,7 +243,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
             );
           })}
         </nav>
-        <Button type="button" className="mt-4 w-full" onClick={() => setAddOpen(true)}>
+        <Button type="button" className="ipile-add-button mt-4 w-full" onClick={() => setAddOpen(true)}>
           <Plus className="h-4 w-4" aria-hidden />
           Add
         </Button>
@@ -253,7 +253,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
       </aside>
 
       <div className="flex min-h-screen flex-col">
-        <header className="flex items-center justify-between border-b border-line bg-surface/90 px-5 py-3 backdrop-blur md:px-10">
+        <header className="ipile-topbar flex items-center justify-between border-b border-line bg-surface/90 px-5 py-3 backdrop-blur md:px-10">
           <div className="md:hidden">
             <Wordmark href="/overview" tone="light" size="sm" />
           </div>
@@ -300,10 +300,10 @@ export function AppShell({ children }: { children: React.ReactNode }) {
             <CommandMenu items={commandItems} className="mx-auto max-w-xl" />
           </div>
         ) : null}
-        <main id="main-content" tabIndex={-1} className="flex-1 px-5 py-8 outline-none md:px-10">
+        <main id="main-content" tabIndex={-1} className="ipile-main flex-1 px-5 py-8 outline-none md:px-10">
           {children}
         </main>
-        <nav className="fixed inset-x-0 bottom-0 z-30 grid grid-cols-5 border-t border-line bg-surface text-center text-[11px] md:hidden">
+        <nav className="ipile-mobile-nav fixed inset-x-0 bottom-0 z-30 grid grid-cols-5 border-t border-line bg-surface text-center text-[11px] md:hidden">
           {primaryNav.slice(0, 4).map((link) => {
             const Icon = link.icon;
             const active =
@@ -341,7 +341,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           <Plus className="h-5 w-5" />
         </Button>
         {moreOpen ? (
-          <div id="mobile-more-menu" className="fixed inset-x-0 bottom-12 z-30 max-h-[70vh] overflow-y-auto border-t border-line bg-surface p-4 md:hidden">
+          <div id="mobile-more-menu" className="ipile-mobile-nav fixed inset-x-0 bottom-12 z-30 max-h-[70vh] overflow-y-auto border-t border-line bg-surface p-4 md:hidden">
             <div className="space-y-4 text-sm">
               {primaryNav.slice(1).map((group) => (
                 <section key={group.href}>
