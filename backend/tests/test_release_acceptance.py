@@ -112,24 +112,10 @@ def test_release_acceptance_health_readiness_requires_current_database_schema(
 ) -> None:
     from sqlalchemy import text
 
-    from tests.conftest import TestingSessionLocal
+    from tests.conftest import TestingSessionLocal, set_current_migration_version
 
     with TestingSessionLocal() as db:
-        db.execute(
-            text(
-                "CREATE TABLE IF NOT EXISTS alembic_version "
-                "(version_num VARCHAR(32) NOT NULL)"
-            )
-        )
-        db.execute(text("DELETE FROM alembic_version"))
-        db.execute(
-            text(
-                "INSERT INTO alembic_version (version_num) "
-                "VALUES ('0020_unique_contribution_transaction')"
-            )
-        )
-        db.commit()
-
+        set_current_migration_version(db)
     ready = client.get("/api/v1/health")
     assert ready.status_code == 200, ready.text
     assert ready.json()["database"] == "connected"

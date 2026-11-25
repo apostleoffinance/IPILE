@@ -1543,3 +1543,54 @@ export function recordContribution(id: string, body: {
     body: JSON.stringify(body),
   });
 }
+
+
+export type ReceiptDocument = {
+  id: string;
+  account_id: string;
+  filename: string | null;
+  media_type: string;
+  status: string;
+  merchant: string | null;
+  date: string | null;
+  amount: string | null;
+  currency: string | null;
+  extracted: {
+    overall_confidence?: number;
+    field_confidence?: Record<string, number>;
+    warnings?: string[];
+  };
+  transaction_id: string | null;
+  created_at: string | null;
+};
+
+export function getReceipts() {
+  return request<ReceiptDocument[]>("/api/v1/receipts");
+}
+
+export function previewReceipt(accountId: string, file: File) {
+  const body = new FormData();
+  body.set("account_id", accountId);
+  body.set("file", file);
+  return request<ReceiptDocument>("/api/v1/receipts/preview", { method: "POST", body });
+}
+
+export function correctReceipt(id: string, body: {
+  amount?: string;
+  date?: string;
+  merchant?: string | null;
+  currency?: string;
+}) {
+  return request<ReceiptDocument>(`/api/v1/receipts/${id}`, {
+    method: "PATCH",
+    body: JSON.stringify(body),
+  });
+}
+
+export function approveReceipt(id: string) {
+  return request<ReceiptDocument>(`/api/v1/receipts/${id}/approve`, { method: "POST" });
+}
+
+export function rejectReceipt(id: string) {
+  return request<ReceiptDocument>(`/api/v1/receipts/${id}/reject`, { method: "POST" });
+}
