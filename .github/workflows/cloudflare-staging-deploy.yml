@@ -98,7 +98,8 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          STAGING_FRONTEND_URL="$(grep -Eo 'https://[[:alnum:]-]+\.workers\.dev' /tmp/ipile-staging-wrangler-deploy.log | tail -n 1 || true)"
+          # Wrangler emits an account-scoped hostname, e.g. https://ipile-web-staging.ipile-71a.workers.dev
+          STAGING_FRONTEND_URL="$(grep -Eo 'https://[[:alnum:]-]+(\\.[[:alnum:]-]+)*\\.workers\\.dev' /tmp/ipile-staging-wrangler-deploy.log | tail -n 1 || true)"
           if [[ -z "$STAGING_FRONTEND_URL" ]]; then
             echo "Could not discover the staging workers.dev URL from Wrangler deploy output."
             cat /tmp/ipile-staging-wrangler-deploy.log
