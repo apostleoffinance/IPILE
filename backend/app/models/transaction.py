@@ -10,7 +10,17 @@ from app.core.db import Base
 
 class Transaction(Base):
     __tablename__ = "transactions"
-    __table_args__ = (CheckConstraint("amount >= 0", name="ck_transactions_amount_nonneg"),)
+    __table_args__ = (
+        CheckConstraint("amount >= 0", name="ck_transactions_amount_nonneg"),
+        CheckConstraint(
+            "access_scope IN ('shared', 'personal')",
+            name="ck_transactions_access_scope",
+        ),
+        CheckConstraint(
+            "(access_scope = 'shared') OR (access_scope = 'personal' AND member_id IS NOT NULL)",
+            name="ck_transactions_personal_owner",
+        ),
+    )
 
     id: Mapped[uuid.UUID] = mapped_column(Uuid, primary_key=True, default=uuid.uuid4)
     household_id: Mapped[uuid.UUID] = mapped_column(
