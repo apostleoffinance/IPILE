@@ -24,6 +24,7 @@ from app.schemas.contribution import (
 )
 from app.services.audit import write_audit
 from app.services.contribution_schedule import build_contribution_schedule
+from app.services.finance_access import has_member_permission
 
 router = APIRouter(prefix="/contributions", tags=["household-governance"])
 
@@ -56,9 +57,9 @@ def _visible_agreement(
         ContributionAgreement.id == agreement_id,
         ContributionAgreement.household_id == ctx.household.id,
     )
-    if ctx.role == "member":
+    if ctx.role == "member" and not has_member_permission(ctx, "view_all_contributions"):
         query = query.filter(ContributionAgreement.member_id == ctx.member.id)
-    elif ctx.role not in {"owner", "partner"}:
+    elif ctx.role not in {"owner", "partner", "member"}:
         raise HTTPException(status_code=403, detail="Insufficient permissions.")
     agreement = query.first()
     if agreement is None:
@@ -75,9 +76,9 @@ def list_agreements(
     query = db.query(ContributionAgreement).filter(
         ContributionAgreement.household_id == ctx.household.id
     )
-    if ctx.role == "member":
+    if ctx.role == "member" and not has_member_permission(ctx, "view_all_contributions"):
         query = query.filter(ContributionAgreement.member_id == ctx.member.id)
-    elif ctx.role not in {"owner", "partner"}:
+    elif ctx.role not in {"owner", "partner", "member"}:
         raise HTTPException(status_code=403, detail="Insufficient permissions.")
     return query.order_by(ContributionAgreement.start_date.desc()).all()
 
@@ -97,9 +98,9 @@ def contribution_schedule(
     query = db.query(ContributionAgreement).filter(
         ContributionAgreement.household_id == ctx.household.id
     )
-    if ctx.role == "member":
+    if ctx.role == "member" and not has_member_permission(ctx, "view_all_contributions"):
         query = query.filter(ContributionAgreement.member_id == ctx.member.id)
-    elif ctx.role not in {"owner", "partner"}:
+    elif ctx.role not in {"owner", "partner", "member"}:
         raise HTTPException(status_code=403, detail="Insufficient permissions.")
     agreements = query.order_by(ContributionAgreement.start_date).all()
     if not agreements:
