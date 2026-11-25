@@ -15,11 +15,11 @@ from app.money import format_money, quantize_money
 from app.schemas.simulation import SimulationIn
 from app.services.allocations import active_rules, expected_income, period_bounds, to_spec
 from app.services.budgets import serialize_budget
-from app.services.debt_engine import DebtInput
 from app.services.contribution_forecast import (
     contribution_forecast,
     monthly_expected_contributions,
 )
+from app.services.debt_engine import DebtInput
 from app.services.simulation_engine import (
     SimCategory,
     SimObligation,
