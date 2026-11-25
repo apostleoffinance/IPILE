@@ -79,6 +79,7 @@ export type Transaction = {
   account_id: string;
   counterparty_account_id: string | null;
   member_id: string | null;
+  access_scope: "shared" | "personal";
   amount: string;
   currency: string;
   type: string;
