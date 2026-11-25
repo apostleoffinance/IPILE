@@ -1,5 +1,7 @@
 import hashlib
+
 from cryptography.fernet import Fernet, InvalidToken
+
 from app.core.config import get_settings
 
 def _fernet() -> Fernet:

@@ -13,7 +13,11 @@ from app.api.deps import HouseholdContext, get_db, require_roles
 from app.core.config import get_settings
 from app.models.account import Account
 from app.models.banking import BankConnection, BankWebhookEvent
-from app.services.bank_security import decrypt_provider_account_id, encrypt_provider_account_id, provider_account_hash
+from app.services.bank_security import (
+    decrypt_provider_account_id,
+    encrypt_provider_account_id,
+    provider_account_hash,
+)
 from app.services.mono import MonoAPIError, MonoClient, MonoReauthRequired
 from app.services.reconciliation import create_mono_session, minor_to_major
 
