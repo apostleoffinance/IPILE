@@ -9,6 +9,7 @@ from datetime import date, timedelta
 from decimal import Decimal
 from uuid import UUID
 
+from sqlalchemy import or_
 from sqlalchemy.orm import Session
 
 from app.models.contribution import ContributionAgreement, ContributionRecord
@@ -74,6 +75,11 @@ def contribution_forecast(
             ContributionRecord.contributed_on <= end,
             Transaction.household_id == household_id,
             Transaction.type == "income",
+            Transaction.access_scope == "shared",
+            or_(
+                Transaction.member_id.is_(None),
+                Transaction.member_id == ContributionRecord.member_id,
+            ),
             Transaction.status.in_(RECOGNIZED),
             Transaction.amount == ContributionRecord.amount,
             Transaction.currency == ContributionRecord.currency,
