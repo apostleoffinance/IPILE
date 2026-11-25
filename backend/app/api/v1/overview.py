@@ -87,7 +87,10 @@ def member_financial_summary(
         }
     transactions = transaction_visibility(query, Transaction, ctx).all()
     income = quantize_money(
-        sum((Decimal(str(row.amount)) for row in transactions if row.type == "income"), Decimal("0.00"))
+        sum(
+            (Decimal(str(row.amount)) for row in transactions if row.type == "income"),
+            Decimal("0.00"),
+        )
     )
     expenses = quantize_money(
         sum(
