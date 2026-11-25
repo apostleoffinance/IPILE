@@ -71,6 +71,7 @@ def create_member(
         member_type=payload.member_type,
         date_of_birth=payload.date_of_birth,
         is_financial_contributor=payload.is_financial_contributor,
+        permissions=payload.permissions.model_dump(),
     )
     db.add(member)
     db.flush()
@@ -99,6 +100,8 @@ def update_member(
     if member is None:
         raise HTTPException(status_code=404, detail="Member not found.")
     data = payload.model_dump(exclude_unset=True)
+    if "permissions" in data and data["permissions"] is not None:
+        data["permissions"] = data["permissions"].model_dump()
     if data.get("role") == "owner" and member.role != "owner":
         raise HTTPException(status_code=400, detail="Cannot transfer ownership in this phase.")
     if "role" in data and data["role"] not in ROLES:
