@@ -332,12 +332,14 @@ def test_simulation_projects_emergency_and_investment_transfers_into_net_worth()
         rules=(
             _rule("Emergency reserve", "fixed", amount="100.00", priority=0),
             _rule("Investments", "fixed", amount="200.00", priority=1),
+            _rule("University fund", "fixed", amount="50.00", priority=2, dest="fund"),
+            _rule("Parents stipend reserve", "fixed", amount="50.00", priority=3, dest="obligation"),
         ),
         obligations=(),
         debts=(),
     )
     month = project(state, SimParams(horizon_months=1)).months[0]
-    assert month.cash == Decimal("1700.00")
+    assert month.cash == Decimal("1600.00")
     assert month.emergency == Decimal("100.00")
     assert month.investments == Decimal("200.00")
     assert month.net_worth_delta == Decimal("1000.00")
