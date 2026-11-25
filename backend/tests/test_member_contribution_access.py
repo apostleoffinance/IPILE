@@ -175,6 +175,15 @@ def test_members_only_see_their_own_contribution_agreements_records_and_schedule
     )
     assert authorized_records.status_code == 200
     assert len(authorized_records.json()) == 1
+    forbidden_other_member_record = client.post(
+        f"/api/v1/contributions/{agreement_b.json()['id']}/records",
+        headers=headers,
+        json={
+            "amount": "50.00",
+            "contributed_on": date.today().isoformat(),
+        },
+    )
+    assert forbidden_other_member_record.status_code == 403
     authorized_schedule = client.get("/api/v1/contributions/schedule", headers=headers)
     assert {row["member_id"] for row in authorized_schedule.json()} == {
         member_a["id"],
