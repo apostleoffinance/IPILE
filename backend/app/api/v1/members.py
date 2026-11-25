@@ -24,6 +24,15 @@ def _active_members(db: Session, household_id: UUID):
     )
 
 
+@router.get("/me", response_model=MemberOut)
+def get_current_member(
+    ctx: HouseholdContext = Depends(get_household_context),
+):
+    if ctx.member is None:
+        raise HTTPException(status_code=404, detail="Household member not found.")
+    return ctx.member
+
+
 @router.get("", response_model=list[MemberOut])
 def list_members(
     ctx: HouseholdContext = Depends(get_household_context),
