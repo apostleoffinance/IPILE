@@ -173,6 +173,31 @@ def create_transaction(
     ):
         _require_household_reference(db, model, ctx.household.id, record_id, label)
 
+    # A private transaction must never change a shared balance, and a shared
+    # transaction must never mutate a personal balance. Cross-scope transfers
+    # need a paired-entry model and are intentionally rejected for now.
+    if payload.access_scope == "personal":
+        if account.access_scope != "personal" or account.owner_member_id != member_id:
+            raise HTTPException(
+                status_code=400,
+                detail="Personal transactions must use an account owned by that member.",
+            )
+        if counterparty and (
+            counterparty.access_scope != "personal"
+            or counterparty.owner_member_id != member_id
+        ):
+            raise HTTPException(
+                status_code=400,
+                detail="Personal transfers must use accounts owned by the same member.",
+            )
+    elif account.access_scope != "shared" or (
+        counterparty and counterparty.access_scope != "shared"
+    ):
+        raise HTTPException(
+            status_code=400,
+            detail="Shared transactions must use shared accounts.",
+        )
+
     transaction = Transaction(
         household_id=ctx.household.id,
         account_id=account.id,
