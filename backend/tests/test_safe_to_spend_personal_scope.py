@@ -35,6 +35,17 @@ def test_household_safe_to_spend_excludes_personal_cash_and_transactions(
     )
     assert personal.status_code == 201, personal.text
 
+    personal_fund = client.post(
+        "/api/v1/funds",
+        json={
+            "name": "Personal reserve fund",
+            "target_amount": "100000.00",
+            "monthly_contribution": "10000.00",
+            "account_id": personal.json()["id"],
+            "is_protected": True,
+        },
+    )
+    assert personal_fund.status_code == 201, personal_fund.text
     source = client.post(
         "/api/v1/income/sources",
         json={
@@ -92,5 +103,6 @@ def test_household_safe_to_spend_excludes_personal_cash_and_transactions(
     assert Decimal(components["pending_transactions"]) == Decimal("0.00")
     assert Decimal(components["protected_savings"]) == Decimal("0.00")
     assert Decimal(components["upcoming_bills"]) == Decimal("0.00")
+    assert Decimal(components["sinking_fund_requirements"]) == Decimal("0.00")
     assert Decimal(components["expected_income"]) == Decimal("200000.00")
     assert Decimal(body["current"]) == Decimal("1000000.00")
