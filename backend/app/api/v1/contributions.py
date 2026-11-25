@@ -45,6 +45,24 @@ def _agreement(
             detail="Contribution agreement not found.",
         )
     return row
+def _visible_agreement(
+    db: Session,
+    ctx: HouseholdContext,
+    agreement_id: UUID,
+) -> ContributionAgreement:
+    query = db.query(ContributionAgreement).filter(
+        ContributionAgreement.id == agreement_id,
+        ContributionAgreement.household_id == ctx.household.id,
+    )
+    if ctx.role == "member":
+        query = query.filter(ContributionAgreement.member_id == ctx.member.id)
+    elif ctx.role not in {"owner", "partner"}:
+        raise HTTPException(status_code=403, detail="Insufficient permissions.")
+    agreement = query.first()
+    if agreement is None:
+        raise HTTPException(status_code=404, detail="Contribution agreement not found.")
+    return agreement
+
 
 
 @router.get("", response_model=list[ContributionAgreementOut])
