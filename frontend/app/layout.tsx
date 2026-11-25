@@ -29,11 +29,11 @@ const themeBootScript = `
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="en" suppressHydrationWarning>
+    <html lang="en" className={sora.variable} suppressHydrationWarning>
       <head>
         <script dangerouslySetInnerHTML={{ __html: themeBootScript }} />
       </head>
-      <body className={`${sora.variable} min-h-screen bg-canvas text-ink antialiased`}>
+      <body className="min-h-screen bg-canvas text-ink antialiased">
         <ThemeProvider>
           <SkipLink />
           <ToastProvider>{children}</ToastProvider>
