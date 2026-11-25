@@ -17,6 +17,10 @@ import { api, type Account } from "@/lib/api";
 
 export default function AccountsPage() {
   const [accounts, setAccounts] = useState<Account[]>([]);
+  const [members, setMembers] = useState<import("@/lib/api").Member[]>([]);
+  const [currentMember, setCurrentMember] = useState<import("@/lib/api").Member | null>(null);
+  const [accessScope, setAccessScope] = useState<"shared" | "personal">("shared");
+  const [ownerMemberId, setOwnerMemberId] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [name, setName] = useState("");
   const [type, setType] = useState("bank");
@@ -25,7 +29,20 @@ export default function AccountsPage() {
   const [protectedAccount, setProtectedAccount] = useState(false);
 
   async function refresh() {
-    setAccounts(await api.accounts());
+    const [accountRows, memberRows, me] = await Promise.all([
+      api.accounts(),
+      api.members(),
+      api.currentMember(),
+    ]);
+    setAccounts(accountRows);
+    setMembers(memberRows);
+    setCurrentMember(me);
+    if (me.role === "member") {
+      setAccessScope("personal");
+      setOwnerMemberId(me.id);
+    } else if (!ownerMemberId && memberRows[0]) {
+      setOwnerMemberId(memberRows[0].id);
+    }
   }
 
   useEffect(() => {
@@ -42,6 +59,12 @@ export default function AccountsPage() {
         institution: institution || undefined,
         current_balance: opening,
         is_protected: protectedAccount,
+        access_scope: currentMember?.role === "member" ? "personal" : accessScope,
+        ...(currentMember?.role === "member"
+          ? { owner_member_id: currentMember.id }
+          : accessScope === "personal"
+            ? { owner_member_id: ownerMemberId }
+            : {}),
       });
       setName("");
       setInstitution("");
@@ -61,6 +84,8 @@ export default function AccountsPage() {
           description="Where does cash live? Protected accounts stay out of Safe to Spend."
         />
         {error ? <ErrorState message={error} /> : null}
+        {currentMember && ["owner", "partner", "member"].includes(currentMember.role) ? (
+        <>
         <SectionHeader title="Add account" />
         <form onSubmit={onSubmit} className="grid gap-4 border border-line bg-surface p-5 md:grid-cols-2">
           <div>
@@ -84,6 +109,30 @@ export default function AccountsPage() {
               <option value="credit">Credit</option>
             </Select>
           </div>
+          {currentMember.role !== "member" ? (
+            <div>
+              <Label htmlFor="acc-scope">Visibility</Label>
+              <Select
+                id="acc-scope"
+                className="mt-1"
+                value={accessScope}
+                onChange={(e) => setAccessScope(e.target.value as "shared" | "personal")}
+              >
+                <option value="shared">Shared household account</option>
+                <option value="personal">Personal account</option>
+              </Select>
+            </div>
+          ) : (
+            <p className="text-sm text-muted">This account will be personal and visible only to you and authorized household administrators.</p>
+          )}
+          {currentMember.role !== "member" && accessScope === "personal" ? (
+            <div>
+              <Label htmlFor="acc-owner">Account owner</Label>
+              <Select id="acc-owner" className="mt-1" value={ownerMemberId} onChange={(e) => setOwnerMemberId(e.target.value)} required>
+                {members.map((member) => <option key={member.id} value={member.id}>{member.display_name}</option>)}
+              </Select>
+            </div>
+          ) : null}
           <div>
             <Label htmlFor="acc-institution">Institution</Label>
             <Input
@@ -114,6 +163,8 @@ export default function AccountsPage() {
             <Button type="submit">Add account</Button>
           </div>
         </form>
+        </>
+        ) : null}
         <SectionHeader title="Balances" />
         {accounts.length === 0 ? (
           <EmptyState
