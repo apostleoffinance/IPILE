@@ -47,9 +47,17 @@ def list_accounts(
 @router.post("", response_model=AccountOut, status_code=status.HTTP_201_CREATED)
 def create_account(
     payload: AccountCreate,
-    ctx: HouseholdContext = Depends(require_roles("owner", "partner")),
+    ctx: HouseholdContext = Depends(get_household_context),
     db: Session = Depends(get_db),
 ):
+    if ctx.role == "member":
+        if payload.access_scope != "personal" or payload.owner_member_id != ctx.member.id:
+            raise HTTPException(
+                status_code=403,
+                detail="Members may create only their own personal accounts.",
+            )
+    elif ctx.role not in {"owner", "partner"}:
+        raise HTTPException(status_code=403, detail="Insufficient permissions.")
     if payload.type not in ACCOUNT_TYPES:
         raise HTTPException(status_code=400, detail="Invalid account type.")
     if payload.business_id:
@@ -110,12 +118,17 @@ def get_account(
 def update_account(
     account_id: UUID,
     payload: AccountUpdate,
-    ctx: HouseholdContext = Depends(require_roles("owner", "partner")),
+    ctx: HouseholdContext = Depends(get_household_context),
     db: Session = Depends(get_db),
 ):
     account = _accounts(db, ctx.household.id).filter(Account.id == account_id).first()
     if account is None:
         raise HTTPException(status_code=404, detail="Account not found.")
+    if ctx.role == "member":
+        if account.access_scope != "personal" or account.owner_member_id != ctx.member.id:
+            raise HTTPException(status_code=403, detail="Members may update only their own personal accounts.")
+    elif ctx.role not in {"owner", "partner"}:
+        raise HTTPException(status_code=403, detail="Insufficient permissions.")
     for key, value in payload.model_dump(exclude_unset=True).items():
         setattr(account, key, value)
     db.add(account)
