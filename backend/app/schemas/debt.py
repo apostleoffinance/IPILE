@@ -24,6 +24,8 @@ class DebtStrategyOut(BaseModel):
     strategy: str
     order: list[DebtOrderItem]
     months: int
+    paid_off: bool
+    remaining_balance: MoneyAmount
     total_interest: MoneyAmount
     total_paid: MoneyAmount
     schedule_summary: list[ScheduleMonthOut]

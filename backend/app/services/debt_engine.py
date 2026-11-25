@@ -38,12 +38,27 @@ class StrategyResult:
     months: int
     total_interest: Decimal
     total_paid: Decimal
+    paid_off: bool
+    remaining_balance: Decimal
     schedule: list[ScheduleMonth] = field(default_factory=list)
     schedule_summary: list[ScheduleMonth] = field(default_factory=list)
 
 
 def _money(value: Decimal | None) -> Decimal:
     return quantize_money(Decimal(str(value or 0)))
+
+
+def _apr(value: Decimal | None) -> Decimal:
+    rate = Decimal(str(value or 0))
+    # Older records may have stored APR as whole percentages (18 = 18%).
+    # New API writes use decimal fractions; normalize legacy values safely.
+    if not rate.is_finite():
+        raise ValueError("Interest rate must be finite.")
+    if rate > Decimal("5") and rate <= Decimal("500"):
+        rate /= Decimal("100")
+    if rate < ZERO or rate > Decimal("5"):
+        raise ValueError("Interest rate must be between 0 and 5 as an APR fraction.")
+    return rate
 
 
 def snowball_order(debts: list[DebtInput]) -> list[DebtInput]:
@@ -55,7 +70,7 @@ def avalanche_order(debts: list[DebtInput]) -> list[DebtInput]:
     """Highest interest rate first; ties by balance then name."""
 
     def sort_key(d: DebtInput):
-        return (-Decimal(str(d.interest_rate or 0)), _money(d.balance), d.name.lower(), str(d.id))
+        return (-_apr(d.interest_rate), _money(d.balance), d.name.lower(), str(d.id))
 
     return sorted(debts, key=sort_key)
 
@@ -83,12 +98,15 @@ def _summarize_schedule(schedule: list[ScheduleMonth]) -> list[ScheduleMonth]:
 
 
 def _empty_result(strategy: str, ordered: list[DebtInput]) -> StrategyResult:
+    remaining = quantize_money(sum((_money(row.balance) for row in ordered), ZERO))
     return StrategyResult(
         strategy=strategy,
         order=_order_payload(ordered),
         months=0,
         total_interest=ZERO,
         total_paid=ZERO,
+        paid_off=remaining <= ZERO,
+        remaining_balance=remaining,
         schedule=[],
         schedule_summary=[],
     )
@@ -106,12 +124,17 @@ def amortize_strategy(
     extra_payment (plus any leftover from overpaying a paid-off debt) to the
     first open debt in strategy order.
     """
+    if strategy not in {"snowball", "avalanche"}:
+        raise ValueError("Strategy must be snowball or avalanche.")
+    extra = _money(extra_payment)
+    if extra < ZERO:
+        raise ValueError("Extra payment cannot be negative.")
     active = [
         DebtInput(
             id=d.id,
             name=d.name,
             balance=_money(d.balance),
-            interest_rate=Decimal(str(d.interest_rate or 0)),
+            interest_rate=_apr(d.interest_rate),
             min_payment=_money(d.min_payment),
         )
         for d in debts
@@ -121,7 +144,9 @@ def amortize_strategy(
     if not active:
         return _empty_result(strategy, ordered)
 
-    extra = _money(extra_payment)
+    for debt in active:
+        if debt.min_payment < ZERO:
+            raise ValueError("Minimum payment cannot be negative.")
     monthly_capacity = quantize_money(sum((d.min_payment for d in ordered), ZERO) + extra)
     if monthly_capacity <= ZERO:
         return _empty_result(strategy, ordered)
@@ -194,12 +219,15 @@ def amortize_strategy(
         if remaining <= ZERO:
             break
 
+    remaining_balance = quantize_money(sum((balances[i] for i in order_ids), ZERO))
     return StrategyResult(
         strategy=strategy,
         order=_order_payload(ordered),
         months=len(schedule),
         total_interest=total_interest,
         total_paid=total_paid,
+        paid_off=remaining_balance <= ZERO,
+        remaining_balance=remaining_balance,
         schedule=schedule,
         schedule_summary=_summarize_schedule(schedule),
     )
