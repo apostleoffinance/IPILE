@@ -63,7 +63,9 @@ def clone_state(db: Session, household: Household, today: date | None = None) ->
     # Start from actual household Safe-to-Spend, not total account balances.
     # This excludes personal accounts, protected cash, pending outflows, and
     # obligations already due today; expected income/contributions remain separate.
-    cash = quantize_money(Decimal(str(compute_safe_to_spend(db, household, today=today).current)))
+    cash = quantize_money(
+        Decimal(str(compute_safe_to_spend(db, household, today=today).current))
+    )
     wealth = household_net_worth(db, household)
     rules = tuple(to_spec(rule) for rule in active_rules(db, household.id, start, end))
     planned_investment = Decimal("0.00")
@@ -283,6 +285,7 @@ def baseline_snapshot(state: SimState) -> dict:
                 "id": str(row.id),
                 "name": row.name,
                 "allocated": format_money(row.allocated),
+                "remaining": format_money(row.remaining),
                 "kind": row.kind,
             }
             for row in state.categories
