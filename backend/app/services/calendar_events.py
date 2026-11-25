@@ -56,6 +56,7 @@ def build_calendar_events(
     days: int = 30,
     today: date | None = None,
     member_id: UUID | None = None,
+    include_all_obligations: bool = False,
 ) -> list[CalendarEventOut]:
     today = today or date.today()
     end = today + timedelta(days=days)
@@ -72,7 +73,7 @@ def build_calendar_events(
                     Obligation.beneficiary_member_id.is_(None),
                     Obligation.beneficiary_member_id == member_id,
                 )]
-                if member_id is not None
+                if member_id is not None and not include_all_obligations
                 else []
             ),
             ObligationOccurrence.due_date >= today,
