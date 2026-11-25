@@ -83,6 +83,7 @@ export default function MembersPage() {
   return (
     <AppShell>
       <ContentContainer>
+        <div className="ipile-family-page ipile-family-members">
         <PageHeader
           title="Members"
           description="Who is in this household? Dependents can have their own budgets."
@@ -239,6 +240,7 @@ export default function MembersPage() {
             </table>
           </div>
         )}
+              </div>
       </ContentContainer>
     </AppShell>
   );

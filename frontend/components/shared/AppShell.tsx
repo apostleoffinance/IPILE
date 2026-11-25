@@ -72,11 +72,12 @@ const primaryNav: NavGroup[] = [
     ],
   },
   {
-    href: "/family/members",
+    href: "/family",
     label: "Family",
     match: "/family",
     icon: Users,
     children: [
+      { href: "/family", label: "Overview" },
       { href: "/family/members", label: "Members" },
       { href: "/family/giving", label: "Giving" },
       { href: "/family/contributions", label: "Contributions" },

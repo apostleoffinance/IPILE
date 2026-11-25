@@ -107,6 +107,7 @@ export default function BusinessPage() {
   return (
     <AppShell>
       <ContentContainer>
+        <div className="ipile-business-page ipile-business-overview">
         <PageHeader
           eyebrow="Business"
           title="Businesses"
@@ -224,6 +225,7 @@ export default function BusinessPage() {
             </Button>
           </form>
         ) : null}
+              </div>
       </ContentContainer>
     </AppShell>
   );
