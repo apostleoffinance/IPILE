@@ -280,12 +280,19 @@ def project(state: SimState, params: SimParams) -> SimulationResult:
             if working.essentials <= 0
             else quantize_money(emergency / working.essentials)
         )
+        month_obligations = tuple(
+            replace(
+                row,
+                days_until_due=max(0, row.days_until_due - ((index - 1) * 30)),
+            )
+            for row in working.obligations
+        )
         forecast = forecast_safe_to_spend(
             cash,
             sum(
                 (
                     obligation_monthly(row.amount, row.frequency)
-                    for row in working.obligations
+                    for row in month_obligations
                 ),
                 Decimal("0.00"),
             ),
@@ -303,7 +310,7 @@ def project(state: SimState, params: SimParams) -> SimulationResult:
             net_worth=net_worth,
             forecast_sts=forecast,
             cash_flow=cash_flow_status(surplus, total_income),
-            obligations=_worst_obligation(working.obligations),
+            obligations=_worst_obligation(month_obligations),
             emergency_fund=emergency_status(months_emergency),
             investments_status=investment_status(working.planned_investment, invested),
             safe_to_spend=sts_status(forecast, working.minimum_buffer),
