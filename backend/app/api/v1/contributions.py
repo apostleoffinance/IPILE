@@ -141,7 +141,10 @@ def forecast_contributions(
     if ctx.role not in {"owner", "partner"}:
         if not has_member_permission(ctx, "view_all_contributions"):
             if ctx.member is None:
-                raise HTTPException(status_code=403, detail="Contribution visibility is not available.")
+                raise HTTPException(
+                    status_code=403,
+                    detail="Contribution visibility is not available.",
+                )
             member_id = ctx.member.id
     return build_contribution_forecast(
         db,
