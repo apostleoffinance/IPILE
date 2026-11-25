@@ -304,3 +304,41 @@ def test_funded_obligation_amount_is_not_reserved_twice() -> None:
     result = project(state, SimParams(horizon_months=2))
     assert result.months[0].forecast_sts == Decimal("900.00")
     assert result.months[1].forecast_sts == Decimal("860.00")
+
+def test_monthly_income_override_preserves_income_already_received() -> None:
+    state = replace(
+        _seed_state(),
+        expected_income=Decimal("200.00"),
+        first_month_income=Decimal("120.00"),
+        recognized_income=Decimal("80.00"),
+    )
+    scaled = apply_params(state, SimParams(monthly_income=Decimal("300.00")))
+    assert scaled.expected_income == Decimal("300.00")
+    assert scaled.first_month_income == Decimal("220.00")
+
+
+def test_simulation_projects_emergency_and_investment_transfers_into_net_worth() -> None:
+    state = replace(
+        _seed_state(),
+        cash=Decimal("1000.00"),
+        emergency=Decimal("0.00"),
+        investments=Decimal("0.00"),
+        net_worth=Decimal("1000.00"),
+        expected_income=Decimal("1000.00"),
+        first_month_income=Decimal("1000.00"),
+        minimum_buffer=Decimal("0.00"),
+        essentials=Decimal("100.00"),
+        first_month_essentials=Decimal("0.00"),
+        rules=(
+            _rule("Emergency reserve", "fixed", amount="100.00", priority=0),
+            _rule("Investments", "fixed", amount="200.00", priority=1),
+        ),
+        obligations=(),
+        debts=(),
+    )
+    month = project(state, SimParams(horizon_months=1)).months[0]
+    assert month.cash == Decimal("1700.00")
+    assert month.emergency == Decimal("100.00")
+    assert month.investments == Decimal("200.00")
+    assert month.net_worth_delta == Decimal("1000.00")
+    assert month.net_worth == Decimal("2000.00")
