@@ -22,15 +22,17 @@ jobs:
   deploy-production:
     runs-on: ubuntu-latest
     environment: production
-    defaults:
-      run:
-        working-directory: frontend
     env:
       CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
       CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
       IPILE_PRODUCTION_BACKEND_URL: https://ipile-bmfz.onrender.com
 
     steps:
+      - name: Checkout protected main source
+        uses: actions/checkout@v4
+        with:
+          ref: main
+
       - name: Require explicit production deployment approval
         env:
           RELEASE_APPROVAL: ${{ inputs.release_approval }}
@@ -40,11 +42,6 @@ jobs:
             echo "Production deployment was not explicitly approved."
             exit 1
           fi
-
-      - name: Checkout protected main source
-        uses: actions/checkout@v4
-        with:
-          ref: main
 
       - uses: actions/setup-node@v4
         with:
@@ -60,24 +57,31 @@ jobs:
           [[ "$IPILE_PRODUCTION_BACKEND_URL" == "https://ipile-bmfz.onrender.com" ]] || { echo "Unexpected production backend URL."; exit 1; }
 
       - name: Install application dependencies
+        working-directory: frontend
         run: npm ci
 
       - name: Dependency audit
+        working-directory: frontend
         run: npm audit --omit=dev --audit-level=high
 
       - name: Typecheck
+        working-directory: frontend
         run: npm run typecheck
 
       - name: Frontend unit tests
+        working-directory: frontend
         run: npm test
 
       - name: Install Cloudflare build tooling
+        working-directory: frontend
         run: npm run cf:install
 
       - name: Build production Worker
+        working-directory: frontend
         run: npm run cf:build
 
       - name: Verify Worker deployment configuration
+        working-directory: frontend
         run: npx wrangler deploy --dry-run --name ipile-web
 
       - name: Verify production backend health before frontend deployment
@@ -89,6 +93,7 @@ jobs:
             "$IPILE_PRODUCTION_BACKEND_URL/health"
 
       - name: Bind production API and deploy once
+        working-directory: frontend
         shell: bash
         run: |
           printf '%s' "$IPILE_PRODUCTION_BACKEND_URL" | npx wrangler secret put BACKEND_URL --name ipile-web
