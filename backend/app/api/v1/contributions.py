@@ -323,6 +323,11 @@ def record_contribution(
                 status_code=400,
                 detail="A contribution must link to an income transaction.",
             )
+        if transaction.access_scope != "shared":
+            raise HTTPException(
+                status_code=400,
+                detail="Only shared income transactions can verify a household contribution.",
+            )
         if transaction.status not in {"cleared", "reconciled"}:
             raise HTTPException(
                 status_code=400,
