@@ -17,7 +17,7 @@ def list_calendar(
 ):
     if ctx.role in {"owner", "partner"}:
         return build_calendar_events(db, ctx.household.id, days=days)
-    if ctx.role == "member":
+    if ctx.role in {"member", "viewer", "advisor"}:
         return build_calendar_events(
             db,
             ctx.household.id,
