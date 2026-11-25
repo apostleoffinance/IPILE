@@ -96,7 +96,7 @@ def test_simulation_applies_contribution_stress_without_mutating_accounts(
     assert stressed.status_code == 201, stressed.text
     assert baseline.json()["months"][0]["contributions"] == "100000.00"
     assert stressed.json()["months"][0]["contributions"] == "50000.00"
-    assert baseline.json()["parameters"]["engine_version"] == "phase3-v1"
+    assert baseline.json()["parameters"]["engine_version"] == "phase3-v2"
     baseline_inputs = baseline.json()["parameters"]["baseline_snapshot"]
     assert baseline_inputs["expected_contributions"] == "100000.00"
     assert Decimal(stressed.json()["months"][0]["income"]) == (
@@ -144,3 +144,96 @@ def test_contribution_change_rate_cannot_reduce_below_zero() -> None:
 
     with pytest.raises(ValidationError):
         SimulationIn(contribution_change_rate="-1.01")
+
+
+def test_purchase_check_rejects_personal_account(
+    client: TestClient,
+) -> None:
+    register(client, "decision-personal-account@example.com")
+    member = client.post(
+        "/api/v1/members",
+        json={"display_name": "Member", "role": "member"},
+    )
+    assert member.status_code == 201, member.text
+    personal = client.post(
+        "/api/v1/accounts",
+        json={
+            "name": "Personal current",
+            "type": "bank",
+            "access_scope": "personal",
+            "owner_member_id": member.json()["id"],
+            "current_balance": "500000.00",
+        },
+    )
+    assert personal.status_code == 201, personal.text
+    response = client.post(
+        "/api/v1/purchase-checks",
+        json={"amount": "100000.00", "account_id": personal.json()["id"]},
+    )
+    assert response.status_code == 400
+    assert "shared household accounts" in response.json()["detail"]
+
+
+def test_simulation_uses_shared_spendable_cash_and_remaining_income(
+    client: TestClient,
+) -> None:
+    register(client, "decision-shared-cash@example.com")
+    shared = client.post(
+        "/api/v1/accounts",
+        json={"name": "Household current", "type": "bank", "current_balance": "1000000.00"},
+    )
+    assert shared.status_code == 201, shared.text
+    member = client.post(
+        "/api/v1/members",
+        json={"display_name": "Member", "role": "member"},
+    )
+    assert member.status_code == 201, member.text
+    personal = client.post(
+        "/api/v1/accounts",
+        json={
+            "name": "Personal current",
+            "type": "bank",
+            "access_scope": "personal",
+            "owner_member_id": member.json()["id"],
+            "current_balance": "500000.00",
+        },
+    )
+    assert personal.status_code == 201, personal.text
+    source = client.post(
+        "/api/v1/income/sources",
+        json={
+            "member_id": member.json()["id"],
+            "name": "Household salary",
+            "expected_amount": "200000.00",
+            "frequency": "monthly",
+        },
+    )
+    assert source.status_code == 201, source.text
+    received = client.post(
+        "/api/v1/transactions",
+        json={
+            "account_id": shared.json()["id"],
+            "amount": "50000.00",
+            "type": "income",
+            "date": date.today().isoformat(),
+            "member_id": member.json()["id"],
+            "access_scope": "shared",
+            "income_source_id": source.json()["id"],
+        },
+    )
+    assert received.status_code == 201, received.text
+    accounts_before = client.get("/api/v1/accounts").json()
+    transactions_before = client.get("/api/v1/transactions").json()
+
+    response = client.post("/api/v1/simulations", json={"horizon_months": 2})
+    assert response.status_code == 201, response.text
+    body = response.json()
+    baseline = body["parameters"]["baseline_snapshot"]
+    assert baseline["cash"] == "1050000.00"
+    assert baseline["cash_basis"] == "current_safe_to_spend"
+    assert baseline["expected_income"] == "200000.00"
+    assert baseline["first_month_income"] == "150000.00"
+    assert body["months"][0]["income"] == "150000.00"
+    assert body["months"][1]["income"] == "200000.00"
+    assert client.get("/api/v1/accounts").json() == accounts_before
+    assert client.get("/api/v1/transactions").json() == transactions_before
