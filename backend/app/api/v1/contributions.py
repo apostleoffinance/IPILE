@@ -243,10 +243,10 @@ def update_agreement(
 def record_contribution(
     agreement_id: UUID,
     payload: ContributionRecordCreate,
-    ctx: HouseholdContext = Depends(require_roles("owner", "partner")),
+    ctx: HouseholdContext = Depends(get_household_context),
     db: Session = Depends(get_db),
 ):
-    agreement = _agreement(db, ctx.household.id, agreement_id)
+    agreement = _visible_agreement(db, ctx, agreement_id)
     if agreement.status != "active":
         raise HTTPException(
             status_code=400,
@@ -288,6 +288,11 @@ def record_contribution(
             raise HTTPException(
                 status_code=400,
                 detail="A contribution must link to an income transaction.",
+            )
+        if ctx.role == "member" and transaction.member_id != ctx.member.id:
+            raise HTTPException(
+                status_code=403,
+                detail="Members may link only their own income transactions.",
             )
         if (
             transaction.amount != payload.amount
