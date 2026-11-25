@@ -14,6 +14,7 @@ from app.money import format_money, quantize_money
 from app.schemas.simulation import SimulationIn
 from app.services.allocations import active_rules, expected_income, period_bounds, to_spec
 from app.services.budgets import serialize_budget
+from app.services.contribution_forecast import monthly_expected_contributions
 from app.services.simulation_engine import (
     SimCategory,
     SimObligation,
@@ -34,6 +35,7 @@ def params_from_payload(payload: SimulationIn) -> SimParams:
     return SimParams(
         monthly_income=payload.monthly_income,
         income_change_rate=Decimal(str(payload.income_change_rate)),
+        contribution_change_rate=Decimal(str(payload.contribution_change_rate)),
         expense_category_deltas=_decimal_map(payload.expense_category_deltas),
         obligation_deltas=_decimal_map(payload.obligation_deltas),
         investment_override=payload.investment_override,
@@ -134,6 +136,12 @@ def clone_state(db: Session, household: Household, today: date | None = None) ->
         investments=wealth.investments,
         net_worth=wealth.net_worth,
         expected_income=expected_income(db, household.id),
+        expected_contributions=monthly_expected_contributions(
+            db,
+            household.id,
+            household.base_currency,
+            today=today,
+        ),
         minimum_buffer=quantize_money(Decimal(str(household.minimum_buffer_amount))),
         essentials=quantize_money(essentials),
         planned_investment=quantize_money(planned_investment),
@@ -147,6 +155,7 @@ def _month_payload(month) -> dict:
     return {
         "month_index": month.month_index,
         "income": format_money(month.income),
+        "contributions": format_money(month.contributions),
         "surplus": format_money(month.surplus),
         "cash": format_money(month.cash),
         "emergency": format_money(month.emergency),
