@@ -1,8 +1,11 @@
 import type { Metadata } from "next";
+import { Sora } from "next/font/google";
 import { SkipLink } from "@/components/a11y/SkipLink";
 import { ThemeProvider } from "@/components/theme/ThemeProvider";
 import { ToastProvider } from "@/components/ui/toast";
 import "./globals.css";
+
+const sora = Sora({ subsets: ["latin"], weight: ["300", "400", "500", "600", "700"], display: "swap", variable: "--font-sora" });
 
 export const metadata: Metadata = {
   title: "IPÌLẸ̀",
@@ -28,12 +31,9 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   return (
     <html lang="en" suppressHydrationWarning>
       <head>
-        <link rel="preconnect" href="https://fonts.googleapis.com" />
-        <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
-        <link href="https://fonts.googleapis.com/css2?family=Sora:wght@300;400;500;600;700&display=swap" rel="stylesheet" />
         <script dangerouslySetInnerHTML={{ __html: themeBootScript }} />
       </head>
-      <body className="min-h-screen bg-canvas text-ink antialiased">
+      <body className={`${sora.variable} min-h-screen bg-canvas text-ink antialiased`}>
         <ThemeProvider>
           <SkipLink />
           <ToastProvider>{children}</ToastProvider>
