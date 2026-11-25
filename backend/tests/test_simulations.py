@@ -37,7 +37,7 @@ def test_simulation_does_not_change_production_balances(client: TestClient) -> N
     first = body["months"][0]
     assert first["income"] == "1600000.00"
     assert first["cash_flow"] == "critical"
-    assert first["obligations"] == "unfunded"
+    assert first["obligations"] == "at risk"
     assert first["emergency_fund"] == "critical"
     assert body["summary"]["cash_flow"] in {"healthy", "warning", "critical"}
     assert body["summary"]["obligations"] in {"funded", "at risk", "unfunded"}
