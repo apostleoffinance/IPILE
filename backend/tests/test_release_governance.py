@@ -1,5 +1,4 @@
 from pathlib import Path
-import re
 
 
 REPOSITORY_ROOT = Path(__file__).resolve().parents[2]
@@ -10,10 +9,11 @@ PRODUCTION_WORKFLOW = (
 
 def test_production_frontend_deployment_is_manual_only_and_uses_main() -> None:
     workflow = PRODUCTION_WORKFLOW.read_text(encoding="utf-8")
-    trigger_section = workflow.split("\njobs:", maxsplit=1)[0]
+    trigger_section = workflow.split("\\njobs:", maxsplit=1)[0]
 
-    assert re.search(r"(?m)^on:\\s*\\n\\s+workflow_dispatch:\\s*$", trigger_section)
-    assert not re.search(r"(?m)^\\s+(push|pull_request):", trigger_section)
+    assert "on:\\n  workflow_dispatch:" in trigger_section
+    assert "\\n  push:" not in trigger_section
+    assert "\\n  pull_request:" not in trigger_section
     assert "ref: main" in workflow
     assert "environment: production" in workflow
 
