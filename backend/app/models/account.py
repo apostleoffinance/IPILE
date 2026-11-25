@@ -2,7 +2,7 @@ import uuid
 from datetime import datetime
 from decimal import Decimal
 
-from sqlalchemy import Boolean, DateTime, ForeignKey, Numeric, String, Uuid, func
+from sqlalchemy import Boolean, CheckConstraint, DateTime, ForeignKey, Numeric, String, Uuid, func
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.core.db import Base
@@ -10,6 +10,17 @@ from app.core.db import Base
 
 class Account(Base):
     __tablename__ = "accounts"
+    __table_args__ = (
+        CheckConstraint(
+            "access_scope IN ('shared', 'personal')",
+            name="ck_accounts_access_scope",
+        ),
+        CheckConstraint(
+            "(access_scope = 'shared' AND owner_member_id IS NULL) OR "
+            "(access_scope = 'personal' AND owner_member_id IS NOT NULL)",
+            name="ck_accounts_personal_owner",
+        ),
+    )
 
     id: Mapped[uuid.UUID] = mapped_column(Uuid, primary_key=True, default=uuid.uuid4)
     household_id: Mapped[uuid.UUID] = mapped_column(
