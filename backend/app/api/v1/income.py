@@ -48,7 +48,7 @@ def create_income_source(
 
 @router.get("/income", response_model=list[TransactionOut])
 def list_income(
-    ctx: HouseholdContext = Depends(get_household_context),
+    ctx: HouseholdContext = Depends(require_roles("owner", "partner")),
     db: Session = Depends(get_db),
 ):
     return (
@@ -66,7 +66,7 @@ def list_income(
 @router.post("/income", response_model=TransactionOut, status_code=status.HTTP_201_CREATED)
 def record_income(
     payload: IncomeCreate,
-    ctx: HouseholdContext = Depends(get_household_context),
+    ctx: HouseholdContext = Depends(require_roles("owner", "partner")),
     db: Session = Depends(get_db),
 ):
     if payload.income_source_id:
