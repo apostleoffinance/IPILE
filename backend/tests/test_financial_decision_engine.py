@@ -100,3 +100,44 @@ def test_simulation_applies_contribution_stress_without_mutating_accounts(
         Decimal(baseline.json()["months"][0]["income"]) - Decimal("50000.00")
     )
     assert client.get("/api/v1/accounts").json() == before
+
+
+
+def test_purchase_check_names_obligations_put_at_risk(
+    client: TestClient,
+) -> None:
+    register(client, "decision-obligation-owner@example.com")
+    account = client.post(
+        "/api/v1/accounts",
+        json={"name": "Current", "type": "bank", "current_balance": "500000.00"},
+    )
+    assert account.status_code == 201, account.text
+    obligation = client.post(
+        "/api/v1/obligations",
+        json={
+            "name": "School fees",
+            "amount": "400000.00",
+            "frequency": "one_time",
+            "next_due_date": (date.today()).isoformat(),
+            "priority": "critical",
+        },
+    )
+    assert obligation.status_code == 201, obligation.text
+    response = client.post(
+        "/api/v1/purchase-checks",
+        json={"amount": "450000.00"},
+    )
+    assert response.status_code == 200, response.text
+    body = response.json()
+    assert body["decision"] == "review_or_delay"
+    assert any("School fees" in row for row in body["obligations_affected"])
+
+
+def test_contribution_change_rate_cannot_reduce_below_zero() -> None:
+    import pytest
+    from pydantic import ValidationError
+
+    from app.schemas.simulation import SimulationIn
+
+    with pytest.raises(ValidationError):
+        SimulationIn(contribution_change_rate="-1.01")
