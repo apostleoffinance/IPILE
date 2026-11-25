@@ -82,7 +82,7 @@ export default function TransactionsPage() {
             actionLabel="+ Add account"
             actionHref="/money/accounts"
           />
-        ) : (
+        ) : currentMember && ["owner", "partner", "member"].includes(currentMember.role) ? (
           <>
             <SectionHeader title="Record" description="Validated before it hits balances." />
             <TransactionForm
@@ -93,7 +93,7 @@ export default function TransactionsPage() {
               pending={pending}
             />
           </>
-        )}
+        ) : null}
         <SectionHeader title="Activity" />
         <TransactionFilters
           accounts={accounts}
@@ -105,7 +105,11 @@ export default function TransactionsPage() {
         {transactions.length === 0 ? (
           <EmptyState title="No transactions" body="Record income, spending, or a transfer." />
         ) : (
-          <TransactionTable transactions={transactions} accounts={accounts} onVoid={setVoidId} />
+          <TransactionTable
+            transactions={transactions}
+            accounts={accounts}
+            onVoid={currentMember && ["owner", "partner"].includes(currentMember.role) ? setVoidId : undefined}
+          />
         )}
       </ContentContainer>
       {voidId ? (
