@@ -13,7 +13,7 @@ router = APIRouter(tags=["income"])
 
 @router.get("/income/sources", response_model=list[IncomeSourceOut])
 def list_income_sources(
-    ctx: HouseholdContext = Depends(get_household_context),
+    ctx: HouseholdContext = Depends(require_roles("owner", "partner")),
     db: Session = Depends(get_db),
 ):
     return (
