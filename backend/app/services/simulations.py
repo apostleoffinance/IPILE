@@ -9,11 +9,13 @@ from app.models.budget import Budget
 from app.models.category import Category
 from app.models.household import Household
 from app.models.obligation import Obligation, ObligationOccurrence
+from app.models.wealth import Liability
 from app.models.simulation import Simulation, SimulationRun
 from app.money import format_money, quantize_money
 from app.schemas.simulation import SimulationIn
 from app.services.allocations import active_rules, expected_income, period_bounds, to_spec
 from app.services.budgets import serialize_budget
+from app.services.debt_engine import DebtInput
 from app.services.contribution_forecast import (
     contribution_forecast,
     monthly_expected_contributions,
@@ -39,6 +41,8 @@ def params_from_payload(payload: SimulationIn) -> SimParams:
         monthly_income=payload.monthly_income,
         income_change_rate=Decimal(str(payload.income_change_rate)),
         contribution_change_rate=Decimal(str(payload.contribution_change_rate)),
+        debt_strategy=payload.debt_strategy,
+        debt_extra_payment=payload.debt_extra_payment,
         expense_category_deltas=_decimal_map(payload.expense_category_deltas),
         obligation_deltas=_decimal_map(payload.obligation_deltas),
         investment_override=payload.investment_override,
@@ -71,6 +75,27 @@ def clone_state(db: Session, household: Household, today: date | None = None) ->
     for rule in rules:
         if rule.destination_type == "account" and rule.amount and "invest" in rule.name.lower():
             planned_investment += Decimal(str(rule.amount))
+    liabilities = (
+        db.query(Liability)
+        .filter(
+            Liability.household_id == household.id,
+            Liability.deleted_at.is_(None),
+            Liability.status != "paid_off",
+        )
+        .order_by(Liability.created_at)
+        .all()
+    )
+    debts = tuple(
+        DebtInput(
+            id=row.id,
+            name=row.name,
+            balance=quantize_money(Decimal(str(row.current_balance))),
+            interest_rate=Decimal(str(row.interest_rate or 0)),
+            min_payment=quantize_money(Decimal(str(row.minimum_payment or 0))),
+        )
+        for row in liabilities
+        if quantize_money(Decimal(str(row.current_balance))) > 0
+    )
     obligations = []
     rows = (
         db.query(Obligation)
@@ -162,6 +187,7 @@ def clone_state(db: Session, household: Household, today: date | None = None) ->
         rules=rules,
         obligations=tuple(obligations),
         categories=tuple(categories),
+        debts=debts,
     )
 
 
@@ -170,6 +196,7 @@ def _month_payload(month) -> dict:
         "month_index": month.month_index,
         "income": format_money(month.income),
         "contributions": format_money(month.contributions),
+        "debt_payments": format_money(month.debt_payments),
         "surplus": format_money(month.surplus),
         "cash": format_money(month.cash),
         "emergency": format_money(month.emergency),
@@ -238,6 +265,16 @@ def baseline_snapshot(state: SimState) -> dict:
                 "kind": row.kind,
             }
             for row in state.categories
+        ],
+        "debts": [
+            {
+                "id": str(row.id),
+                "name": row.name,
+                "balance": format_money(row.balance),
+                "interest_rate": str(row.interest_rate),
+                "minimum_payment": format_money(row.min_payment),
+            }
+            for row in state.debts
         ],
     }
 
