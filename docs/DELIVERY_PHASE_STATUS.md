@@ -33,9 +33,9 @@ Merged in PR #31 as commit `83e352452aca4228202db6d00eeb99183fa4ffa8`. Post-merg
 
 | Workstream | Scope | Status |
 |---|---|---|
-| Production configuration | Fail-closed validation for optional Mono credentials and encryption key | In implementation |
-| Database release gate | Empty PostgreSQL migration upgrade and revision verification in CI | In implementation |
-| Deployment safety | Main-only source, serialized manual deployment, protected environment, pre-deploy checks | In implementation |
+| Production configuration | Fail-closed validation for optional Mono credentials, Fernet encryption key and absolute HTTPS redirect | Implemented; CI verified |
+| Database release gate | Empty PostgreSQL 18 migration upgrade and revision verification in CI | Implemented; CI verified |
+| Deployment safety | Main-only source, serialized manual deployment, production environment gate, pre-deploy checks | Implemented in workflow; environment protection settings require operator setup |
 | Operational readiness | Backup/restore, monitoring, support, privacy and billing evidence | External operator evidence required |
 
 Production migrations and deployments are not authorized by this phase's code changes. The release decision remains NO-GO until the operational evidence in [OPERATIONAL_READINESS.md](OPERATIONAL_READINESS.md) is verified and signed off.
