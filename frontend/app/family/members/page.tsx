@@ -30,6 +30,16 @@ export default function MembersPage() {
     setCurrentMember(me);
   }
 
+  async function updateMemberRole(member: Member, role: string) {
+    setError(null);
+    try {
+      await api.updateMember(member.id, { role });
+      await refresh();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Could not update member role.");
+    }
+  }
+
   async function togglePermission(
     member: Member,
     permission: "view_all_contributions" | "view_all_obligations",
@@ -159,7 +169,20 @@ export default function MembersPage() {
                 {members.map((member) => (
                   <tr key={member.id} className="border-b border-line last:border-0">
                     <td className="px-4 py-3">{member.display_name}</td>
-                    <td className="px-4 py-3 capitalize">{member.role}</td>
+                    <td className="px-4 py-3 capitalize">
+                      {currentMember?.role === "owner" && member.role !== "owner" ? (
+                        <Select
+                          aria-label={`Role for ${member.display_name}`}
+                          value={member.role}
+                          onChange={(event) => void updateMemberRole(member, event.target.value)}
+                        >
+                          <option value="partner">Partner</option>
+                          <option value="member">Member</option>
+                          <option value="viewer">Viewer</option>
+                          <option value="advisor">Advisor</option>
+                        </Select>
+                      ) : member.role}
+                    </td>
                     <td className="px-4 py-3 capitalize">{member.relationship}</td>
                     <td className="px-4 py-3 capitalize">
                       {member.member_type}
