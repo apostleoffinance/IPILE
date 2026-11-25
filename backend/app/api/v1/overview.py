@@ -17,7 +17,11 @@ from app.schemas.calendar import CalendarEventOut
 from app.schemas.household import HouseholdOut
 from app.schemas.transaction import TransactionOut
 from app.services.allocations import latest_run, serialize_run
-from app.services.finance_access import account_visibility, has_member_permission, transaction_visibility
+from app.services.finance_access import (
+    account_visibility,
+    has_member_permission,
+    transaction_visibility,
+)
 from app.services.health import household_health
 from app.services.obligation_engine import coverage, coverage_label
 from app.services.safe_to_spend import compute_safe_to_spend
