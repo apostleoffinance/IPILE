@@ -79,7 +79,7 @@ jobs:
       - name: Build staging Worker
         working-directory: frontend
         env:
-          BACKEND_URL: ${{ env.IPILE_STAGING_BACKEND_URL }}
+          BACKEND_URL: https://ipile-staging-api-v2.onrender.com
         run: npm run cf:build
 
       - name: Verify staging Worker deployment configuration
