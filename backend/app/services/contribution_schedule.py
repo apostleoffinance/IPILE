@@ -4,7 +4,7 @@ from decimal import Decimal
 
 
 def _due_dates(agreement, through: date) -> list[date]:
-    if agreement.status in {"cancelled", "completed"}:
+    if agreement.status in {"paused", "cancelled", "completed"}:
         through = min(through, date.today())
     start = agreement.start_date
     end = min(through, agreement.end_date) if agreement.end_date else through
