@@ -173,16 +173,21 @@ def overview(ctx: HouseholdContext = Depends(get_household_context), db: Session
             ObligationOccurrence.status.in_(("upcoming", "due", "missed")),
         )
     )
-    if ctx.role == "member" and not has_member_permission(ctx, "view_all_obligations"):
-        upcoming_query = upcoming_query.filter(
-            or_(
-                Obligation.beneficiary_member_id.is_(None),
-                Obligation.beneficiary_member_id == ctx.member.id,
+    if ctx.role not in {"owner", "partner"} and not has_member_permission(
+        ctx, "view_all_obligations"
+    ):
+        if ctx.role == "member":
+            upcoming_query = upcoming_query.filter(
+                or_(
+                    Obligation.beneficiary_member_id.is_(None),
+                    Obligation.beneficiary_member_id == ctx.member.id,
+                )
             )
-        )
+        elif ctx.role in {"viewer", "advisor"}:
+            upcoming_query = upcoming_query.filter(Obligation.beneficiary_member_id.is_(None))
     upcoming_rows = (
         upcoming_query.order_by(ObligationOccurrence.due_date).all()
-        if ctx.role in {"owner", "partner", "member"}
+        if ctx.role in {"owner", "partner", "member", "viewer", "advisor"}
         else []
     )
     upcoming = [
