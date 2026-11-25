@@ -120,6 +120,7 @@ class SimState:
     debts: tuple[DebtInput, ...] = ()
     first_month_income: Decimal | None = None
     first_month_essentials: Decimal | None = None
+    recognized_income: Decimal = Decimal("0.00")
 
 
 @dataclass(frozen=True)
@@ -223,7 +224,10 @@ def apply_params(state: SimState, params: SimParams) -> SimState:
     )
     if params.monthly_income is not None:
         income = quantize_money(params.monthly_income)
-        first_month_income = income
+        first_month_income = max(
+            Decimal("0.00"),
+            quantize_money(income - state.recognized_income),
+        )
     income = _scale(income, params.income_change_rate)
     first_month_income = _scale(first_month_income, params.income_change_rate)
     contributions = _scale(state.expected_contributions, params.contribution_change_rate)
@@ -273,9 +277,22 @@ def _allocated_investment(lines, planned: Decimal) -> Decimal:
         if line.destination_type == "account" and "invest" in line.name.lower():
             total += line.amount
     if total == 0 and planned:
-        # destination_type account without invest in name still counts via planned match
+        # No matching allocation rule means no investment transfer is projected.
         pass
     return quantize_money(total)
+
+
+def _allocated_emergency(lines) -> Decimal:
+    return quantize_money(
+        sum(
+            (
+                line.amount
+                for line in lines
+                if line.destination_type == "account" and "emergency" in line.name.lower()
+            ),
+            Decimal("0.00"),
+        )
+    )
 
 
 
@@ -395,8 +412,11 @@ def project(state: SimState, params: SimParams) -> SimulationResult:
         if unexpected:
             cash = quantize_money(cash)  # already in surplus
         invested = _allocated_investment(allocation.lines, working.planned_investment)
+        emergency_added = _allocated_emergency(allocation.lines)
         if invested:
             investments = quantize_money(investments + invested)
+        if emergency_added:
+            emergency = quantize_money(emergency + emergency_added)
         months_emergency = (
             Decimal("0.00")
             if working.essentials <= 0
@@ -414,7 +434,11 @@ def project(state: SimState, params: SimParams) -> SimulationResult:
             ),
             working.minimum_buffer,
         )
-        net_worth_delta = quantize_money(surplus + debt_principal)
+        # Internal transfers to emergency savings and investments increase
+        # those asset balances while reducing the unallocated cash surplus.
+        net_worth_delta = quantize_money(
+            surplus + debt_principal + invested + emergency_added
+        )
         net_worth = quantize_money(net_worth + net_worth_delta)
         month = MonthProjection(
             month_index=index,
