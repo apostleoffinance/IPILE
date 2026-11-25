@@ -62,6 +62,17 @@ def test_personal_transactions_cannot_change_shared_account_balances(
         },
     ).json()
     assert personal["access_scope"] == "personal"
+    other_personal = client.post(
+        "/api/v1/accounts",
+        headers=headers,
+        json={
+            "name": "Member B private",
+            "type": "bank",
+            "access_scope": "personal",
+            "owner_member_id": member_b["id"],
+            "current_balance": "300.00",
+        },
+    ).json()
     _logout(client)
 
     login(client, "scope-member-a@example.com")
@@ -112,6 +123,7 @@ def test_personal_transactions_cannot_change_shared_account_balances(
     by_id = {row["id"]: row for row in accounts}
     assert Decimal(by_id[shared["id"]]["current_balance"]) == Decimal("1000.00")
     assert Decimal(by_id[personal["id"]]["current_balance"]) == Decimal("450.00")
+    assert other_personal["id"] not in by_id
 
     summary = client.get("/api/v1/member/financial-summary", headers=headers)
     assert summary.status_code == 200, summary.text
