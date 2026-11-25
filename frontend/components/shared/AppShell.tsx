@@ -335,7 +335,12 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           })}
           <button
             type="button"
-            className={tabClass(moreOpen)}
+            className={tabClass(
+              moreOpen ||
+                !["/overview", "/money", "/plan", "/wealth"].some(
+                  (href) => pathname === href || pathname.startsWith(href + "/"),
+                ),
+            )}
             onClick={() => setMoreOpen((v) => !v)}
             aria-expanded={moreOpen}
             aria-controls="mobile-more-menu"
