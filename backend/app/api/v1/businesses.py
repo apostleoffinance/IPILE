@@ -5,7 +5,7 @@ from uuid import UUID
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 
-from app.api.deps import HouseholdContext, get_db, get_household_context, require_roles
+from app.api.deps import HouseholdContext, get_db, require_roles
 from app.api.v1.transactions import create_transaction
 from app.models.business import Business, BusinessEmployee
 from app.schemas.business import (
@@ -48,7 +48,7 @@ def _get(db: Session, household_id: UUID, business_id: UUID) -> Business:
 
 @router.get("", response_model=list[BusinessOut])
 def list_businesses(
-    ctx: HouseholdContext = Depends(get_household_context),
+    ctx: HouseholdContext = Depends(require_roles("owner", "partner")),
     db: Session = Depends(get_db),
 ):
     rows = _active(db, ctx.household.id).order_by(Business.name)
@@ -85,7 +85,7 @@ def create_business(
 @router.get("/{business_id}", response_model=BusinessOut)
 def get_business(
     business_id: UUID,
-    ctx: HouseholdContext = Depends(get_household_context),
+    ctx: HouseholdContext = Depends(require_roles("owner", "partner")),
     db: Session = Depends(get_db),
 ):
     return serialize_business(db, _get(db, ctx.household.id, business_id))
@@ -94,7 +94,7 @@ def get_business(
 @router.get("/{business_id}/pnl", response_model=BusinessPnLOut)
 def get_pnl(
     business_id: UUID,
-    ctx: HouseholdContext = Depends(get_household_context),
+    ctx: HouseholdContext = Depends(require_roles("owner", "partner")),
     db: Session = Depends(get_db),
 ):
     return serialize_pnl(business_pnl(db, _get(db, ctx.household.id, business_id)))
@@ -136,6 +136,21 @@ def post_transaction(
     if payload.type not in BUSINESS_TX_TYPES:
         raise HTTPException(status_code=400, detail="Invalid business transaction type.")
     business = _get(db, ctx.household.id, business_id)
+    if payload.account_id:
+        get_account(db, ctx.household.id, payload.account_id)
+    if payload.employee_id:
+        employee = (
+            db.query(BusinessEmployee)
+            .filter(
+                BusinessEmployee.id == payload.employee_id,
+                BusinessEmployee.business_id == business.id,
+                BusinessEmployee.household_id == ctx.household.id,
+                BusinessEmployee.deleted_at.is_(None),
+            )
+            .first()
+        )
+        if employee is None:
+            raise HTTPException(status_code=404, detail="Business employee not found.")
     if business.status not in BUSINESS_STATUSES:
         raise HTTPException(status_code=400, detail="Business is not active.")
     vault = ensure_business_account(db, business)

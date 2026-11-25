@@ -5,6 +5,13 @@ from sqlalchemy.orm import Session
 
 from app.api.deps import HouseholdContext, get_db, get_household_context, require_roles
 from app.models.account import Account
+from app.models.business import Business
+from app.models.category import Category
+from app.models.fund import SinkingFund
+from app.models.goal import Goal
+from app.models.income import IncomeSource
+from app.models.member import HouseholdMember
+from app.models.obligation import Obligation
 from app.models.transaction import Transaction
 from app.schemas.transaction import TransactionCreate, TransactionOut, TransactionUpdate
 from app.services.allocations import ensure_period_allocation
@@ -42,6 +49,17 @@ def _get_account(db: Session, household_id: UUID, account_id: UUID) -> Account:
     return account
 
 
+def _require_household_reference(
+    db: Session, model, household_id: UUID, record_id: UUID | None, label: str
+) -> None:
+    if record_id is None:
+        return
+    query = db.query(model.id).filter(model.id == record_id, model.household_id == household_id)
+    deleted_at = getattr(model, "deleted_at", None)
+    if deleted_at is not None:
+        query = query.filter(deleted_at.is_(None))
+    if query.first() is None:
+        raise HTTPException(status_code=404, detail=f"{label} not found in this household.")
 
 def _visible_account(db: Session, ctx: HouseholdContext, account_id: UUID) -> Account:
     account = account_visibility(
@@ -144,6 +162,42 @@ def create_transaction(
     if payload.counterparty_account_id:
         counterparty = _visible_account(db, ctx, payload.counterparty_account_id)
 
+    for model, record_id, label in (
+        (HouseholdMember, member_id, "Member"),
+        (Category, payload.category_id, "Category"),
+        (IncomeSource, payload.income_source_id, "Income source"),
+        (Obligation, payload.obligation_id, "Obligation"),
+        (SinkingFund, payload.fund_id, "Fund"),
+        (Goal, payload.goal_id, "Goal"),
+        (Business, payload.business_id, "Business"),
+    ):
+        _require_household_reference(db, model, ctx.household.id, record_id, label)
+
+    # A private transaction must never change a shared balance, and a shared
+    # transaction must never mutate a personal balance. Cross-scope transfers
+    # need a paired-entry model and are intentionally rejected for now.
+    if payload.access_scope == "personal":
+        if account.access_scope != "personal" or account.owner_member_id != member_id:
+            raise HTTPException(
+                status_code=400,
+                detail="Personal transactions must use an account owned by that member.",
+            )
+        if counterparty and (
+            counterparty.access_scope != "personal"
+            or counterparty.owner_member_id != member_id
+        ):
+            raise HTTPException(
+                status_code=400,
+                detail="Personal transfers must use accounts owned by the same member.",
+            )
+    elif account.access_scope != "shared" or (
+        counterparty and counterparty.access_scope != "shared"
+    ):
+        raise HTTPException(
+            status_code=400,
+            detail="Shared transactions must use shared accounts.",
+        )
+
     transaction = Transaction(
         household_id=ctx.household.id,
         account_id=account.id,
@@ -214,7 +268,23 @@ def update_transaction(
     _authorize_write(ctx, payload.member_id or transaction.member_id)
     if ctx.role == "member" and transaction.member_id != ctx.member.id:
         raise HTTPException(status_code=403, detail="Members may only edit their own transactions.")
-    for key, value in payload.model_dump(exclude_unset=True).items():
+    updates = payload.model_dump(exclude_unset=True)
+    if "member_id" in updates:
+        _require_household_reference(
+            db, HouseholdMember, ctx.household.id, updates["member_id"], "Member"
+        )
+        if transaction.access_scope == "personal":
+            account = _get_account(db, ctx.household.id, transaction.account_id)
+            if updates["member_id"] != account.owner_member_id:
+                raise HTTPException(
+                    status_code=400,
+                    detail="A personal transaction must remain assigned to its account owner.",
+                )
+    if "category_id" in updates:
+        _require_household_reference(
+            db, Category, ctx.household.id, updates["category_id"], "Category"
+        )
+    for key, value in updates.items():
         setattr(transaction, key, value)
     db.add(transaction)
     db.flush()

@@ -6,7 +6,6 @@ from sqlalchemy.orm import Session
 from app.api.deps import (
     HouseholdContext,
     get_db,
-    get_household_context,
     require_roles,
 )
 from app.models.contribution import ContributionAgreement, ContributionRecord
@@ -48,7 +47,7 @@ def _agreement(
 
 @router.get("", response_model=list[ContributionAgreementOut])
 def list_agreements(
-    ctx: HouseholdContext = Depends(get_household_context),
+    ctx: HouseholdContext = Depends(require_roles("owner", "partner")),
     db: Session = Depends(get_db),
 ):
     return (
@@ -251,7 +250,7 @@ def record_contribution(
 )
 def list_records(
     agreement_id: UUID,
-    ctx: HouseholdContext = Depends(get_household_context),
+    ctx: HouseholdContext = Depends(require_roles("owner", "partner")),
     db: Session = Depends(get_db),
 ):
     agreement = _agreement(db, ctx.household.id, agreement_id)

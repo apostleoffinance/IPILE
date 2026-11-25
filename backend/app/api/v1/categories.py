@@ -30,6 +30,21 @@ def create_category(
 ):
     if payload.kind not in KINDS:
         raise HTTPException(status_code=400, detail="Invalid category kind.")
+    if payload.parent_id:
+        parent = (
+            db.query(Category)
+            .filter(
+                Category.id == payload.parent_id,
+                Category.household_id == ctx.household.id,
+                Category.deleted_at.is_(None),
+            )
+            .first()
+        )
+        if parent is None:
+            raise HTTPException(
+                status_code=404,
+                detail="Parent category not found in this household.",
+            )
     category = Category(
         household_id=ctx.household.id,
         name=payload.name,

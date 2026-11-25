@@ -4,7 +4,7 @@ from uuid import UUID
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 
-from app.api.deps import HouseholdContext, get_db, get_household_context, require_roles
+from app.api.deps import HouseholdContext, get_db, require_roles
 from app.api.v1.transactions import TX_TYPES, create_transaction
 from app.models.account import Account
 from app.models.category import Category
@@ -42,7 +42,7 @@ def _require_account(db: Session, household_id: UUID, account_id: UUID) -> Accou
 
 @router.get("", response_model=list[RecurringOut])
 def list_recurring(
-    ctx: HouseholdContext = Depends(get_household_context),
+    ctx: HouseholdContext = Depends(require_roles("owner", "partner")),
     db: Session = Depends(get_db),
 ):
     return _templates(db, ctx.household.id).order_by(RecurringTransaction.next_date).all()

@@ -3,7 +3,7 @@ from decimal import Decimal
 from fastapi import APIRouter, Depends, Query
 from sqlalchemy.orm import Session
 
-from app.api.deps import HouseholdContext, get_db, get_household_context
+from app.api.deps import HouseholdContext, get_db, require_roles
 from app.models.wealth import Liability
 from app.money import format_money, quantize_money
 from app.schemas.debt import DebtStrategiesOut, DebtStrategyOut, ScheduleMonthOut
@@ -34,7 +34,7 @@ def _serialize_strategy(result) -> DebtStrategyOut:
 
 @router.get("/strategies", response_model=DebtStrategiesOut)
 def get_debt_strategies(
-    ctx: HouseholdContext = Depends(get_household_context),
+    ctx: HouseholdContext = Depends(require_roles("owner", "partner")),
     db: Session = Depends(get_db),
     extra_payment: str = Query(default="0"),
 ):

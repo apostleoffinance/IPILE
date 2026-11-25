@@ -4,7 +4,7 @@ from uuid import UUID
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 
-from app.api.deps import HouseholdContext, get_db, get_household_context, require_roles
+from app.api.deps import HouseholdContext, get_db, require_roles
 from app.api.v1.transactions import create_transaction
 from app.models.account import Account
 from app.models.fund import SinkingFund
@@ -41,7 +41,7 @@ def _get_account(db: Session, household_id: UUID, account_id: UUID) -> Account:
 
 @router.get("", response_model=list[FundOut])
 def list_funds(
-    ctx: HouseholdContext = Depends(get_household_context),
+    ctx: HouseholdContext = Depends(require_roles("owner", "partner")),
     db: Session = Depends(get_db),
 ):
     rows = _active(db, ctx.household.id).order_by(SinkingFund.name)

@@ -16,14 +16,44 @@ depends_on: Union[str, Sequence[str], None] = None
 
 
 def upgrade() -> None:
-    op.add_column("accounts", sa.Column("access_scope", sa.String(20), nullable=False, server_default="shared"))
-    op.add_column("transactions", sa.Column("access_scope", sa.String(20), nullable=False, server_default="shared"))
-    op.create_check_constraint("ck_accounts_access_scope", "accounts", "access_scope IN ('shared', 'personal')")
-    op.create_check_constraint("ck_transactions_access_scope", "transactions", "access_scope IN ('shared', 'personal')")
-    op.create_check_constraint("ck_accounts_personal_owner", "accounts", "(access_scope = 'shared' AND owner_member_id IS NULL) OR (access_scope = 'personal' AND owner_member_id IS NOT NULL)")
-    op.create_check_constraint("ck_transactions_personal_owner", "transactions", "(access_scope = 'shared' AND member_id IS NULL) OR (access_scope = 'personal' AND member_id IS NOT NULL)")
-    op.create_index("ix_accounts_household_scope_owner", "accounts", ["household_id", "access_scope", "owner_member_id"])
-    op.create_index("ix_transactions_household_scope_owner", "transactions", ["household_id", "access_scope", "member_id"])
+    op.add_column(
+        "accounts",
+        sa.Column("access_scope", sa.String(20), nullable=False, server_default="shared"),
+    )
+    op.add_column(
+        "transactions",
+        sa.Column("access_scope", sa.String(20), nullable=False, server_default="shared"),
+    )
+    op.create_check_constraint(
+        "ck_accounts_access_scope", "accounts", "access_scope IN ('shared', 'personal')"
+    )
+    op.create_check_constraint(
+        "ck_transactions_access_scope", "transactions", "access_scope IN ('shared', 'personal')"
+    )
+    # Legacy shared accounts may retain owner_member_id as attribution metadata.
+    op.create_check_constraint(
+        "ck_accounts_personal_owner",
+        "accounts",
+        "(access_scope = 'shared') OR "
+        "(access_scope = 'personal' AND owner_member_id IS NOT NULL)",
+    )
+    # Shared transactions may retain member_id to identify who recorded/owns the activity.
+    op.create_check_constraint(
+        "ck_transactions_personal_owner",
+        "transactions",
+        "(access_scope = 'shared') OR "
+        "(access_scope = 'personal' AND member_id IS NOT NULL)",
+    )
+    op.create_index(
+        "ix_accounts_household_scope_owner",
+        "accounts",
+        ["household_id", "access_scope", "owner_member_id"],
+    )
+    op.create_index(
+        "ix_transactions_household_scope_owner",
+        "transactions",
+        ["household_id", "access_scope", "member_id"],
+    )
 
 
 def downgrade() -> None:
