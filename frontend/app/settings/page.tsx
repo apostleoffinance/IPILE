@@ -183,7 +183,7 @@ export default function SettingsPage() {
 
   return (
     <AppShell>
-      <ContentContainer>
+      <ContentContainer className="ipile-settings-workspace">
         <PageHeader
           eyebrow="Household"
           title="Settings"
