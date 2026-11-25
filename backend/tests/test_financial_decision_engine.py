@@ -1,10 +1,8 @@
 from datetime import date
 from decimal import Decimal
-from dataclasses import replace
 
 from fastapi.testclient import TestClient
 
-from app.services.simulation_engine import SimParams, apply_params, project
 from tests.conftest import register
 
 
@@ -66,6 +64,7 @@ def test_simulation_applies_contribution_stress_without_mutating_accounts(
         "/api/v1/accounts",
         json={"name": "Current", "type": "bank", "current_balance": "500000.00"},
     ).json()
+    assert account["id"]
     member = client.post(
         "/api/v1/members",
         json={"display_name": "Contributor", "role": "member"},
