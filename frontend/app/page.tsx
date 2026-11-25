@@ -2,7 +2,6 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { ArrowUpRight } from "lucide-react";
 import { LandingMockup } from "@/components/landing/LandingMockup";
 import { LoadingState } from "@/components/shared/LoadingState";
 import { api, setHouseholdId } from "@/lib/api";
