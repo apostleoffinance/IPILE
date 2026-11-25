@@ -9,11 +9,11 @@ PRODUCTION_WORKFLOW = (
 
 def test_production_frontend_deployment_is_manual_only_and_uses_main() -> None:
     workflow = PRODUCTION_WORKFLOW.read_text(encoding="utf-8")
-    trigger_section = workflow.split("\\njobs:", maxsplit=1)[0]
+    trigger_section = workflow.split("\njobs:", maxsplit=1)[0]
 
-    assert "on:\\n  workflow_dispatch:" in trigger_section
-    assert "\\n  push:" not in trigger_section
-    assert "\\n  pull_request:" not in trigger_section
+    assert "on:\n  workflow_dispatch:" in trigger_section
+    assert "\n  push:" not in trigger_section
+    assert "\n  pull_request:" not in trigger_section
     assert "ref: main" in workflow
     assert "environment: production" in workflow
 
