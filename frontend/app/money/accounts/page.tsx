@@ -99,7 +99,9 @@ export default function AccountsPage() {
         type,
         institution: institution || undefined,
         current_balance: opening,
-        is_protected: protectedAccount,
+        ...(currentMember && ["owner", "partner"].includes(currentMember.role)
+          ? { is_protected: protectedAccount }
+          : {}),
         access_scope: currentMember?.role === "member" ? "personal" : accessScope,
         ...(currentMember?.role === "member"
           ? { owner_member_id: currentMember.id }
@@ -192,14 +194,16 @@ export default function AccountsPage() {
               onChange={(e) => setOpening(e.target.value)}
             />
           </div>
-          <label className="flex items-center gap-2 text-sm md:col-span-2">
-            <Checkbox
-              type="checkbox"
-              checked={protectedAccount}
-              onChange={(e) => setProtectedAccount(e.target.checked)}
-            />
-            Protected (excluded from Safe to Spend)
-          </label>
+          {currentMember && ["owner", "partner"].includes(currentMember.role) ? (
+            <label className="flex items-center gap-2 text-sm md:col-span-2">
+              <Checkbox
+                type="checkbox"
+                checked={protectedAccount}
+                onChange={(e) => setProtectedAccount(e.target.checked)}
+              />
+              Protected (excluded from Safe to Spend)
+            </label>
+          ) : null}
           <div>
             <Button type="submit">Add account</Button>
           </div>
