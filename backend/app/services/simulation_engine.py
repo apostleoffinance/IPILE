@@ -84,6 +84,7 @@ class SimCategory:
     name: str
     allocated: Decimal
     kind: str = "expense"
+    remaining: Decimal = Decimal("0.00")
 
 
 @dataclass(frozen=True)
@@ -116,6 +117,8 @@ class SimState:
     expected_contributions: Decimal = Decimal("0.00")
     first_month_contributions: Decimal = Decimal("0.00")
     debts: tuple[DebtInput, ...] = ()
+    first_month_income: Decimal | None = None
+    first_month_essentials: Decimal | None = None
 
 
 @dataclass(frozen=True)
@@ -195,17 +198,33 @@ def apply_params(state: SimState, params: SimParams) -> SimState:
             amount = quantize_money(params.investment_override)
         rules.append(replace(rule, amount=amount) if amount != rule.amount else rule)
     essentials = state.essentials
+    first_month_essentials = (
+        state.first_month_essentials
+        if state.first_month_essentials is not None
+        else state.essentials
+    )
     categories = []
     for category in state.categories:
         rate = _delta_for(cat_deltas, str(category.id)) or _delta_for(cat_deltas, category.name)
         allocated = _scale(category.allocated, rate) if rate else category.allocated
-        categories.append(replace(category, allocated=allocated))
+        remaining = _scale(category.remaining, rate) if rate else category.remaining
+        categories.append(replace(category, allocated=allocated, remaining=remaining))
         if rate and category.kind != "income":
             essentials = quantize_money(essentials + (allocated - category.allocated))
+            first_month_essentials = quantize_money(
+                first_month_essentials + (remaining - category.remaining)
+            )
     income = state.expected_income
+    first_month_income = (
+        state.first_month_income
+        if state.first_month_income is not None
+        else state.expected_income
+    )
     if params.monthly_income is not None:
         income = quantize_money(params.monthly_income)
+        first_month_income = income
     income = _scale(income, params.income_change_rate)
+    first_month_income = _scale(first_month_income, params.income_change_rate)
     contributions = _scale(state.expected_contributions, params.contribution_change_rate)
     first_month_contributions = _scale(
         state.first_month_contributions,
@@ -220,6 +239,8 @@ def apply_params(state: SimState, params: SimParams) -> SimState:
         expected_contributions=contributions,
         first_month_contributions=first_month_contributions,
         essentials=essentials,
+        first_month_essentials=first_month_essentials,
+        first_month_income=first_month_income,
         planned_investment=planned,
         rules=tuple(rules),
         obligations=tuple(obligations),
@@ -256,6 +277,59 @@ def _allocated_investment(lines, planned: Decimal) -> Decimal:
     return quantize_money(total)
 
 
+
+def _months_until_due(days_until_due: int) -> int:
+    return max(1, (max(0, days_until_due) + 29) // 30)
+
+
+def _monthly_obligation_commitment(row: SimObligation, month_index: int) -> Decimal:
+    months_to_due = _months_until_due(row.days_until_due)
+    remaining = max(Decimal("0.00"), quantize_money(row.amount - row.funded_amount))
+    if month_index <= months_to_due:
+        return quantize_money(remaining / Decimal(months_to_due))
+    if row.frequency == "one_time":
+        return Decimal("0.00")
+    return obligation_monthly(row.amount, row.frequency)
+
+
+def _projected_obligations(
+    rows: tuple[SimObligation, ...],
+    month_index: int,
+) -> tuple[SimObligation, ...]:
+    projected: list[SimObligation] = []
+    period_days = {
+        "weekly": 7,
+        "monthly": 30,
+        "quarterly": 90,
+        "annual": 365,
+    }
+    for row in rows:
+        months_to_due = _months_until_due(row.days_until_due)
+        remaining = max(Decimal("0.00"), quantize_money(row.amount - row.funded_amount))
+        if month_index <= months_to_due:
+            reserve = quantize_money(remaining / Decimal(months_to_due))
+            funded = min(row.amount, quantize_money(row.funded_amount + reserve * month_index))
+            days = max(0, row.days_until_due - month_index * 30)
+        elif row.frequency == "one_time":
+            funded = row.amount
+            days = 0
+        else:
+            elapsed_after_due = max(0, month_index * 30 - row.days_until_due)
+            period = period_days.get(row.frequency, 30)
+            days = period - (elapsed_after_due % period)
+            if days == 0:
+                days = period
+            funded = Decimal("0.00")
+        projected.append(
+            replace(
+                row,
+                funded_amount=quantize_money(funded),
+                days_until_due=days,
+            )
+        )
+    return tuple(projected)
+
+
 def project(state: SimState, params: SimParams) -> SimulationResult:
     working = apply_params(state, params)
     cash = quantize_money(working.cash)
@@ -277,7 +351,12 @@ def project(state: SimState, params: SimParams) -> SimulationResult:
             if index == 1
             else working.expected_contributions
         )
-        total_income = quantize_money(working.expected_income + contributions)
+        month_income = (
+            working.first_month_income
+            if index == 1 and working.first_month_income is not None
+            else working.expected_income
+        )
+        total_income = quantize_money(month_income + contributions)
         allocation = allocate(total_income, list(working.rules))
         debt_month = (
             debt_result.schedule[index - 1]
@@ -287,7 +366,26 @@ def project(state: SimState, params: SimParams) -> SimulationResult:
         debt_payments = debt_month.total_payment if debt_month else Decimal("0.00")
         debt_interest = debt_month.total_interest if debt_month else Decimal("0.00")
         debt_principal = quantize_money(debt_payments - debt_interest)
-        surplus = quantize_money(allocation.surplus - unexpected - debt_payments)
+        budget_allocated = quantize_money(
+            sum(
+                (
+                    line.amount
+                    for line in allocation.lines
+                    if line.destination_type == "budget"
+                ),
+                Decimal("0.00"),
+            )
+        )
+        month_essentials = (
+            working.first_month_essentials
+            if index == 1 and working.first_month_essentials is not None
+            else working.essentials
+        )
+        # Replace planned budget allocations with the actual remaining budget
+        # for month one; later months use the full monthly budget run rate.
+        surplus = quantize_money(
+            allocation.surplus + budget_allocated - month_essentials - unexpected - debt_payments
+        )
         cash = quantize_money(cash + surplus)
         if unexpected:
             cash = quantize_money(cash)  # already in surplus
@@ -299,19 +397,13 @@ def project(state: SimState, params: SimParams) -> SimulationResult:
             if working.essentials <= 0
             else quantize_money(emergency / working.essentials)
         )
-        month_obligations = tuple(
-            replace(
-                row,
-                days_until_due=max(0, row.days_until_due - ((index - 1) * 30)),
-            )
-            for row in working.obligations
-        )
+        month_obligations = _projected_obligations(working.obligations, index)
         forecast = forecast_safe_to_spend(
             cash,
             sum(
                 (
-                    obligation_monthly(row.amount, row.frequency)
-                    for row in month_obligations
+                    _monthly_obligation_commitment(row, index)
+                    for row in working.obligations
                 ),
                 Decimal("0.00"),
             ),
