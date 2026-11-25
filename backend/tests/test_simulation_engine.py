@@ -155,6 +155,10 @@ def test_simulation_rejects_inputs_that_create_negative_financial_values() -> No
         SimulationIn(expense_category_deltas={"food": "-1.1"})
     with pytest.raises(ValidationError):
         SimulationIn(unexpected_expense="-100.00")
+    with pytest.raises(ValidationError):
+        SimulationIn(debt_extra_payment="-1.00")
+    with pytest.raises(ValidationError):
+        SimulationIn(debt_strategy="unknown")
     valid = SimulationIn(
         income_change_rate="-0.25",
         expense_category_deltas={"food": "-0.10"},
