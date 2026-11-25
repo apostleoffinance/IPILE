@@ -17,7 +17,7 @@ from app.schemas.calendar import CalendarEventOut
 from app.schemas.household import HouseholdOut
 from app.schemas.transaction import TransactionOut
 from app.services.allocations import latest_run, serialize_run
-from app.services.finance_access import account_visibility, transaction_visibility
+from app.services.finance_access import account_visibility, has_member_permission, transaction_visibility
 from app.services.health import household_health
 from app.services.obligation_engine import coverage, coverage_label
 from app.services.safe_to_spend import compute_safe_to_spend
@@ -88,7 +88,7 @@ def overview(ctx: HouseholdContext = Depends(get_household_context), db: Session
             ObligationOccurrence.status.in_(("upcoming", "due", "missed")),
         )
     )
-    if ctx.role == "member":
+    if ctx.role == "member" and not has_member_permission(ctx, "view_all_obligations"):
         upcoming_query = upcoming_query.filter(
             or_(
                 Obligation.beneficiary_member_id.is_(None),
