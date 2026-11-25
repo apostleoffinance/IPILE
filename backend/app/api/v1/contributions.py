@@ -245,6 +245,8 @@ def record_contribution(
     ctx: HouseholdContext = Depends(get_household_context),
     db: Session = Depends(get_db),
 ):
+    if ctx.role not in {"owner", "partner", "member"}:
+        raise HTTPException(status_code=403, detail="Insufficient permissions.")
     agreement = _visible_agreement(db, ctx, agreement_id)
     if agreement.status != "active":
         raise HTTPException(
