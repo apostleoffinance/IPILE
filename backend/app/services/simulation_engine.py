@@ -111,6 +111,7 @@ class SimState:
     obligations: tuple[SimObligation, ...]
     categories: tuple[SimCategory, ...] = ()
     expected_contributions: Decimal = Decimal("0.00")
+    first_month_contributions: Decimal = Decimal("0.00")
 
 
 @dataclass(frozen=True)
@@ -200,6 +201,10 @@ def apply_params(state: SimState, params: SimParams) -> SimState:
         income = quantize_money(params.monthly_income)
     income = _scale(income, params.income_change_rate)
     contributions = _scale(state.expected_contributions, params.contribution_change_rate)
+    first_month_contributions = _scale(
+        state.first_month_contributions,
+        params.contribution_change_rate,
+    )
     planned = state.planned_investment
     if params.investment_override is not None:
         planned = quantize_money(params.investment_override)
@@ -207,6 +212,7 @@ def apply_params(state: SimState, params: SimParams) -> SimState:
         state,
         expected_income=income,
         expected_contributions=contributions,
+        first_month_contributions=first_month_contributions,
         essentials=essentials,
         planned_investment=planned,
         rules=tuple(rules),
@@ -255,7 +261,12 @@ def project(state: SimState, params: SimParams) -> SimulationResult:
         unexpected = Decimal("0.00")
         if index == 1 and params.unexpected_expense:
             unexpected = quantize_money(params.unexpected_expense)
-        total_income = quantize_money(working.expected_income + working.expected_contributions)
+        contributions = (
+            working.first_month_contributions
+            if index == 1
+            else working.expected_contributions
+        )
+        total_income = quantize_money(working.expected_income + contributions)
         allocation = allocate(total_income, list(working.rules))
         surplus = quantize_money(allocation.surplus - unexpected)
         cash = quantize_money(cash + surplus)
@@ -284,7 +295,7 @@ def project(state: SimState, params: SimParams) -> SimulationResult:
         month = MonthProjection(
             month_index=index,
             income=total_income,
-            contributions=working.expected_contributions,
+            contributions=contributions,
             surplus=surplus,
             cash=cash,
             emergency=emergency,
