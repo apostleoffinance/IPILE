@@ -8,6 +8,7 @@ from app.api.v1 import (
     analytics,
     auth,
     automation,
+    bank_connections,
     billing,
     budgets,
     businesses,
@@ -29,6 +30,7 @@ from app.api.v1 import (
     obligations,
     overview,
     receipts,
+    reconciliation,
     recurring,
     safe_to_spend,
     simulations,
@@ -68,6 +70,9 @@ api_router.include_router(automation.router)
 api_router.include_router(ai.router)
 api_router.include_router(imports.router)
 api_router.include_router(receipts.router)
+api_router.include_router(reconciliation.router)
+api_router.include_router(bank_connections.router)
+api_router.include_router(bank_connections.webhook_router)
 api_router.include_router(export.router)
 api_router.include_router(invites.router)
 api_router.include_router(billing.router)

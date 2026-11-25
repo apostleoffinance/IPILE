@@ -26,6 +26,17 @@ class Settings(BaseSettings):
     inbound_email_domain: str = ""
     inbound_email_webhook_secret: str = ""
     max_import_upload_bytes: int = 10 * 1024 * 1024
+    mono_secret_key: str = ""
+    mono_webhook_secret: str = ""
+    mono_redirect_url: str = ""
+    bank_data_encryption_key: str = ""
+
+    @property
+    def mono_connect_configured(self) -> bool:
+        return all(value.strip() for value in (
+            self.mono_secret_key, self.mono_webhook_secret,
+            self.mono_redirect_url, self.bank_data_encryption_key,
+        ))
 
     @property
     def cors_origin_list(self) -> list[str]:
@@ -72,6 +83,11 @@ class Settings(BaseSettings):
             problems.append("Session expiry settings must be positive")
         if self.session_idle_hours > self.session_absolute_days * 24:
             problems.append("Session idle expiry cannot exceed absolute expiry")
+        mono_values = (self.mono_secret_key, self.mono_webhook_secret, self.mono_redirect_url, self.bank_data_encryption_key)
+        if any(value.strip() for value in mono_values) and not all(value.strip() for value in mono_values):
+            problems.append("Mono requires MONO_SECRET_KEY, MONO_WEBHOOK_SECRET, MONO_REDIRECT_URL and BANK_DATA_ENCRYPTION_KEY together")
+        if self.mono_redirect_url and not self.mono_redirect_url.lower().startswith("https://"):
+            problems.append("MONO_REDIRECT_URL must use HTTPS")
 
         if problems:
             raise ValueError("Invalid production configuration: " + "; ".join(problems))
