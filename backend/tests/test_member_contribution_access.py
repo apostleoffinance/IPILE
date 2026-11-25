@@ -112,6 +112,27 @@ def test_members_only_see_their_own_contribution_agreements_records_and_schedule
     assert len(own_records.json()) == 1
     assert Decimal(own_records.json()[0]["amount"]) == Decimal("400.00")
 
+    member_payment = client.post(
+        f"/api/v1/contributions/{agreement_a.json()['id']}/records",
+        headers=headers,
+        json={
+            "amount": "100.00",
+            "contributed_on": date.today().isoformat(),
+            "note": "Member-recorded payment",
+        },
+    )
+    assert member_payment.status_code == 201, member_payment.text
+
+    forbidden_payment = client.post(
+        f"/api/v1/contributions/{agreement_b.json()['id']}/records",
+        headers=headers,
+        json={
+            "amount": "100.00",
+            "contributed_on": date.today().isoformat(),
+        },
+    )
+    assert forbidden_payment.status_code == 404
+
     other_records = client.get(
         f"/api/v1/contributions/{agreement_b.json()['id']}/records",
         headers=headers,
