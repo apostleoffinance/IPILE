@@ -15,6 +15,7 @@ import {
   listContributionAgreements,
   listContributionRecords,
   listContributionSchedule,
+  updateContributionAgreement,
   recordContribution,
   type ContributionAgreement,
   type ContributionRecord,
@@ -38,6 +39,13 @@ export default function ContributionsPage() {
   const [startDate, setStartDate] = useState("");
   const [recordAmounts, setRecordAmounts] = useState<Record<string, string>>({});
   const [recordDates, setRecordDates] = useState<Record<string, string>>({});
+  const [editingAgreementId, setEditingAgreementId] = useState<string | null>(null);
+  const [editAmount, setEditAmount] = useState("");
+  const [editCadence, setEditCadence] = useState("monthly");
+  const [editDueDay, setEditDueDay] = useState("1");
+  const [editEndDate, setEditEndDate] = useState("");
+  const [editStatus, setEditStatus] = useState("active");
+  const [editNotes, setEditNotes] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [loaded, setLoaded] = useState(false);
@@ -79,6 +87,39 @@ export default function ContributionsPage() {
       await refresh();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Could not create agreement.");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  function startEditAgreement(agreement: ContributionAgreement) {
+    setEditingAgreementId(agreement.id);
+    setEditAmount(agreement.amount);
+    setEditCadence(agreement.cadence);
+    setEditDueDay(String(agreement.due_day ?? 1));
+    setEditEndDate(agreement.end_date ?? "");
+    setEditStatus(agreement.status);
+    setEditNotes(agreement.notes ?? "");
+  }
+
+  async function onUpdateAgreement(event: FormEvent) {
+    event.preventDefault();
+    if (!editingAgreementId || !editAmount) return;
+    setBusy(true);
+    setError(null);
+    try {
+      await updateContributionAgreement(editingAgreementId, {
+        amount: editAmount,
+        cadence: editCadence,
+        due_day: editCadence === "monthly" ? Number(editDueDay) : null,
+        end_date: editEndDate || null,
+        status: editStatus,
+        notes: editNotes || null,
+      });
+      setEditingAgreementId(null);
+      await refresh();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Could not update agreement.");
     } finally {
       setBusy(false);
     }
@@ -198,6 +239,54 @@ export default function ContributionsPage() {
                 <p className="font-semibold tabular-nums">{agreement.currency} {agreement.amount}</p>
               </div>
               <p className="text-xs text-muted">Status: {agreement.status} · Starts {agreement.start_date}{agreement.end_date ? ` · Ends ${agreement.end_date}` : ""}</p>
+              {currentMember && ["owner", "partner"].includes(currentMember.role) ? (
+                <div className="flex justify-end">
+                  <Button type="button" variant="outline" size="sm" onClick={() => startEditAgreement(agreement)}>
+                    Edit agreement
+                  </Button>
+                </div>
+              ) : null}
+              {editingAgreementId === agreement.id ? (
+                <form onSubmit={onUpdateAgreement} className="grid gap-3 border-t border-line pt-3 md:grid-cols-2">
+                  <div>
+                    <Label htmlFor={`edit-contribution-amount-${agreement.id}`}>Expected amount</Label>
+                    <Input id={`edit-contribution-amount-${agreement.id}`} className="mt-1" type="number" min="0.01" step="0.01" value={editAmount} onChange={(event) => setEditAmount(event.target.value)} required />
+                  </div>
+                  <div>
+                    <Label htmlFor={`edit-contribution-cadence-${agreement.id}`}>Frequency</Label>
+                    <Select id={`edit-contribution-cadence-${agreement.id}`} className="mt-1" value={editCadence} onChange={(event) => setEditCadence(event.target.value)}>
+                      <option value="weekly">Weekly</option><option value="biweekly">Every two weeks</option>
+                      <option value="monthly">Monthly</option><option value="quarterly">Quarterly</option>
+                      <option value="annually">Annually</option><option value="one_off">One-off</option>
+                    </Select>
+                  </div>
+                  {editCadence === "monthly" ? (
+                    <div>
+                      <Label htmlFor={`edit-contribution-due-${agreement.id}`}>Due day</Label>
+                      <Input id={`edit-contribution-due-${agreement.id}`} className="mt-1" type="number" min="1" max="31" value={editDueDay} onChange={(event) => setEditDueDay(event.target.value)} required />
+                    </div>
+                  ) : null}
+                  <div>
+                    <Label htmlFor={`edit-contribution-end-${agreement.id}`}>End date (optional)</Label>
+                    <Input id={`edit-contribution-end-${agreement.id}`} className="mt-1" type="date" value={editEndDate} onChange={(event) => setEditEndDate(event.target.value)} />
+                  </div>
+                  <div>
+                    <Label htmlFor={`edit-contribution-status-${agreement.id}`}>Status</Label>
+                    <Select id={`edit-contribution-status-${agreement.id}`} className="mt-1" value={editStatus} onChange={(event) => setEditStatus(event.target.value)}>
+                      <option value="active">Active</option><option value="paused">Paused</option>
+                      <option value="completed">Completed</option><option value="cancelled">Cancelled</option>
+                    </Select>
+                  </div>
+                  <div>
+                    <Label htmlFor={`edit-contribution-notes-${agreement.id}`}>Notes</Label>
+                    <Input id={`edit-contribution-notes-${agreement.id}`} className="mt-1" value={editNotes} onChange={(event) => setEditNotes(event.target.value)} />
+                  </div>
+                  <div className="flex items-end gap-2 md:col-span-2">
+                    <Button type="submit" disabled={busy}>Save agreement</Button>
+                    <Button type="button" variant="ghost" onClick={() => setEditingAgreementId(null)}>Cancel</Button>
+                  </div>
+                </form>
+              ) : null}
               {currentMember && (
                 ["owner", "partner"].includes(currentMember.role) ||
                 (currentMember.role === "member" && agreement.member_id === currentMember.id)
