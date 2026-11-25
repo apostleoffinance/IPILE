@@ -256,9 +256,17 @@ function StrategyCard({
     <div className="border border-line bg-surface p-5">
       <h3 className="font-display text-xl">{title}</h3>
       <p className="mt-2 text-sm text-muted">
-        {strategy.months} months · interest{" "}
+        {strategy.paid_off
+          ? `Paid off in ${strategy.months} months`
+          : `Not paid off within ${strategy.months} months`}
+        {" · interest "}
         <MoneyAmount amount={strategy.total_interest} currency={currency} />
       </p>
+      {!strategy.paid_off ? (
+        <p className="mt-2 text-sm text-warning">
+          Remaining after the modeled period: <MoneyAmount amount={strategy.remaining_balance} currency={currency} />
+        </p>
+      ) : null}
       <ol className="mt-4 list-decimal space-y-1 pl-5 text-sm">
         {strategy.order.map((row) => (
           <li key={row.id}>
