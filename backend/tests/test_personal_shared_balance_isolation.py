@@ -112,3 +112,10 @@ def test_personal_transactions_cannot_change_shared_account_balances(
     by_id = {row["id"]: row for row in accounts}
     assert Decimal(by_id[shared["id"]]["current_balance"]) == Decimal("1000.00")
     assert Decimal(by_id[personal["id"]]["current_balance"]) == Decimal("450.00")
+
+    summary = client.get("/api/v1/member/financial-summary", headers=headers)
+    assert summary.status_code == 200, summary.text
+    assert summary.json()["accessible_accounts"] == 2
+    assert Decimal(summary.json()["cash_total"]) == Decimal("1450.00")
+    assert Decimal(summary.json()["expenses"]) == Decimal("50.00")
+    assert Decimal(summary.json()["net_cash_flow"]) == Decimal("-50.00")
