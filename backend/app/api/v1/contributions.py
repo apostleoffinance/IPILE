@@ -6,7 +6,7 @@ from sqlalchemy.orm import Session
 from app.api.deps import (
     HouseholdContext,
     get_db,
-        require_roles,
+    require_roles,
 )
 from app.models.contribution import ContributionAgreement, ContributionRecord
 from app.models.member import HouseholdMember
