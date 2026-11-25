@@ -3,7 +3,7 @@ from uuid import UUID
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy.orm import Session
 
-from app.api.deps import HouseholdContext, get_db, get_household_context, require_roles
+from app.api.deps import HouseholdContext, get_db, require_roles
 from app.models.automation import Notification
 from app.schemas.automation import NotificationOut, TickIn, TickOut
 from app.services.automation import run_tick
@@ -39,7 +39,7 @@ def post_tick(
 @router.get("/notifications", response_model=list[NotificationOut])
 def get_notifications(
     unread_only: bool = Query(default=False),
-    ctx: HouseholdContext = Depends(get_household_context),
+    ctx: HouseholdContext = Depends(require_roles("owner", "partner")),
     db: Session = Depends(get_db),
 ):
     return list_notifications(db, ctx.household.id, unread_only=unread_only)
