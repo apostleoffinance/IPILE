@@ -1594,3 +1594,19 @@ export function approveReceipt(id: string) {
 export function rejectReceipt(id: string) {
   return request<ReceiptDocument>(`/api/v1/receipts/${id}/reject`, { method: "POST" });
 }
+
+export type BankConnection = { id: string; account_id: string; institution_name: string | null; masked_account_number: string | null; currency: string | null; status: string; data_status: string; last_error: string | null };
+export type ReconciliationItem = { id: string; date: string; amount: string; currency: string; type: string; merchant: string | null; description: string | null; status: string; match_reason: string | null; suggested_transaction: Transaction | null };
+export type ReconciliationSession = { id: string; account_id: string; source: string; status: string; total_rows: number; matched_count: number; suggested_count: number; unmatched_count: number; conflict_count: number; balance_difference: string | null; items?: ReconciliationItem[] };
+export const getBankConnections = () => request<BankConnection[]>("/api/v1/bank-connections");
+export const initiateBankConnection = (id: string) => request<{mono_url:string}>("/api/v1/bank-connections/initiate?account_id="+encodeURIComponent(id),{method:"POST"});
+export const syncBankConnection = (id: string) => request<{session_id:string}>("/api/v1/bank-connections/"+id+"/sync",{method:"POST"});
+export const disconnectBankConnection = (id: string) => request<BankConnection>("/api/v1/bank-connections/"+id+"/disconnect",{method:"POST"});
+export const reauthorizeBankConnection = (id: string) => request<{mono_url:string}>("/api/v1/bank-connections/"+id+"/reauthorize",{method:"POST"});
+export const getReconciliationSessions = () => request<ReconciliationSession[]>("/api/v1/reconciliation/sessions");
+export const getReconciliationSession = (id: string) => request<ReconciliationSession>("/api/v1/reconciliation/sessions/"+id);
+export function previewReconciliationStatement(accountId: string,file: File) { const body=new FormData(); body.set("account_id",accountId); body.set("file",file); return request<ReconciliationSession>("/api/v1/reconciliation/sessions/preview",{method:"POST",body}); }
+export const matchReconciliationItem = (id: string,transactionId: string) => request<ReconciliationItem>("/api/v1/reconciliation/items/"+id+"/match",{method:"POST",body:JSON.stringify({transaction_id:transactionId})});
+export const postReconciliationItem = (id: string) => request<ReconciliationItem>("/api/v1/reconciliation/items/"+id+"/post",{method:"POST"});
+export const ignoreReconciliationItem = (id: string) => request<ReconciliationItem>("/api/v1/reconciliation/items/"+id+"/ignore",{method:"POST"});
+export const completeReconciliationSession = (id: string) => request<ReconciliationSession>("/api/v1/reconciliation/sessions/"+id+"/complete",{method:"POST"});
