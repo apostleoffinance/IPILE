@@ -89,7 +89,13 @@ def _extract_fields(text: str, confidence: float) -> dict:
     currency = None
     warnings = []
     if labelled:
-        priority = {"grand total": 0, "amount due": 1, "total amount": 2, "net amount": 3, "total": 4}
+        priority = {
+            "grand total": 0,
+            "amount due": 1,
+            "total amount": 2,
+            "net amount": 3,
+            "total": 4,
+        }
         best_priority = min(priority.get(item[0].lower(), 9) for item in labelled)
         best = [item for item in labelled if priority.get(item[0].lower(), 9) == best_priority]
         if len(best) == 1:

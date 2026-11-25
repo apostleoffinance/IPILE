@@ -1,5 +1,5 @@
 import hashlib
-from datetime import date, datetime, time, timezone
+from datetime import UTC, date, datetime, time
 from decimal import Decimal
 from uuid import UUID
 
@@ -65,7 +65,10 @@ async def preview_receipt(
         raise HTTPException(status_code=503, detail="Receipt uploads are not configured.")
     content = await file.read(limit + 1)
     if len(content) > limit:
-        raise HTTPException(status_code=413, detail=f"Receipt exceeds the {limit}-byte upload limit.")
+        raise HTTPException(
+            status_code=413,
+            detail=f"Receipt exceeds the {limit}-byte upload limit.",
+        )
     media_type = file.content_type or ""
     if media_type not in ALLOWED_TYPES:
         raise HTTPException(status_code=415, detail="Upload a JPEG, PNG, WEBP image or PDF.")
@@ -103,7 +106,9 @@ async def preview_receipt(
         amount=amount,
         currency=currency,
         merchant=extracted.get("merchant"),
-        receipt_date=datetime.combine(parsed_date, time.min, tzinfo=timezone.utc) if parsed_date else None,
+        receipt_date=(
+            datetime.combine(parsed_date, time.min, tzinfo=UTC) if parsed_date else None
+        ),
     )
     db.add(receipt)
     try:
@@ -156,7 +161,9 @@ def correct_receipt(
         receipt.amount = changes["amount"]
     if "date" in changes:
         value = changes["date"]
-        receipt.receipt_date = datetime.combine(value, time.min, tzinfo=timezone.utc) if value else None
+        receipt.receipt_date = (
+            datetime.combine(value, time.min, tzinfo=UTC) if value else None
+        )
     if "merchant" in changes:
         receipt.merchant = changes["merchant"]
     if "currency" in changes:
@@ -182,7 +189,10 @@ def approve_receipt(
     if receipt.status != "pending_review":
         raise HTTPException(status_code=409, detail="Receipt is no longer awaiting review.")
     if receipt.amount is None or receipt.receipt_date is None:
-        raise HTTPException(status_code=422, detail="Receipt needs a manually confirmed amount and date.")
+        raise HTTPException(
+            status_code=422,
+            detail="Receipt needs a manually confirmed amount and date.",
+        )
     account = db.query(Account).filter(
         Account.id == receipt.account_id,
         Account.household_id == ctx.household.id,
@@ -192,7 +202,10 @@ def approve_receipt(
     if account is None:
         raise HTTPException(status_code=404, detail="Shared household account not found.")
     if receipt.currency != (account.currency or ctx.household.base_currency):
-        raise HTTPException(status_code=422, detail="Receipt currency does not match the selected account.")
+        raise HTTPException(
+            status_code=422,
+            detail="Receipt currency does not match the selected account.",
+        )
     external_id = f"receipt:{receipt.content_sha256}"
     existing = db.query(Transaction).filter(
         Transaction.household_id == ctx.household.id,
@@ -219,7 +232,10 @@ def approve_receipt(
     )
     if applied.created_count != 1 or applied.error_count:
         db.rollback()
-        raise HTTPException(status_code=409, detail="Receipt transaction could not be posted safely.")
+        raise HTTPException(
+            status_code=409,
+            detail="Receipt transaction could not be posted safely.",
+        )
     tx = db.query(Transaction).filter(
         Transaction.household_id == ctx.household.id,
         Transaction.external_id == external_id,

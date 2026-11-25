@@ -123,7 +123,12 @@ def test_receipt_missing_fields_can_be_corrected_before_approval(
     assert client.post(f"/api/v1/receipts/{preview.json()['id']}/approve").status_code == 422
     corrected = client.patch(
         f"/api/v1/receipts/{preview.json()['id']}",
-        json={"merchant": "Corner Shop", "date": "2026-11-20", "amount": "1250.00", "currency": "NGN"},
+        json={
+            "merchant": "Corner Shop",
+            "date": "2026-11-20",
+            "amount": "1250.00",
+            "currency": "NGN",
+        },
     )
     assert corrected.status_code == 200, corrected.text
     approved = client.post(f"/api/v1/receipts/{preview.json()['id']}/approve")
