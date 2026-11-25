@@ -16,6 +16,8 @@ import { api, type Member } from "@/lib/api";
 
 export default function MembersPage() {
   const [members, setMembers] = useState<Member[]>([]);
+  const [currentMember, setCurrentMember] = useState<Member | null>(null);
+  const [savingPermission, setSavingPermission] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [displayName, setDisplayName] = useState("");
   const [role, setRole] = useState("member");
@@ -23,7 +25,28 @@ export default function MembersPage() {
   const [memberType, setMemberType] = useState("dependent");
 
   async function refresh() {
-    setMembers(await api.members());
+    const [rows, me] = await Promise.all([api.members(), api.currentMember()]);
+    setMembers(rows);
+    setCurrentMember(me);
+  }
+
+  async function togglePermission(
+    member: Member,
+    permission: "view_all_contributions" | "view_all_obligations",
+    checked: boolean,
+  ) {
+    setSavingPermission(`${member.id}-${permission}`);
+    setError(null);
+    try {
+      await api.updateMember(member.id, {
+        permissions: { ...member.permissions, [permission]: checked },
+      });
+      await refresh();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Could not update member permissions.");
+    } finally {
+      setSavingPermission(null);
+    }
   }
 
   useEffect(() => {
@@ -78,6 +101,7 @@ export default function MembersPage() {
               <option value="partner">Partner</option>
               <option value="member">Member</option>
               <option value="viewer">Viewer</option>
+              <option value="advisor">Advisor</option>
             </Select>
           </div>
           <div>
@@ -123,6 +147,12 @@ export default function MembersPage() {
                   <th className="px-4 py-3 font-medium">Role</th>
                   <th className="px-4 py-3 font-medium">Relationship</th>
                   <th className="px-4 py-3 font-medium">Type</th>
+                  {currentMember?.role === "owner" ? (
+                    <>
+                      <th className="px-4 py-3 font-medium">All contributions</th>
+                      <th className="px-4 py-3 font-medium">All obligations</th>
+                    </>
+                  ) : null}
                 </tr>
               </thead>
               <tbody>
@@ -142,6 +172,40 @@ export default function MembersPage() {
                         </Link>
                       ) : null}
                     </td>
+                    {currentMember?.role === "owner" ? (
+                      <>
+                        <td className="px-4 py-3">
+                          <input
+                            type="checkbox"
+                            aria-label={`Allow ${member.display_name} to view all contributions`}
+                            checked={member.permissions?.view_all_contributions ?? false}
+                            disabled={savingPermission === `${member.id}-view_all_contributions`}
+                            onChange={(event) =>
+                              void togglePermission(
+                                member,
+                                "view_all_contributions",
+                                event.target.checked,
+                              )
+                            }
+                          />
+                        </td>
+                        <td className="px-4 py-3">
+                          <input
+                            type="checkbox"
+                            aria-label={`Allow ${member.display_name} to view all obligations`}
+                            checked={member.permissions?.view_all_obligations ?? false}
+                            disabled={savingPermission === `${member.id}-view_all_obligations`}
+                            onChange={(event) =>
+                              void togglePermission(
+                                member,
+                                "view_all_obligations",
+                                event.target.checked,
+                              )
+                            }
+                          />
+                        </td>
+                      </>
+                    ) : null}
                   </tr>
                 ))}
               </tbody>
