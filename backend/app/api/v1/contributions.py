@@ -248,6 +248,11 @@ def record_contribution(
     if ctx.role not in {"owner", "partner", "member"}:
         raise HTTPException(status_code=403, detail="Insufficient permissions.")
     agreement = _visible_agreement(db, ctx, agreement_id)
+    if ctx.role == "member" and agreement.member_id != ctx.member.id:
+        raise HTTPException(
+            status_code=403,
+            detail="Members may record contributions only for their own agreements.",
+        )
     if agreement.status != "active":
         raise HTTPException(
             status_code=400,
