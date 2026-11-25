@@ -4,7 +4,6 @@ from uuid import UUID
 
 from sqlalchemy.orm import Session
 
-from app.models.account import Account
 from app.models.budget import Budget
 from app.models.category import Category
 from app.models.household import Household
@@ -13,7 +12,13 @@ from app.models.simulation import Simulation, SimulationRun
 from app.models.wealth import Liability
 from app.money import format_money, quantize_money
 from app.schemas.simulation import SimulationIn
-from app.services.allocations import active_rules, expected_income, period_bounds, to_spec
+from app.services.allocations import (
+    active_rules,
+    expected_income,
+    period_bounds,
+    recognized_income,
+    to_spec,
+)
 from app.services.budgets import serialize_budget
 from app.services.contribution_forecast import (
     contribution_forecast,
@@ -28,6 +33,7 @@ from app.services.simulation_engine import (
     SimulationResult,
     project,
 )
+from app.services.safe_to_spend import compute_safe_to_spend
 from app.services.wealth import household_net_worth
 
 
@@ -54,21 +60,10 @@ def params_from_payload(payload: SimulationIn) -> SimParams:
 def clone_state(db: Session, household: Household, today: date | None = None) -> SimState:
     today = today or date.today()
     start, end = period_bounds(household, today)
-    accounts = (
-        db.query(Account)
-        .filter(Account.household_id == household.id, Account.deleted_at.is_(None))
-        .all()
-    )
-    cash = quantize_money(
-        sum(
-            (
-                Decimal(str(row.current_balance))
-                for row in accounts
-                if row.type in {"bank", "cash", "wallet"} and row.status == "active"
-            ),
-            Decimal("0.00"),
-        )
-    )
+    # Start from actual household Safe-to-Spend, not total account balances.
+    # This excludes personal accounts, protected cash, pending outflows, and
+    # obligations already due today; expected income/contributions remain separate.
+    cash = quantize_money(Decimal(str(compute_safe_to_spend(db, household, today=today).current)))
     wealth = household_net_worth(db, household)
     rules = tuple(to_spec(rule) for rule in active_rules(db, household.id, start, end))
     planned_investment = Decimal("0.00")
@@ -116,6 +111,10 @@ def clone_state(db: Session, household: Household, today: date | None = None) ->
             .first()
         )
         due = occurrence.due_date if occurrence else obligation.next_due_date
+        # Current Safe-to-Spend already deducts overdue and due-today occurrences.
+        # Keep only future commitments in the scenario projection.
+        if due <= today:
+            continue
         funded = Decimal(str(occurrence.funded_amount)) if occurrence else Decimal("0.00")
         obligations.append(
             SimObligation(
@@ -129,6 +128,7 @@ def clone_state(db: Session, household: Household, today: date | None = None) ->
             )
         )
     essentials = Decimal("0.00")
+    first_month_essentials = Decimal("0.00")
     categories: list[SimCategory] = []
     budgets = (
         db.query(Budget)
@@ -145,6 +145,7 @@ def clone_state(db: Session, household: Household, today: date | None = None) ->
     for budget in budgets:
         snapshot = serialize_budget(db, budget)
         essentials += snapshot.allocated_total
+        first_month_essentials += snapshot.remaining_total
         for line in snapshot.categories:
             kind = "expense"
             category = db.get(Category, line.category_id)
@@ -156,6 +157,7 @@ def clone_state(db: Session, household: Household, today: date | None = None) ->
                     name=line.category_name,
                     allocated=line.allocated_amount,
                     kind=kind,
+                    remaining=line.remaining_amount,
                 )
             )
     return SimState(
@@ -164,6 +166,13 @@ def clone_state(db: Session, household: Household, today: date | None = None) ->
         investments=wealth.investments,
         net_worth=wealth.net_worth,
         expected_income=expected_income(db, household.id),
+        first_month_income=quantize_money(
+            max(
+                Decimal("0.00"),
+                expected_income(db, household.id)
+                - recognized_income(db, household.id, start, end),
+            )
+        ),
         expected_contributions=monthly_expected_contributions(
             db,
             household.id,
@@ -183,6 +192,7 @@ def clone_state(db: Session, household: Household, today: date | None = None) ->
         ),
         minimum_buffer=quantize_money(Decimal(str(household.minimum_buffer_amount))),
         essentials=quantize_money(essentials),
+        first_month_essentials=quantize_money(first_month_essentials),
         planned_investment=quantize_money(planned_investment),
         rules=rules,
         obligations=tuple(obligations),
@@ -226,10 +236,20 @@ def baseline_snapshot(state: SimState) -> dict:
         "investments": format_money(state.investments),
         "net_worth": format_money(state.net_worth),
         "expected_income": format_money(state.expected_income),
+        "first_month_income": format_money(
+            state.first_month_income
+            if state.first_month_income is not None
+            else state.expected_income
+        ),
         "expected_contributions": format_money(state.expected_contributions),
         "first_month_contributions": format_money(state.first_month_contributions),
         "minimum_buffer": format_money(state.minimum_buffer),
         "essentials": format_money(state.essentials),
+        "first_month_essentials": format_money(
+            state.first_month_essentials
+            if state.first_month_essentials is not None
+            else state.essentials
+        ),
         "planned_investment": format_money(state.planned_investment),
         "rules": [
             {
@@ -283,7 +303,8 @@ def baseline_snapshot(state: SimState) -> dict:
 def parameters_payload(payload: SimulationIn, state: SimState) -> dict:
     return {
         **payload.model_dump(mode="json"),
-        "engine_version": "phase3-v1",
+        "engine_version": "phase3-v2",
+        "cash_basis": "current_safe_to_spend",
         "baseline_snapshot": baseline_snapshot(state),
     }
 
