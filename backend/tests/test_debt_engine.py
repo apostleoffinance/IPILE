@@ -77,6 +77,8 @@ def test_empty_debts() -> None:
     result = compare_strategies([], extra_payment=Decimal("50.00"))
     assert result["snowball"].months == 0
     assert result["avalanche"].months == 0
+    assert result["snowball"].paid_off is True
+    assert result["snowball"].remaining_balance == Decimal("0.00")
 
 
 def test_debt_strategies_api(client) -> None:
@@ -108,5 +110,64 @@ def test_debt_strategies_api(client) -> None:
     assert body["snowball"]["order"][0]["name"] == "Card"
     assert body["avalanche"]["order"][0]["name"] == "Card"
     assert body["snowball"]["months"] > 0
+    assert body["snowball"]["paid_off"] is True
+    assert body["snowball"]["remaining_balance"] == "0.00"
     assert body["avalanche"]["schedule_summary"]
     assert "total_interest" in body["snowball"]
+
+
+def test_non_amortizing_debt_is_not_reported_as_paid_off() -> None:
+    debt = _debt("High-interest debt", "1000.00", "0.24", "10.00")
+    result = amortize_strategy([debt], strategy="avalanche")
+    assert result.months == 600
+    assert result.paid_off is False
+    assert result.remaining_balance > Decimal("1000.00")
+
+
+def test_debt_with_no_payment_capacity_reports_remaining_balance() -> None:
+    debt = _debt("No payment", "1000.00", "0.12", "0.00")
+    result = amortize_strategy([debt], strategy="snowball")
+    assert result.months == 0
+    assert result.paid_off is False
+    assert result.remaining_balance == Decimal("1000.00")
+
+
+def test_debt_engine_rejects_invalid_strategy_and_payment_inputs() -> None:
+    import pytest
+
+    debt = _debt("Loan", "1000.00", "0.12", "50.00")
+    with pytest.raises(ValueError):
+        amortize_strategy([debt], strategy="random")
+    with pytest.raises(ValueError):
+        amortize_strategy([debt], strategy="avalanche", extra_payment=Decimal("-1.00"))
+    too_high = _debt("Invalid APR", "1000.00", "6.00", "50.00")
+    with pytest.raises(ValueError):
+        amortize_strategy([too_high], strategy="avalanche")
+
+
+def test_liability_api_rejects_percentage_not_fraction_apr(client) -> None:
+    from tests.conftest import register
+
+    register(client, "debt-apr-validation@example.com")
+    invalid = client.post(
+        "/api/v1/liabilities",
+        json={
+            "name": "Invalid APR",
+            "type": "credit",
+            "current_balance": "1000.00",
+            "interest_rate": "18",
+            "minimum_payment": "50.00",
+        },
+    )
+    assert invalid.status_code == 422
+    valid = client.post(
+        "/api/v1/liabilities",
+        json={
+            "name": "Valid APR",
+            "type": "credit",
+            "current_balance": "1000.00",
+            "interest_rate": "0.18",
+            "minimum_payment": "50.00",
+        },
+    )
+    assert valid.status_code == 201, valid.text
