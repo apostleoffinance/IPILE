@@ -43,6 +43,7 @@ export default function SettingsPage() {
   const [householdName, setHouseholdName] = useState("");
   const [bufferAmount, setBufferAmount] = useState("");
   const [fiscalMonth, setFiscalMonth] = useState("1");
+  const [canManageHousehold, setCanManageHousehold] = useState(false);
   const [invites, setInvites] = useState<Invite[]>([]);
   const [tickets, setTickets] = useState<SupportTicket[]>([]);
   const [inviteEmail, setInviteEmail] = useState("");
@@ -54,14 +55,16 @@ export default function SettingsPage() {
   const [newPassword, setNewPassword] = useState("");
 
   async function refresh() {
-    const [nextBilling, nextInvites, nextTickets, nextHousehold] = await Promise.all([
+    const [nextBilling, nextInvites, nextTickets, nextHousehold, me] = await Promise.all([
       getBilling(),
       listInvites().catch(() => [] as Invite[]),
       listSupportTickets(),
       getCurrentHousehold(),
+      api.me(),
     ]);
     setBilling(nextBilling);
     setHousehold(nextHousehold);
+    setCanManageHousehold(Boolean(me.households?.some((membership) => membership.id === nextHousehold.id && membership.role === "owner")));
     setHouseholdName(nextHousehold.name);
     setBufferAmount(nextHousehold.minimum_buffer_amount);
     setFiscalMonth(String(nextHousehold.fiscal_month_start_day));
@@ -192,14 +195,14 @@ export default function SettingsPage() {
         <section className="ipile-settings-section">
           <div className="ipile-settings-section-heading">
             <div><p className="ipile-settings-eyebrow">Household profile</p><h2>Household configuration</h2><p>Keep your household identity and planning conventions accurate.</p></div>
-            <span className="ipile-settings-meta">Owner-managed</span>
+            <span className="ipile-settings-meta">{canManageHousehold ? "Owner access" : "Read only"}</span>
           </div>
           {household ? <form className="ipile-settings-form" onSubmit={onSaveHousehold}>
-            <label>Household name<Input value={householdName} onChange={(e) => setHouseholdName(e.target.value)} maxLength={200} required /></label>
-            <label>Minimum cash buffer<Input value={bufferAmount} onChange={(e) => setBufferAmount(e.target.value)} inputMode="decimal" required /></label>
-            <label>Fiscal year starts in<select value={fiscalMonth} onChange={(e) => setFiscalMonth(e.target.value)}>{Array.from({length:12},(_,i)=><option key={i+1} value={i+1}>{new Date(2026,i,1).toLocaleString(undefined,{month:"long"})}</option>)}</select></label>
+            <label>Household name<Input value={householdName} onChange={(e) => setHouseholdName(e.target.value)} maxLength={200} required disabled={!canManageHousehold} /></label>
+            <label>Minimum cash buffer<Input value={bufferAmount} onChange={(e) => setBufferAmount(e.target.value)} inputMode="decimal" required disabled={!canManageHousehold} /></label>
+            <label>Fiscal year starts in<select value={fiscalMonth} onChange={(e) => setFiscalMonth(e.target.value)} disabled={!canManageHousehold}>{Array.from({length:12},(_,i)=><option key={i+1} value={i+1}>{new Date(2026,i,1).toLocaleString(undefined,{month:"long"})}</option>)}</select></label>
             <div className="ipile-settings-readonly"><span>Base currency</span><strong>{household.base_currency}</strong><span>Time zone</span><strong>{household.timezone}</strong><span>Country</span><strong>{household.country}</strong><p>Currency, country and time zone are displayed from the household record. This screen does not offer unsupported changes to those fields.</p></div>
-            <div className="ipile-settings-form-actions"><Button type="submit" disabled={pending || !householdName.trim()}>Save household settings</Button><span>Changes are recorded by the household settings API.</span></div>
+            <div className="ipile-settings-form-actions">{canManageHousehold ? <Button type="submit" disabled={pending || !householdName.trim()}>Save household settings</Button> : <span>Only a household owner can change these settings.</span>}<span>Changes are recorded by the household settings API.</span></div>
           </form> : <LoadingState />}
         </section>
 
