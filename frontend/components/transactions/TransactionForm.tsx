@@ -19,6 +19,7 @@ export type TransactionDraft = {
   counterparty_account_id?: string;
   category_id?: string;
   member_id?: string;
+  access_scope: "shared" | "personal";
   description?: string;
 };
 
@@ -77,6 +78,7 @@ export function TransactionForm({
           counterparty_account_id: values.type === "transfer" ? values.counterparty_account_id : undefined,
           category_id: values.category_id || undefined,
           member_id: values.member_id || undefined,
+          access_scope: accounts.find((account) => account.id === values.account_id)?.access_scope ?? "shared",
           description: values.description || undefined,
         });
         reset({
@@ -124,7 +126,7 @@ export function TransactionForm({
           <Select id="tx-counterparty" className="mt-1" {...register("counterparty_account_id")}>
             <option value="">Select account</option>
             {accounts
-              .filter((account) => account.id !== accountId)
+              .filter((account) => account.id !== accountId && account.access_scope === accounts.find((row) => row.id === accountId)?.access_scope)
               .map((account) => (
                 <option key={account.id} value={account.id}>
                   {account.name}
