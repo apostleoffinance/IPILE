@@ -53,7 +53,11 @@ def test_non_privileged_roles_cannot_read_household_wide_financial_views(
     )
     for role, email in members:
         login(client, email)
-        allowed_member_views = {"/api/v1/calendar", "/api/v1/obligations"}
+        allowed_member_views = {
+            "/api/v1/calendar",
+            "/api/v1/obligations",
+            "/api/v1/contributions",
+        }
         for endpoint in household_financial_views:
             if role == "member" and endpoint in allowed_member_views:
                 continue
@@ -65,4 +69,5 @@ def test_non_privileged_roles_cannot_read_household_wide_financial_views(
         if role == "member":
             assert client.get("/api/v1/obligations", headers=headers).status_code == 200
             assert client.get("/api/v1/calendar", headers=headers).status_code == 200
+            assert client.get("/api/v1/contributions", headers=headers).status_code == 200
         _logout(client)
