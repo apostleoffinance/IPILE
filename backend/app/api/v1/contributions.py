@@ -270,6 +270,24 @@ def record_contribution(
         )
         if transaction is None:
             raise HTTPException(status_code=404, detail="Linked transaction not found.")
+        existing_record = (
+            db.query(ContributionRecord)
+            .filter(
+                ContributionRecord.household_id == ctx.household.id,
+                ContributionRecord.transaction_id == transaction.id,
+            )
+            .first()
+        )
+        if existing_record is not None:
+            raise HTTPException(
+                status_code=409,
+                detail="Transaction is already linked to a contribution record.",
+            )
+        if transaction.type != "income":
+            raise HTTPException(
+                status_code=400,
+                detail="A contribution must link to an income transaction.",
+            )
         if (
             transaction.amount != payload.amount
             or transaction.currency != agreement.currency
