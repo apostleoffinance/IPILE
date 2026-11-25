@@ -62,7 +62,7 @@ class MonoClient:
         return self._link_url(payload)
 
     def fetch_transactions(self, account_id: str, *, page: int = 1) -> tuple[list[dict], dict]:
-        payload = self._request("GET", f"/v2/{account_id}/transactions", params={"page": page})
+        payload = self._request("GET", f"/v2/accounts/{account_id}/transactions", params={"page": page})
         data, meta = payload.get("data"), payload.get("meta") or {}
         if not isinstance(data, list) or not isinstance(meta, dict):
             raise MonoAPIError("Mono returned an invalid transaction page.")
