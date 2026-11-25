@@ -7,6 +7,7 @@ from sqlalchemy.orm import Session
 from app.api.deps import HouseholdContext, get_db, require_roles
 from app.api.v1.transactions import create_transaction
 from app.models.fund import SinkingFund
+from app.models.member import HouseholdMember
 from app.models.obligation import Obligation, ObligationOccurrence
 from app.schemas.obligation import ObligationCreate, ObligationOut, ObligationPay, ObligationUpdate
 from app.schemas.transaction import TransactionCreate
@@ -59,6 +60,18 @@ def create_obligation(
         raise HTTPException(status_code=400, detail="Invalid priority.")
     if payload.status not in OBLIGATION_STATUSES:
         raise HTTPException(status_code=400, detail="Invalid obligation status.")
+    if payload.beneficiary_member_id:
+        member = (
+            db.query(HouseholdMember)
+            .filter(
+                HouseholdMember.id == payload.beneficiary_member_id,
+                HouseholdMember.household_id == ctx.household.id,
+                HouseholdMember.deleted_at.is_(None),
+            )
+            .first()
+        )
+        if member is None:
+            raise HTTPException(status_code=404, detail="Beneficiary member not found in this household.")
     category_id = payload.category_id
     if category_id is None:
         category_id = obligation_category(db, ctx.household.id).id
@@ -110,6 +123,18 @@ def update_obligation(
         raise HTTPException(status_code=400, detail="Invalid priority.")
     if "status" in data and data["status"] not in OBLIGATION_STATUSES:
         raise HTTPException(status_code=400, detail="Invalid obligation status.")
+    if "beneficiary_member_id" in data and data["beneficiary_member_id"]:
+        member = (
+            db.query(HouseholdMember)
+            .filter(
+                HouseholdMember.id == data["beneficiary_member_id"],
+                HouseholdMember.household_id == ctx.household.id,
+                HouseholdMember.deleted_at.is_(None),
+            )
+            .first()
+        )
+        if member is None:
+            raise HTTPException(status_code=404, detail="Beneficiary member not found in this household.")
     for key, value in data.items():
         setattr(obligation, key, value)
     db.add(obligation)
