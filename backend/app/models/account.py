@@ -16,7 +16,7 @@ class Account(Base):
             name="ck_accounts_access_scope",
         ),
         CheckConstraint(
-            "(access_scope = 'shared' AND owner_member_id IS NULL) OR "
+            "(access_scope = 'shared') OR "
             "(access_scope = 'personal' AND owner_member_id IS NOT NULL)",
             name="ck_accounts_personal_owner",
         ),
