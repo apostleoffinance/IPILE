@@ -616,6 +616,9 @@ export function getGivingReport(year?: number) {
 export type SimulationMonth = {
   month_index: number;
   income: string;
+  contributions: string;
+  debt_payments: string;
+  debt_interest: string;
   surplus: string;
   cash: string;
   emergency: string;
@@ -643,6 +646,9 @@ export function runSimulation(body: {
   name?: string;
   monthly_income?: string;
   income_change_rate?: string;
+  contribution_change_rate?: string;
+  debt_strategy?: "snowball" | "avalanche";
+  debt_extra_payment?: string;
   expense_category_deltas?: Record<string, string>;
   obligation_deltas?: Record<string, string>;
   investment_override?: string;
@@ -973,6 +979,8 @@ export type DebtStrategy = {
   months: number;
   total_interest: string;
   total_paid: string;
+  paid_off: boolean;
+  remaining_balance: string;
   schedule_summary: {
     month: number;
     total_payment: string;
