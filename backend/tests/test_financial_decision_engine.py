@@ -129,7 +129,7 @@ def test_purchase_check_names_obligations_put_at_risk(
     )
     assert response.status_code == 200, response.text
     body = response.json()
-    assert body["decision"] == "review_or_delay"
+    assert body["decision"] == "do_not_proceed"
     assert any("School fees" in row for row in body["obligations_affected"])
 
 
