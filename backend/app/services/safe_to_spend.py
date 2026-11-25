@@ -284,7 +284,14 @@ def compute_safe_to_spend(
     remaining_mandatory = remaining_mandatory_allocations(
         db, household, recognized, remaining_expected, today
     )
-    period_unfunded, period_rows = unfunded_occurrences(db, household.id, today, end)
+    # Due-today and overdue obligations are already deducted from current STS.
+    # Period STS subtracts only obligations that fall after today.
+    period_unfunded, period_rows = unfunded_occurrences(
+        db,
+        household.id,
+        today + timedelta(days=1),
+        end,
+    )
     period_unfunded = _exclude_obligation_destinations(
         db, period_rows, skip_obligations, period_unfunded
     )
