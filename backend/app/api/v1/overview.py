@@ -3,6 +3,7 @@ from datetime import date, timedelta
 from decimal import Decimal
 
 from fastapi import APIRouter, Depends
+from sqlalchemy import or_
 from sqlalchemy.orm import Session
 
 from app.api.deps import HouseholdContext, get_db, get_household_context
@@ -76,7 +77,7 @@ def overview(ctx: HouseholdContext = Depends(get_household_context), db: Session
         sum((Decimal(row.amount) for row in income_rows), Decimal("0.00"))
     )
     horizon = today + timedelta(days=30)
-    upcoming_rows = (
+    upcoming_query = (
         db.query(ObligationOccurrence, Obligation)
         .join(Obligation, Obligation.id == ObligationOccurrence.obligation_id)
         .filter(
@@ -86,9 +87,19 @@ def overview(ctx: HouseholdContext = Depends(get_household_context), db: Session
             ObligationOccurrence.due_date <= horizon,
             ObligationOccurrence.status.in_(("upcoming", "due", "missed")),
         )
-        .order_by(ObligationOccurrence.due_date)
-        .all()
-    ) if can_view_household_finances else []
+    )
+    if ctx.role == "member":
+        upcoming_query = upcoming_query.filter(
+            or_(
+                Obligation.beneficiary_member_id.is_(None),
+                Obligation.beneficiary_member_id == ctx.member.id,
+            )
+        )
+    upcoming_rows = (
+        upcoming_query.order_by(ObligationOccurrence.due_date).all()
+        if ctx.role in {"owner", "partner", "member"}
+        else []
+    )
     upcoming = [
         CalendarEventOut(
             id=occurrence.id,
