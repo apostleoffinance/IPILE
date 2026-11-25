@@ -1,5 +1,5 @@
 import hashlib
-from datetime import UTC, date, datetime, time
+from datetime import UTC, date as Date, datetime, time
 from decimal import Decimal
 from uuid import UUID
 
@@ -23,7 +23,7 @@ ALLOWED_TYPES = {"image/jpeg", "image/png", "image/webp", "application/pdf"}
 
 class ReceiptCorrectionBody(BaseModel):
     amount: Decimal | None = Field(default=None, gt=0, max_digits=18, decimal_places=2)
-    date: date | None = None
+    date: Date | None = None
     merchant: str | None = Field(default=None, max_length=200)
     currency: str | None = Field(default=None, min_length=3, max_length=3)
 
@@ -92,7 +92,7 @@ async def preview_receipt(
         raise HTTPException(status_code=503, detail=str(exc)) from exc
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
-    parsed_date = date.fromisoformat(extracted["date"]) if extracted.get("date") else None
+    parsed_date = Date.fromisoformat(extracted["date"]) if extracted.get("date") else None
     amount = Decimal(extracted["amount"]) if extracted.get("amount") else None
     currency = extracted.get("currency") or account.currency or ctx.household.base_currency
     receipt = ReceiptDocument(
