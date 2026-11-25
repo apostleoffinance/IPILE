@@ -27,6 +27,13 @@ export default function AccountsPage() {
   const [institution, setInstitution] = useState("");
   const [opening, setOpening] = useState("0.00");
   const [protectedAccount, setProtectedAccount] = useState(false);
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [editName, setEditName] = useState("");
+  const [editInstitution, setEditInstitution] = useState("");
+  const [editProtected, setEditProtected] = useState(false);
+  const [editEmergency, setEditEmergency] = useState(false);
+  const [editSafeToSpend, setEditSafeToSpend] = useState(true);
+  const [editNetWorth, setEditNetWorth] = useState(true);
 
   async function refresh() {
     const [accountRows, memberRows, me] = await Promise.all([
@@ -48,6 +55,36 @@ export default function AccountsPage() {
   useEffect(() => {
     refresh().catch((err: Error) => setError(err.message));
   }, []);
+
+  function startEdit(account: Account) {
+    setEditingId(account.id);
+    setEditName(account.name);
+    setEditInstitution(account.institution ?? "");
+    setEditProtected(account.is_protected);
+    setEditEmergency(account.is_emergency);
+    setEditSafeToSpend(account.include_in_safe_to_spend);
+    setEditNetWorth(account.include_in_net_worth);
+  }
+
+  async function onUpdateAccount(event: FormEvent) {
+    event.preventDefault();
+    if (!editingId) return;
+    setError(null);
+    try {
+      await api.updateAccount(editingId, {
+        name: editName,
+        institution: editInstitution || null,
+        is_protected: editProtected,
+        is_emergency: editEmergency,
+        include_in_safe_to_spend: editSafeToSpend,
+        include_in_net_worth: editNetWorth,
+      });
+      setEditingId(null);
+      await refresh();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Could not update account.");
+    }
+  }
 
   async function onSubmit(event: FormEvent) {
     event.preventDefault();
@@ -175,9 +212,62 @@ export default function AccountsPage() {
           />
         ) : (
           <div className="grid gap-3 md:grid-cols-2">
-            {accounts.map((account) => (
-              <AccountSummary key={account.id} account={account} />
-            ))}
+            {accounts.map((account) => {
+              const canEdit =
+                currentMember &&
+                (["owner", "partner"].includes(currentMember.role) ||
+                  (currentMember.role === "member" &&
+                    account.access_scope === "personal" &&
+                    account.owner_member_id === currentMember.id));
+              return (
+                <div key={account.id} className="space-y-3">
+                  <AccountSummary account={account} />
+                  {canEdit ? (
+                    <div className="flex justify-end">
+                      <Button type="button" variant="outline" size="sm" onClick={() => startEdit(account)}>
+                        Edit account
+                      </Button>
+                    </div>
+                  ) : null}
+                  {editingId === account.id ? (
+                    <form onSubmit={onUpdateAccount} className="grid gap-3 border border-line bg-surface p-4">
+                      <div>
+                        <Label htmlFor={`edit-account-name-${account.id}`}>Account name</Label>
+                        <Input id={`edit-account-name-${account.id}`} className="mt-1" value={editName} onChange={(event) => setEditName(event.target.value)} required />
+                      </div>
+                      <div>
+                        <Label htmlFor={`edit-account-institution-${account.id}`}>Institution</Label>
+                        <Input id={`edit-account-institution-${account.id}`} className="mt-1" value={editInstitution} onChange={(event) => setEditInstitution(event.target.value)} />
+                      </div>
+                      {currentMember && ["owner", "partner"].includes(currentMember.role) ? (
+                        <>
+                          <label className="flex items-center gap-2 text-sm">
+                            <Checkbox checked={editProtected} onChange={(event) => setEditProtected(event.target.checked)} />
+                            Protected from Safe to Spend
+                          </label>
+                          <label className="flex items-center gap-2 text-sm">
+                            <Checkbox checked={editEmergency} onChange={(event) => setEditEmergency(event.target.checked)} />
+                            Emergency account
+                          </label>
+                          <label className="flex items-center gap-2 text-sm">
+                            <Checkbox checked={editSafeToSpend} onChange={(event) => setEditSafeToSpend(event.target.checked)} />
+                            Include in Safe to Spend
+                          </label>
+                          <label className="flex items-center gap-2 text-sm">
+                            <Checkbox checked={editNetWorth} onChange={(event) => setEditNetWorth(event.target.checked)} />
+                            Include in net worth
+                          </label>
+                        </>
+                      ) : null}
+                      <div className="flex gap-2">
+                        <Button type="submit">Save changes</Button>
+                        <Button type="button" variant="ghost" onClick={() => setEditingId(null)}>Cancel</Button>
+                      </div>
+                    </form>
+                  ) : null}
+                </div>
+              );
+            })}
           </div>
         )}
       </ContentContainer>
