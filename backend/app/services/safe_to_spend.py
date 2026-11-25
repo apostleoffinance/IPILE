@@ -44,6 +44,8 @@ FORECAST_DAYS = 90
 
 
 def counts_toward_current_sts(account: Account) -> bool:
+    if getattr(account, "access_scope", "shared") != "shared":
+        return False
     if account.status != "active":
         return False
     if account.type not in LIQUID_TYPES:
@@ -96,7 +98,7 @@ def protected_in_spendable(accounts: list[Account], funds: list[SinkingFund]) ->
 def protected_savings(accounts: list[Account], funds: list[SinkingFund]) -> Decimal:
     total = Decimal("0.00")
     for account in accounts:
-        if account.status != "active":
+        if getattr(account, "access_scope", "shared") != "shared" or account.status != "active":
             continue
         if account.is_protected or not account.include_in_safe_to_spend:
             if account.type in {"savings", "investment"} or account.is_protected:
@@ -104,7 +106,8 @@ def protected_savings(accounts: list[Account], funds: list[SinkingFund]) -> Deci
     counted_accounts = {
         account.id
         for account in accounts
-        if account.status == "active"
+        if getattr(account, "access_scope", "shared") == "shared"
+        and account.status == "active"
         and (account.is_protected or not account.include_in_safe_to_spend)
         and (account.type in {"savings", "investment"} or account.is_protected)
     }
