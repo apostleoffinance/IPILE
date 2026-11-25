@@ -55,7 +55,6 @@ export default function OnboardingPage() {
   const [incomeAmount, setIncomeAmount] = useState("");
   const [accountName, setAccountName] = useState("Household current");
   const [accountBalance, setAccountBalance] = useState("0.00");
-  const [priorities, setPriorities] = useState<string[]>(["surplus"]);
   const [obligationName, setObligationName] = useState("");
   const [obligationAmount, setObligationAmount] = useState("");
   const [goalName, setGoalName] = useState("Emergency fund");
@@ -107,11 +106,6 @@ export default function OnboardingPage() {
   }
 
 
-  function togglePriority(id: string) {
-    setPriorities((current) =>
-      current.includes(id) ? current.filter((value) => value !== id) : [...current, id],
-    );
-  }
 
   async function next(event?: FormEvent) {
     event?.preventDefault();
@@ -154,8 +148,6 @@ export default function OnboardingPage() {
             destination_type: "account",
           });
         }
-        // Priorities are captured conversationally; surplus remainder is the light stub.
-        void priorities;
       }
       if (step === 5 && obligationName.trim() && obligationAmount.trim()) {
         if (!moneyString.safeParse(obligationAmount).success) throw new Error("Enter a valid obligation amount.");
@@ -321,7 +313,7 @@ export default function OnboardingPage() {
             </label>
           ))}
           <label className="block text-sm">
-            Typical monthly amount (optional)
+            Expected monthly income (optional)
             <Input
               className="mt-1"
               placeholder="e.g. 2000000.00"
@@ -329,6 +321,7 @@ export default function OnboardingPage() {
               onChange={(e) => setIncomeAmount(e.target.value)}
               inputMode="decimal"
             />
+            <span className="mt-1 block text-xs text-muted">This sets an expected amount for planning. It does not create a received-income transaction.</span>
           </label>
           <PrimaryButton pending={pending}>Continue →</PrimaryButton>
         </form>
@@ -358,17 +351,12 @@ export default function OnboardingPage() {
       ) : null}
 
       {step === 4 ? (
-        <form className="mt-8 space-y-4" onSubmit={next}>
-          {DESTINATION_OPTIONS.map((option) => (
-            <label key={option.id} className="flex items-center gap-3 border border-line bg-surface px-3 py-3 text-sm">
-              <Checkbox
-                type="checkbox"
-                checked={priorities.includes(option.id)}
-                onChange={() => togglePriority(option.id)}
-              />
-              {option.label}
-            </label>
-          ))}
+        <form className="ipile-onboarding-guidance mt-8 space-y-4" onSubmit={next}>
+          <div className="ipile-onboarding-guidance-card">
+            <p className="text-xs font-semibold uppercase tracking-[0.16em] text-gold">Your starting point</p>
+            <h2 className="mt-3 text-xl font-medium text-ink">A flexible surplus rule</h2>
+            <p className="mt-2 text-sm leading-7 text-muted">We’ll create a simple remainder rule so unallocated money has a clear place to go. You can set giving, essentials, obligations, protection and goal priorities in Plan → Allocation after setup.</p>
+          </div>
           <PrimaryButton pending={pending}>Continue →</PrimaryButton>
         </form>
       ) : null}
