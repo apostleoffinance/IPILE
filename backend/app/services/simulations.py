@@ -190,8 +190,64 @@ def serialize_result(result: SimulationResult) -> dict:
     return {"months": months, "summary": _month_payload(result.summary)}
 
 
-def parameters_payload(payload: SimulationIn) -> dict:
-    return payload.model_dump(mode="json")
+def baseline_snapshot(state: SimState) -> dict:
+    """Persist the exact inputs used by the pure scenario engine."""
+    return {
+        "cash": format_money(state.cash),
+        "emergency": format_money(state.emergency),
+        "investments": format_money(state.investments),
+        "net_worth": format_money(state.net_worth),
+        "expected_income": format_money(state.expected_income),
+        "expected_contributions": format_money(state.expected_contributions),
+        "first_month_contributions": format_money(state.first_month_contributions),
+        "minimum_buffer": format_money(state.minimum_buffer),
+        "essentials": format_money(state.essentials),
+        "planned_investment": format_money(state.planned_investment),
+        "rules": [
+            {
+                "id": str(row.id),
+                "name": row.name,
+                "type": row.type,
+                "basis": row.basis,
+                "rate": str(row.rate) if row.rate is not None else None,
+                "amount": format_money(row.amount) if row.amount is not None else None,
+                "priority": row.priority,
+                "mandatory": row.mandatory,
+                "destination_type": row.destination_type,
+                "destination_id": str(row.destination_id) if row.destination_id else None,
+            }
+            for row in state.rules
+        ],
+        "obligations": [
+            {
+                "id": str(row.id),
+                "name": row.name,
+                "amount": format_money(row.amount),
+                "frequency": row.frequency,
+                "days_until_due": row.days_until_due,
+                "funded_amount": format_money(row.funded_amount),
+                "fund_id": str(row.fund_id) if row.fund_id else None,
+            }
+            for row in state.obligations
+        ],
+        "categories": [
+            {
+                "id": str(row.id),
+                "name": row.name,
+                "allocated": format_money(row.allocated),
+                "kind": row.kind,
+            }
+            for row in state.categories
+        ],
+    }
+
+
+def parameters_payload(payload: SimulationIn, state: SimState) -> dict:
+    return {
+        **payload.model_dump(mode="json"),
+        "engine_version": "phase3-v1",
+        "baseline_snapshot": baseline_snapshot(state),
+    }
 
 
 def run_simulation(
@@ -200,17 +256,18 @@ def run_simulation(
     state = clone_state(db, household, today)
     params = params_from_payload(payload)
     result = project(state, params)
+    stored_parameters = parameters_payload(payload, state)
     scenario = Simulation(
         household_id=household.id,
         name=payload.name,
-        parameters=parameters_payload(payload),
+        parameters=stored_parameters,
     )
     db.add(scenario)
     db.flush()
     run = SimulationRun(
         household_id=household.id,
         simulation_id=scenario.id,
-        parameters=parameters_payload(payload),
+        parameters=stored_parameters,
         result=serialize_result(result),
         status="completed",
     )
