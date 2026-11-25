@@ -574,6 +574,17 @@ export function getCurrentHousehold() {
   return request<Household>("/api/v1/households/current");
 }
 
+export function updateCurrentHousehold(body: {
+  name?: string;
+  minimum_buffer_amount?: string;
+  fiscal_month_start_day?: number;
+}) {
+  return request<Household>("/api/v1/households/current", {
+    method: "PATCH",
+    body: JSON.stringify(body),
+  });
+}
+
 export function getFinancialHealth() {
   return request<HealthScore>("/api/v1/financial-health");
 }
