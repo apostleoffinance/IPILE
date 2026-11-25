@@ -35,7 +35,7 @@ def test_personal_transactions_cannot_change_shared_account_balances(
             "email": "scope-member-a@example.com",
         },
     ).json()
-    client.post(
+    member_b = client.post(
         "/api/v1/members",
         headers=headers,
         json={
@@ -44,7 +44,7 @@ def test_personal_transactions_cannot_change_shared_account_balances(
             "relationship": "other",
             "email": "scope-member-b@example.com",
         },
-    )
+    ).json()
     shared = client.post(
         "/api/v1/accounts",
         headers=headers,
