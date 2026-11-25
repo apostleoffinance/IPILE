@@ -1462,6 +1462,16 @@ export type ContributionRecord = {
   note: string | null;
 };
 
+export type ContributionForecast = {
+  currency: string;
+  horizon_days: number;
+  expected: string;
+  verified_received: string;
+  outstanding: string;
+  other_currency_outstanding: Record<string, string>;
+  rows: ContributionScheduleRow[];
+};
+
 export type ContributionScheduleRow = {
   agreement_id: string;
   member_id: string;
@@ -1473,6 +1483,12 @@ export type ContributionScheduleRow = {
   outstanding_amount: string;
   status: "paid" | "partial" | "overdue" | "upcoming";
 };
+
+export function getContributionForecast(horizonDays = 90) {
+  return request<ContributionForecast>(
+    `/api/v1/contributions/forecast?horizon_days=${horizonDays}`,
+  );
+}
 
 export function listContributionSchedule(fromDate?: string, toDate?: string) {
   const params = new URLSearchParams();
