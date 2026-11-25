@@ -18,7 +18,6 @@ import {
 } from "@/lib/api";
 import { moneyString } from "@/lib/forms";
 import { Button } from "@/components/ui/button";
-import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
 
 const STEPS = [
@@ -34,15 +33,6 @@ const STEPS = [
   { label: "Prepare", title: "What must your household prepare for?", body: "Rent, school fees, debt, family support..." },
   { label: "Build", title: "What are you building toward?", body: "Emergency fund, home, education, investments..." },
   { label: "Ready", title: "Your foundation is taking shape.", body: "IPÌLẸ̀ will keep asking: Are we okay? What needs attention? What's next?" },
-];
-
-const DESTINATION_OPTIONS = [
-  { id: "giving", label: "Giving" },
-  { id: "obligations", label: "Obligations" },
-  { id: "essentials", label: "Essentials" },
-  { id: "protection", label: "Protection / buffer" },
-  { id: "goals", label: "Goals" },
-  { id: "surplus", label: "Surplus / flexible" },
 ];
 
 export default function OnboardingPage() {
