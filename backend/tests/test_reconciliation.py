@@ -1,10 +1,12 @@
 from decimal import Decimal
 from types import SimpleNamespace
 
+import httpx
 import pytest
 from cryptography.fernet import Fernet
 
 from app.services import bank_security, reconciliation
+from app.services.mono import MonoClient
 
 
 @pytest.mark.parametrize(
@@ -59,3 +61,23 @@ def test_encryption_fails_closed_without_key(monkeypatch):
     )
     with pytest.raises(RuntimeError, match="not configured"):
         bank_security.encrypt_provider_account_id("mono-secret-id")
+
+
+def test_mono_transaction_client_uses_documented_account_endpoint():
+    def handler(request):
+        assert request.url.path == "/v2/accounts/mono-account/transactions"
+        assert request.headers["mono-sec-key"] == "test-secret"
+        assert request.url.params["page"] == "2"
+        return httpx.Response(200, json={
+            "status": "successful",
+            "data": [{"id": "txn-1", "amount": 1000, "type": "debit"}],
+            "meta": {"page": 2, "next": None},
+        })
+
+    client = MonoClient("test-secret", transport=httpx.MockTransport(handler))
+    try:
+        rows, meta = client.fetch_transactions("mono-account", page=2)
+    finally:
+        client.close()
+    assert rows[0]["id"] == "txn-1"
+    assert meta["page"] == 2
