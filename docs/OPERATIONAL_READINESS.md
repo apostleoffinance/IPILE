@@ -213,7 +213,7 @@ This section supersedes older observations only where it explicitly records a ne
 | Sentry | Code supports Sentry and strips request bodies, cookies, query strings, user data and sensitive headers. No live test event/alert delivery evidence was available. | **Not verified / release blocker** |
 | Support | Support-ticket endpoints exist, but no named primary/backup owner, monitored response channel or staffed SLA was evidenced. | **Not verified / release blocker** |
 | Privacy | `docs/PRIVACY_NOTICE_DRAFT.md` remains a draft requiring controller identity, contact, retention schedule, vendor review and qualified Nigerian privacy review. | **Not approved / release blocker** |
-| Billing | Payment provider integration is not implemented. The plan mutation endpoint previously allowed an owner to select the `family` plan without payment. A follow-up code change now rejects non-pilot plan activation until a verified payment integration is deliberately enabled. | **Code fix proposed; merge and CI required** |
+| Billing | Payment provider integration is not implemented. The plan mutation endpoint previously allowed an owner to select the `family` plan without payment. A follow-up code change now rejects non-pilot plan activation until a verified payment integration is deliberately enabled. | **Passed — pilot-only entitlement guard merged in PR #33; backend regression suite and release acceptance passed** |
 
 ### Required operator actions before production GO
 
