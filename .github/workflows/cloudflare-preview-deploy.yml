@@ -2,6 +2,14 @@ name: Deploy IPÌLẸ̀ Cloudflare production
 
 on:
   workflow_dispatch:
+    inputs:
+      release_approval:
+        description: "Explicit approval for the IPÌLẸ̀ production frontend deployment"
+        required: true
+        type: choice
+        options:
+          - NOT_APPROVED
+          - APPROVE_PRODUCTION_FRONTEND_DEPLOYMENT
 
 permissions:
   contents: read
@@ -23,6 +31,16 @@ jobs:
       IPILE_PRODUCTION_BACKEND_URL: https://ipile-bmfz.onrender.com
 
     steps:
+      - name: Require explicit production deployment approval
+        env:
+          RELEASE_APPROVAL: ${{ inputs.release_approval }}
+        shell: bash
+        run: |
+          if [[ "$RELEASE_APPROVAL" != "APPROVE_PRODUCTION_FRONTEND_DEPLOYMENT" ]]; then
+            echo "Production deployment was not explicitly approved."
+            exit 1
+          fi
+
       - name: Checkout protected main source
         uses: actions/checkout@v4
         with:
@@ -61,6 +79,14 @@ jobs:
 
       - name: Verify Worker deployment configuration
         run: npx wrangler deploy --dry-run --name ipile-web
+
+      - name: Verify production backend health before frontend deployment
+        shell: bash
+        run: |
+          curl --fail --silent --show-error --retry 5 --retry-all-errors --retry-delay 5 --max-time 15 \
+            "$IPILE_PRODUCTION_BACKEND_URL/health/live"
+          curl --fail --silent --show-error --retry 5 --retry-all-errors --retry-delay 5 --max-time 15 \
+            "$IPILE_PRODUCTION_BACKEND_URL/health"
 
       - name: Bind production API and deploy once
         shell: bash

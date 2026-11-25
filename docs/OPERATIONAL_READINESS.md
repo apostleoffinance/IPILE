@@ -4,7 +4,7 @@
 
 This document distinguishes implementation from live operational evidence. A green build is not proof of a backup, restore, alert delivery, legal compliance, or payment settlement. The production observations below were recorded on 2026-11-19 and have not been independently reverified for this Phase 6 review; treat them as historical until an operator refreshes the evidence.
 
-## Current production observations (2026-11-19)
+## Baseline production observations (2026-11-19; superseded by newer evidence in Sections 8–9)
 
 | Area | Observed evidence | Status |
 |---|---|---|
@@ -227,3 +227,54 @@ This section supersedes older observations only where it explicitly records a ne
 8. Keep billing in pilot mode. Do not enable paid plan activation until checkout, raw-body signature verification, idempotency, payment reconciliation, subscription lifecycle, refunds and sandbox acceptance are complete.
 
 **Production release decision on 2026-11-25: NO-GO.** The successful staging rollout does not authorize production deployment or migrations.
+
+## 9. Direct revalidation — 2026-11-25 (after PRs #33 and #34)
+
+The following facts were re-queried from the connected Render, Neon and GitHub integrations. This section is the latest evidence snapshot and supersedes older statements above when the same control is covered.
+
+### Hosting and release state
+
+| Control | Revalidated evidence | Result |
+|---|---|---|
+| Render services | Production service `IPILE` (`srv-damvst142hec73cmkbv0`), staging v2 (`srv-dc03v37f3r2c738k4hi0`), and legacy staging (`srv-dc03n7uc6qcc73b299vg`) all report `autoDeploy=no` and `autoDeployTrigger=off`. | **Passed — no push-triggered deploys** |
+| Production service deploy | Latest production deploy remains live from 2026-11-20, commit `274e5bcd616e272b933758e2be6baf4e80b941c8`. No newer production deploy was triggered. | **Production untouched** |
+| Staging v2 | Deploy `dep-dc3hc8afngtc73e0osv0` is live from commit `a830a85cd9a3500483289614892c077e93ae0e16`. | **Passed** |
+| Render health-check setting | Production, staging v2 and legacy staging all still report an empty `healthCheckPath`. The services' configuration has not been changed. | **Action required** |
+| HTTP health probes | The connected Render/GitHub inspection interfaces did not provide an external HTTP probe. Direct public endpoint verification could not be completed in this session. | **Unverified** |
+
+The backend already exposes `GET /health/live` (process liveness) and `GET /health` (database connectivity plus Alembic-head readiness). Render should use `/health` for its service health check. A configured Render health path and a successful external HTTP response are separate pieces of evidence; neither is inferred from the route existing in source.
+
+### Neon database and recovery state
+
+| Control | Revalidated evidence | Result |
+|---|---|---|
+| Project plan | Neon project `ipile` (`rough-wave-86185521`) reports subscription `free_v3`; history retention is 21,600 seconds (6 hours). | **Below target recovery capability** |
+| Production schema | Read-only query of `alembic_version` returns `0016_import_mailboxes`; catalog inspection shows the application tables. | **Confirmed — production remains at 0016** |
+| Staging schema | Read-only query of `alembic_version` returns `0022_bank_reconciliation`. | **Confirmed — staging is at 0022** |
+| Snapshot inventory | Exactly one project snapshot is listed: `snap-odd-dawn-bezn2axh`, `ipile-before-first-migration-2026-11-19`, created 2026-11-19 16:13:10 UTC. | **Not a current recovery point** |
+| Automatic snapshot schedule | Production branch schedule is an empty array. | **Blocked / not configured** |
+| Production branch protection | Production branch `br-mute-rice-bedagamw` reports `protected=false`. An attempt to enable protection was rejected because the project reached its protected-branch quota. No other branch protection was removed. | **Blocked by plan quota** |
+| Restore drill target | `ipile-restore-drill-2026-11-25` (`br-noisy-lake-beow46i4`) was restored from the November 19 snapshot. Catalog inspection returned only the `public` schema and no tables. | **Failed — unusable recovery point** |
+| Production safety clone | `ipile-prod-safety-clone-2026-11-25` (`br-mute-dawn-be0f06fq`) exists and is ready, but no compute endpoint was available for schema inspection. | **Partial mitigation; not a verified restore** |
+
+The snapshot history is six hours, not the 24-hour RPO target stated in this document. The project currently has no daily schedule, and its only manual snapshot predates the application schema. Production recovery remains a hard release blocker.
+
+### GitHub deployment governance
+
+- The repository integration reports admin permissions on `apostleoffinance/IPILE`, but branch-protection inspection returns HTTP 403 (`Resource not accessible by integration`). The GitHub rulesets collection was previously observed empty.
+- Required reviewers and main-only deployment restrictions for the GitHub `production` environment remain unverified. The connected integration does not expose the environment-protection settings endpoint.
+- The production Cloudflare workflow remains `workflow_dispatch`-only, checks out `main`, and targets the `production` environment. A follow-up code change now requires an explicit dispatch input and checks both backend health endpoints before it changes the Cloudflare secret or deploys the frontend. CI regression tests cover these safeguards.
+- Render's production backend deploy is a separate manual operation. Its Docker startup command still runs `alembic upgrade head` before Uvicorn; therefore a manual production backend deploy also executes migrations. Do not trigger it without an explicit release decision that names both the deployment and migration scope.
+
+### Remaining release blockers
+
+1. Upgrade/reconfigure Neon to provide a current backup schedule, sufficient retention/snapshot capacity and production branch protection; then create a post-schema recovery point.
+2. Restore that new recovery point into an isolated branch with compute enabled, verify current schema and representative tables, run household-isolation checks, and record measured RPO/RTO.
+3. Set Render's health-check path to `/health` for production and staging services; run successful public GET probes for both `/health/live` and `/health`.
+4. An administrator must configure and verify GitHub `production` environment required reviewers and a `main`-only branch policy. The PR code guard is additional protection, not a substitute for the environment rule.
+5. Configure Sentry production DSN and alert routing, then deliver and acknowledge a synthetic test alert with PII scrubbing verified.
+6. Name support primary and backup owners, activate a monitored contact channel and response SLA, and test delivery and response.
+7. Complete controller identity/contact, retention periods, actual vendor and international-transfer review, and qualified Nigerian privacy review; publish only after approval.
+8. Keep paid billing disabled and Family unavailable until a real provider integration and its complete lifecycle are implemented and tested.
+
+**Current release decision: NO-GO.** No production deployment or production migration has been performed or authorized. A separate, explicit approval must be requested after every blocker has evidence and before any production deployment or migration begins.
