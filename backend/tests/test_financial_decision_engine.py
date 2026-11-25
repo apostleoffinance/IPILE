@@ -237,3 +237,77 @@ def test_simulation_uses_shared_spendable_cash_and_remaining_income(
     assert body["months"][1]["income"] == "200000.00"
     assert client.get("/api/v1/accounts").json() == accounts_before
     assert client.get("/api/v1/transactions").json() == transactions_before
+
+
+def test_household_budget_spend_excludes_personal_transactions(
+    client: TestClient,
+) -> None:
+    register(client, "decision-household-budget-scope@example.com")
+    category = client.post(
+        "/api/v1/categories",
+        json={"name": "Household food", "kind": "expense"},
+    )
+    assert category.status_code == 201, category.text
+    budget = client.post(
+        "/api/v1/budget",
+        json={
+            "name": "Household monthly budget",
+            "period_type": "monthly",
+            "status": "active",
+            "categories": [
+                {"category_id": category.json()["id"], "allocated_amount": "100000.00"}
+            ],
+        },
+    )
+    assert budget.status_code == 201, budget.text
+    member = client.post(
+        "/api/v1/members",
+        json={"display_name": "Member", "role": "member"},
+    )
+    assert member.status_code == 201, member.text
+    shared = client.post(
+        "/api/v1/accounts",
+        json={"name": "Household account", "type": "bank", "current_balance": "1000000.00"},
+    )
+    personal = client.post(
+        "/api/v1/accounts",
+        json={
+            "name": "Personal account",
+            "type": "bank",
+            "access_scope": "personal",
+            "owner_member_id": member.json()["id"],
+            "current_balance": "500000.00",
+        },
+    )
+    assert shared.status_code == 201, shared.text
+    assert personal.status_code == 201, personal.text
+    personal_spend = client.post(
+        "/api/v1/transactions",
+        json={
+            "account_id": personal.json()["id"],
+            "amount": "50000.00",
+            "type": "expense",
+            "date": date.today().isoformat(),
+            "category_id": category.json()["id"],
+            "member_id": member.json()["id"],
+            "access_scope": "personal",
+        },
+    )
+    shared_spend = client.post(
+        "/api/v1/transactions",
+        json={
+            "account_id": shared.json()["id"],
+            "amount": "20000.00",
+            "type": "expense",
+            "date": date.today().isoformat(),
+            "category_id": category.json()["id"],
+            "access_scope": "shared",
+        },
+    )
+    assert personal_spend.status_code == 201, personal_spend.text
+    assert shared_spend.status_code == 201, shared_spend.text
+    budgets = client.get("/api/v1/budget")
+    assert budgets.status_code == 200, budgets.text
+    household_budget = next(row for row in budgets.json() if row["id"] == budget.json()["id"])
+    assert household_budget["spent_total"] == "20000.00"
+    assert household_budget["remaining_total"] == "80000.00"
