@@ -5,6 +5,13 @@ from sqlalchemy.orm import Session
 
 from app.api.deps import HouseholdContext, get_db, get_household_context, require_roles
 from app.models.account import Account
+from app.models.business import Business
+from app.models.category import Category
+from app.models.fund import SinkingFund
+from app.models.goal import Goal
+from app.models.income import IncomeSource
+from app.models.member import HouseholdMember
+from app.models.obligation import Obligation
 from app.models.transaction import Transaction
 from app.schemas.transaction import TransactionCreate, TransactionOut, TransactionUpdate
 from app.services.allocations import ensure_period_allocation
@@ -42,6 +49,17 @@ def _get_account(db: Session, household_id: UUID, account_id: UUID) -> Account:
     return account
 
 
+def _require_household_reference(
+    db: Session, model, household_id: UUID, record_id: UUID | None, label: str
+) -> None:
+    if record_id is None:
+        return
+    query = db.query(model.id).filter(model.id == record_id, model.household_id == household_id)
+    deleted_at = getattr(model, "deleted_at", None)
+    if deleted_at is not None:
+        query = query.filter(deleted_at.is_(None))
+    if query.first() is None:
+        raise HTTPException(status_code=404, detail=f"{label} not found in this household.")
 
 def _visible_account(db: Session, ctx: HouseholdContext, account_id: UUID) -> Account:
     account = account_visibility(
@@ -143,6 +161,17 @@ def create_transaction(
     counterparty = None
     if payload.counterparty_account_id:
         counterparty = _visible_account(db, ctx, payload.counterparty_account_id)
+
+    for model, record_id, label in (
+        (HouseholdMember, member_id, "Member"),
+        (Category, payload.category_id, "Category"),
+        (IncomeSource, payload.income_source_id, "Income source"),
+        (Obligation, payload.obligation_id, "Obligation"),
+        (SinkingFund, payload.fund_id, "Fund"),
+        (Goal, payload.goal_id, "Goal"),
+        (Business, payload.business_id, "Business"),
+    ):
+        _require_household_reference(db, model, ctx.household.id, record_id, label)
 
     transaction = Transaction(
         household_id=ctx.household.id,
