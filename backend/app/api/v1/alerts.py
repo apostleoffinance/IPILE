@@ -26,7 +26,7 @@ def list_alerts(
 @router.post("/{alert_id}/read", response_model=AlertOut)
 def read_alert(
     alert_id: UUID,
-    ctx: HouseholdContext = Depends(get_household_context),
+    ctx: HouseholdContext = Depends(require_roles("owner", "partner")),
     db: Session = Depends(get_db),
 ):
     alert = (
