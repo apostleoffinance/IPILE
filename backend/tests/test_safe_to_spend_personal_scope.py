@@ -58,6 +58,18 @@ def test_household_safe_to_spend_excludes_personal_cash_and_transactions(
         },
     )
     assert personal_income.status_code == 201, personal_income.text
+    recurring_personal_bill = client.post(
+        "/api/v1/recurring",
+        json={
+            "account_id": personal.json()["id"],
+            "amount": "30000.00",
+            "type": "expense",
+            "frequency": "monthly",
+            "next_date": date.today().isoformat(),
+            "member_id": member_id,
+        },
+    )
+    assert recurring_personal_bill.status_code == 201, recurring_personal_bill.text
     pending_personal_expense = client.post(
         "/api/v1/transactions",
         json={
@@ -79,5 +91,6 @@ def test_household_safe_to_spend_excludes_personal_cash_and_transactions(
     assert Decimal(components["liquid_cash"]) == Decimal("1000000.00")
     assert Decimal(components["pending_transactions"]) == Decimal("0.00")
     assert Decimal(components["protected_savings"]) == Decimal("0.00")
+    assert Decimal(components["upcoming_bills"]) == Decimal("0.00")
     assert Decimal(components["expected_income"]) == Decimal("200000.00")
     assert Decimal(body["current"]) == Decimal("1000000.00")
