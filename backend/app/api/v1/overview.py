@@ -2,7 +2,7 @@ from calendar import monthrange
 from datetime import date, timedelta
 from decimal import Decimal
 
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy import or_
 from sqlalchemy.orm import Session
 
@@ -29,6 +29,87 @@ from app.services.wealth import household_net_worth
 
 router = APIRouter(tags=["overview"])
 
+
+@router.get("/member/financial-summary")
+def member_financial_summary(
+    period_start: date | None = Query(default=None),
+    period_end: date | None = Query(default=None),
+    ctx: HouseholdContext = Depends(get_household_context),
+    db: Session = Depends(get_db),
+):
+    if ctx.role != "member":
+        raise HTTPException(status_code=403, detail="This summary is for household members.")
+    today = date.today()
+    start = period_start or date(today.year, today.month, 1)
+    end = period_end or today
+    if end < start:
+        raise HTTPException(status_code=400, detail="period_end must be on or after period_start.")
+    visible_accounts = account_visibility(
+        db.query(Account).filter(
+            Account.household_id == ctx.household.id,
+            Account.deleted_at.is_(None),
+            Account.status == "active",
+        ),
+        Account,
+        ctx,
+    ).all()
+    account_ids = [account.id for account in visible_accounts]
+    liquid_cash = quantize_money(
+        sum(
+            (
+                Decimal(str(account.current_balance))
+                for account in visible_accounts
+                if account.type in {"bank", "cash", "wallet", "savings"}
+            ),
+            Decimal("0.00"),
+        )
+    )
+    query = db.query(Transaction).filter(
+        Transaction.household_id == ctx.household.id,
+        Transaction.deleted_at.is_(None),
+        Transaction.status.in_(("cleared", "reconciled")),
+        Transaction.date >= start,
+        Transaction.date <= end,
+    )
+    if account_ids:
+        query = query.filter(Transaction.account_id.in_(account_ids))
+    else:
+        return {
+            "currency": ctx.household.base_currency,
+            "period_start": start,
+            "period_end": end,
+            "accessible_accounts": 0,
+            "cash_total": Decimal("0.00"),
+            "income": Decimal("0.00"),
+            "expenses": Decimal("0.00"),
+            "net_cash_flow": Decimal("0.00"),
+            "transaction_count": 0,
+        }
+    transactions = transaction_visibility(query, Transaction, ctx).all()
+    income = quantize_money(
+        sum((Decimal(str(row.amount)) for row in transactions if row.type == "income"), Decimal("0.00"))
+    )
+    expenses = quantize_money(
+        sum(
+            (
+                Decimal(str(row.amount))
+                for row in transactions
+                if row.type in {"expense", "giving", "debt_payment", "investment"}
+            ),
+            Decimal("0.00"),
+        )
+    )
+    return {
+        "currency": ctx.household.base_currency,
+        "period_start": start,
+        "period_end": end,
+        "accessible_accounts": len(visible_accounts),
+        "cash_total": liquid_cash,
+        "income": income,
+        "expenses": expenses,
+        "net_cash_flow": quantize_money(income - expenses),
+        "transaction_count": len(transactions),
+    }
 
 @router.get("/overview")
 def overview(ctx: HouseholdContext = Depends(get_household_context), db: Session = Depends(get_db)):
