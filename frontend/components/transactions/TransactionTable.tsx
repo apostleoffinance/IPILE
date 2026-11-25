@@ -35,6 +35,9 @@ export function TransactionTable({
               Type
             </th>
             <th scope="col" className="px-4 py-3 font-medium">
+              Scope
+            </th>
+            <th scope="col" className="px-4 py-3 font-medium">
               Status
             </th>
             <th scope="col" className="px-4 py-3 text-right font-medium">
@@ -54,6 +57,7 @@ export function TransactionTable({
               <td className="px-4 py-3">{transactionDisplayLabel(row)}</td>
               <td className="px-4 py-3">{names[row.account_id] ?? "Account"}</td>
               <td className="px-4 py-3 capitalize">{row.type.replaceAll("_", " ")}</td>
+              <td className="px-4 py-3 capitalize">{row.access_scope}</td>
               <td className="px-4 py-3 capitalize">{row.status}</td>
               <td className="px-4 py-3 text-right">
                 <MoneyAmount amount={row.amount} currency={row.currency} />
