@@ -39,12 +39,12 @@ def contribution_forecast(
     today = today or date.today()
     end = today + timedelta(days=horizon_days)
     agreements_query = db.query(ContributionAgreement).filter(
-            ContributionAgreement.household_id == household_id,
-            ContributionAgreement.status == ACTIVE,
-            ContributionAgreement.start_date <= end,
-            (ContributionAgreement.end_date.is_(None))
-            | (ContributionAgreement.end_date >= today),
-        )
+        ContributionAgreement.household_id == household_id,
+        ContributionAgreement.status == ACTIVE,
+        ContributionAgreement.start_date <= end,
+        (ContributionAgreement.end_date.is_(None))
+        | (ContributionAgreement.end_date >= today),
+    )
     if member_id is not None:
         agreements_query = agreements_query.filter(ContributionAgreement.member_id == member_id)
     agreements = agreements_query.order_by(
