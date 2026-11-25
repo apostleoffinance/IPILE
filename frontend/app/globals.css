@@ -146,8 +146,6 @@ textarea:focus:not(:focus-visible) {
 
 
 /* IPÌLẸ̀ premium product system — Sora / editorial scale / forest + champagne */
-@import url('https://fonts.googleapis.com/css2?family=Sora:wght@300;400;500;600;700&display=swap');
-
 :root {
   --font-display: "Sora", "Segoe UI", ui-sans-serif, system-ui, sans-serif;
   --font-sans: "Sora", "Segoe UI", ui-sans-serif, system-ui, sans-serif;
