@@ -185,3 +185,35 @@ def test_contribution_link_requires_cleared_income_and_is_unique(
         json=payload,
     )
     assert duplicate.status_code == 409
+
+
+def test_expected_contributions_change_forecast_not_current_safe_to_spend(
+    client: TestClient,
+) -> None:
+    register(client, "contribution-sts-owner@example.com")
+    member = client.post(
+        "/api/v1/members",
+        json={"display_name": "Ada", "role": "member"},
+    ).json()
+    today = date.today()
+    agreement = client.post(
+        "/api/v1/contributions",
+        json={
+            "member_id": member["id"],
+            "name": "Expected monthly contribution",
+            "amount": "100000.00",
+            "currency": "NGN",
+            "cadence": "monthly",
+            "due_day": today.day,
+            "start_date": today.isoformat(),
+        },
+    )
+    assert agreement.status_code == 201, agreement.text
+
+    snapshot = client.get("/api/v1/safe-to-spend")
+    assert snapshot.status_code == 200, snapshot.text
+    body = snapshot.json()
+    assert Decimal(body["components"]["expected_contributions"]) == Decimal("100000.00")
+    # The projection may include the expected payment; actual current cash may not.
+    assert Decimal(body["current"]) == Decimal("0.00")
+    assert Decimal(body["forecast"]) < Decimal(body["components"]["expected_contributions"])
