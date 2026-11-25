@@ -15,6 +15,7 @@ from app.schemas.obligation import ObligationCreate, ObligationOut, ObligationPa
 from app.schemas.transaction import TransactionCreate
 from app.services.funds import apply_payment_from_fund, attach_fund, ensure_fund_account
 from app.services.obligation_engine import FREQUENCIES
+from app.services.finance_access import has_member_permission
 from app.services.obligations import (
     OBLIGATION_STATUSES,
     PRIORITIES,
@@ -46,6 +47,8 @@ def _visible_obligations(db: Session, ctx: HouseholdContext):
     if ctx.role in {"owner", "partner"}:
         return query
     if ctx.role == "member":
+        if has_member_permission(ctx, "view_all_obligations"):
+            return query
         return query.filter(
             or_(
                 Obligation.beneficiary_member_id.is_(None),
