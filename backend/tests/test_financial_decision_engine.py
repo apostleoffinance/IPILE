@@ -311,3 +311,25 @@ def test_household_budget_spend_excludes_personal_transactions(
     household_budget = next(row for row in budgets.json() if row["id"] == budget.json()["id"])
     assert household_budget["spent_total"] == "20000.00"
     assert household_budget["remaining_total"] == "80000.00"
+
+def test_purchase_check_reserves_minimum_buffer_only_once(
+    client: TestClient,
+) -> None:
+    register(client, "decision-single-buffer-owner@example.com")
+    account = client.post(
+        "/api/v1/accounts",
+        json={"name": "Current", "type": "bank", "current_balance": "1000000.00"},
+    )
+    assert account.status_code == 201, account.text
+
+    response = client.post(
+        "/api/v1/purchase-checks",
+        json={"amount": "850000.00", "account_id": account.json()["id"]},
+    )
+    assert response.status_code == 200, response.text
+    body = response.json()
+    assert body["decision"] == "proceed"
+    assert body["impact"]["current_sts_after"] == "150000.00"
+    # Forecast is already net of the 90,000 minimum buffer.
+    assert body["impact"]["forecast_sts_after"] == "60000.00"
+    assert body["impact"]["minimum_buffer"] == "90000.00"
