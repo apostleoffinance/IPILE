@@ -13,12 +13,12 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Select } from "@/components/ui/select";
-import { api, type Account } from "@/lib/api";
+import { api, type Account, type Member } from "@/lib/api";
 
 export default function AccountsPage() {
   const [accounts, setAccounts] = useState<Account[]>([]);
-  const [members, setMembers] = useState<import("@/lib/api").Member[]>([]);
-  const [currentMember, setCurrentMember] = useState<import("@/lib/api").Member | null>(null);
+  const [members, setMembers] = useState<Member[]>([]);
+  const [currentMember, setCurrentMember] = useState<Member | null>(null);
   const [accessScope, setAccessScope] = useState<"shared" | "personal">("shared");
   const [ownerMemberId, setOwnerMemberId] = useState("");
   const [error, setError] = useState<string | null>(null);
