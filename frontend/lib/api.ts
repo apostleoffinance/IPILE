@@ -53,7 +53,9 @@ export type Account = {
   current_balance: string;
   available_balance: string;
   is_protected: boolean;
-  is_emergency?: boolean;
+  is_emergency: boolean;
+  include_in_safe_to_spend: boolean;
+  include_in_net_worth: boolean;
   status: string;
   access_scope: "shared" | "personal";
   owner_member_id: string | null;
