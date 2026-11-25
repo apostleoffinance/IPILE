@@ -67,7 +67,7 @@ function BudgetPageBody() {
   );
 
   return (
-    <ContentContainer>
+    <ContentContainer className="ipile-workspace ipile-plan-workspace">
       <PageHeader
         eyebrow="Plan"
         title="Budget"

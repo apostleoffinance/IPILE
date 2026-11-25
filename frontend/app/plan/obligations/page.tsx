@@ -50,7 +50,7 @@ export default function ObligationsPage() {
 
   return (
     <AppShell>
-      <ContentContainer>
+      <ContentContainer className="ipile-workspace ipile-plan-workspace">
         <PageHeader
           eyebrow="Plan"
           title="Obligations"
