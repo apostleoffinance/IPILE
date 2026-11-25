@@ -18,6 +18,7 @@ from sqlalchemy.orm import Mapped, mapped_column
 
 from app.core.db import Base
 
+
 class BankConnection(Base):
     __tablename__ = "bank_connections"
     __table_args__ = (
