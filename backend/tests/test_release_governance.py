@@ -28,11 +28,19 @@ def test_production_frontend_deployment_requires_explicit_dispatch_approval() ->
 
 def test_production_frontend_deployment_checks_backend_health_before_cutover() -> None:
     workflow = PRODUCTION_WORKFLOW.read_text(encoding="utf-8")
-    health_check = workflow.split(
-        "Verify production backend health before frontend deployment", maxsplit=1
+    liveness_check = workflow.split(
+        "Verify production backend liveness before frontend deployment", maxsplit=1
     )[1]
-    deployment = health_check.split("Bind production API and deploy once", maxsplit=1)[0]
+    readiness_check = workflow.split(
+        "Verify production backend readiness before frontend deployment", maxsplit=1
+    )[1]
+    deployment_marker = "Bind production API and deploy once"
+    liveness_check = liveness_check.split(deployment_marker, maxsplit=1)[0]
+    readiness_check = readiness_check.split(deployment_marker, maxsplit=1)[0]
 
-    assert "/health/live" in deployment
-    assert "/health" in deployment
-    assert "curl --fail" in deployment
+    assert "/api/v1/health/live" in liveness_check
+    assert "/api/v1/health" in readiness_check
+    assert "curl --fail" in liveness_check
+    assert "curl --fail" in readiness_check
+    assert "--retry-connrefused" in liveness_check
+    assert "--retry-connrefused" in readiness_check
