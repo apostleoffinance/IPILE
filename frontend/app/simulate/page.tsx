@@ -96,7 +96,7 @@ export default function SimulatePage() {
               value={contributionRate}
               onChange={(event) => setContributionRate(event.target.value)}
             />
-            <p className="mt-1 text-xs text-muted">Only include agreements not already counted in expected income sources.</p>
+            <p className="mt-1 text-xs text-muted">Use recurring agreements not already counted in expected income sources. One-off contributions are included only when due this period.</p>
           </div>
           <div>
             <Label htmlFor="sim-debt-strategy">Debt payoff strategy</Label>
