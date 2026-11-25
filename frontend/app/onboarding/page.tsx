@@ -76,12 +76,12 @@ export default function OnboardingPage() {
           router.replace("/overview");
           return;
         }
-        if (!householdName) setHouseholdName(`${me.display_name.split(" ")[0]}'s household`);
+        setHouseholdName((current) => current || `${me.display_name.split(" ")[0]}'s household`);
         if (me.households?.[0]) setHouseholdId(me.households[0].id);
         setReady(true);
       })
       .catch(() => router.replace("/login"));
-  }, [router, householdName]);
+  }, [router]);
 
   async function ensureHousehold() {
     const me = await api.me();
@@ -106,21 +106,6 @@ export default function OnboardingPage() {
     });
   }
 
-  async function maybeRecordIncome() {
-    if (!incomeAmount.trim()) return;
-    const accounts = await getAccounts();
-    if (!accounts.length) return;
-    const source = await ensureIncomeSource();
-    const existing = await api.income();
-    if (existing.length) return;
-    await api.recordIncome({
-      account_id: accounts[0].id,
-      amount: incomeAmount,
-      date: new Date().toISOString().slice(0, 10),
-      income_source_id: source?.id,
-      description: "Onboarding income",
-    });
-  }
 
   function togglePriority(id: string) {
     setPriorities((current) =>
@@ -144,7 +129,6 @@ export default function OnboardingPage() {
       if (step === 2) {
         await ensureHousehold();
         await ensureIncomeSource();
-        await maybeRecordIncome();
       }
       if (step === 3) {
         await ensureHousehold();
@@ -156,7 +140,6 @@ export default function OnboardingPage() {
             current_balance: accountBalance || "0.00",
           });
         }
-        await maybeRecordIncome();
       }
       if (step === 4) {
         await ensureHousehold();
@@ -242,23 +225,24 @@ export default function OnboardingPage() {
   const current = STEPS[step];
 
   return (
-    <main id="main-content" tabIndex={-1} className="mx-auto min-h-screen max-w-xl px-6 py-10 outline-none">
+    <main id="main-content" tabIndex={-1} className="ipile-onboarding-page mx-auto min-h-screen max-w-xl px-6 py-10 outline-none">
       <Wordmark href="/" tone="light" size="sm" />
-      <nav aria-label="Onboarding progress" className="mt-8">
+      <nav aria-label="Onboarding progress" className="ipile-onboarding-progress mt-8">
         <p className="text-xs uppercase tracking-[0.2em] text-muted">
-          Step {step + 1} of {STEPS.length} · {current.label}
+          Step {step + 1} of {STEPS.length} · {current.label} · {Math.round(((step + 1) / STEPS.length) * 100)}%
         </p>
         <ol className="mt-3 flex gap-1" aria-hidden>
           {STEPS.map((row, index) => (
             <li
               key={row.label}
-              className={`h-1 flex-1 ${index <= step ? "bg-accent" : "bg-subtle"}`}
+              aria-current={index === step ? "step" : undefined}
+              className={`h-1 flex-1 rounded-full ${index <= step ? "bg-accent" : "bg-subtle"}`}
             />
           ))}
         </ol>
       </nav>
-      <h1 className="mt-2 font-display text-4xl text-ink">{current.title}</h1>
-      <p className="mt-3 text-sm text-muted">{current.body}</p>
+      <h1 className="ipile-onboarding-title mt-2 font-display text-4xl text-ink">{current.title}</h1>
+      <p className="mt-3 text-sm leading-7 text-muted">{current.body}</p>
       {step === 0 ? (
         <p className="mt-2 text-xs uppercase tracking-[0.18em] text-gold">~5 minutes to get started</p>
       ) : null}
@@ -449,7 +433,7 @@ export default function OnboardingPage() {
         </div>
       ) : null}
 
-      <form onSubmit={joinInvite} className="mt-10 border border-line bg-surface p-5">
+      <form onSubmit={joinInvite} className="ipile-onboarding-invite mt-10 border border-line bg-surface p-5">
         <h2 className="font-display text-xl">Or join with an invite</h2>
         <Input
           className="mt-3 font-mono text-xs"
