@@ -72,6 +72,7 @@ export default function ForecastPage() {
               [
                 ["liquid_cash", "Liquid cash"],
                 ["expected_income", "Expected income"],
+                ["expected_contributions", "Expected contributions (forecast only)"],
                 ["committed_obligations", "Committed obligations"],
                 ["upcoming_bills", "Upcoming bills"],
                 ["sinking_fund_requirements", "Sinking fund requirements"],
