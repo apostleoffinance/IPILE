@@ -52,6 +52,7 @@ export default function WealthPage() {
   return (
     <AppShell>
       <ContentContainer>
+        <div className="ipile-wealth-page ipile-wealth-overview">
         <PageHeader
           eyebrow="Wealth"
           title="Net worth"
@@ -118,7 +119,7 @@ export default function WealthPage() {
               )}
             </section>
             <SectionHeader title="Add asset" />
-            <form onSubmit={onCreate} className="grid gap-3 border border-line bg-surface p-5 md:grid-cols-4">
+            <form onSubmit={onCreate} className="ipile-wealth-form grid gap-3 border border-line bg-surface p-5 md:grid-cols-4">
               <Input placeholder="Asset name" value={name} onChange={(event) => setName(event.target.value)} />
               <Select
                 className="text-sm"
@@ -145,6 +146,7 @@ export default function WealthPage() {
             </form>
           </>
         ) : null}
+        </div>
       </ContentContainer>
     </AppShell>
   );
