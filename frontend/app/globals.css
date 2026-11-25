@@ -35,6 +35,8 @@
 }
 
 [data-theme="dark"] {
+  --font-display: "Sora", "Segoe UI", ui-sans-serif, system-ui, sans-serif;
+  --font-sans: "Sora", "Segoe UI", ui-sans-serif, system-ui, sans-serif;
   --color-near-black: #050807;
   --color-deep-forest: #0a5c50;
   --color-champagne-gold: #c9a45c;
@@ -297,3 +299,20 @@ button, a, input, select, textarea { transition-duration: 220ms; }
 .ipile-landing-hero .eyebrow { font-size:10px; letter-spacing:.22em; }
 .ipile-landing-hero .ipile-hero-actions a:first-child { font-size:11px; letter-spacing:.015em; }
 #how-it-works, #family, #wealth, #about { scroll-margin-top:90px; }
+
+[data-theme="dark"] .ipile-topbar {
+  background:rgba(12,20,16,.92) !important;
+  border-color:rgba(247,246,242,.09) !important;
+}
+[data-theme="dark"] .ipile-main .border.border-line,
+[data-theme="dark"] .ipile-main [class*="border-line"].bg-surface {
+  border-color:rgba(247,246,242,.1) !important;
+  box-shadow:0 12px 36px rgba(0,0,0,.18);
+}
+[data-theme="dark"] .ipile-main .border.border-line:hover {
+  box-shadow:0 18px 46px rgba(0,0,0,.28);
+}
+[data-theme="dark"] .ipile-mobile-nav {
+  background:rgba(12,20,16,.96) !important;
+  border-color:rgba(247,246,242,.12) !important;
+}
