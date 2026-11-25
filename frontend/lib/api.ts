@@ -1297,6 +1297,15 @@ export const api = {
     owner_member_id?: string;
   }) => request<Account>("/api/v1/accounts", { method: "POST", body: JSON.stringify(body) }),
   currentMember: () => request<Member>("/api/v1/members/me"),
+  updateAccount: (id: string, body: {
+    name?: string;
+    institution?: string | null;
+    is_protected?: boolean;
+    is_emergency?: boolean;
+    include_in_safe_to_spend?: boolean;
+    include_in_net_worth?: boolean;
+    status?: string;
+  }) => request<Account>(`/api/v1/accounts/${id}`, { method: "PATCH", body: JSON.stringify(body) }),
   categories: () => request<Category[]>("/api/v1/categories"),
   incomeSources: () => request<IncomeSource[]>("/api/v1/income/sources"),
   createIncomeSource: (body: { name: string; expected_amount: string; type?: string }) =>
