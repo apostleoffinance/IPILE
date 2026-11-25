@@ -1,5 +1,5 @@
-from decimal import Decimal, InvalidOperation
 from datetime import date as Date
+from decimal import Decimal, InvalidOperation
 from uuid import UUID
 
 from pydantic import BaseModel, Field, field_validator
