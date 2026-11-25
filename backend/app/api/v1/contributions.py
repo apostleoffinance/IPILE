@@ -48,6 +48,8 @@ def _agreement(
             detail="Contribution agreement not found.",
         )
     return row
+
+
 def _visible_agreement(
     db: Session,
     ctx: HouseholdContext,
@@ -96,10 +98,9 @@ def contribution_schedule(
     query = db.query(ContributionAgreement).filter(
         ContributionAgreement.household_id == ctx.household.id
     )
-    if ctx.role == "member" and not has_member_permission(ctx, "view_all_contributions"):
-        query = query.filter(ContributionAgreement.member_id == ctx.member.id)
-    elif ctx.role not in {"owner", "partner", "member"}:
-        raise HTTPException(status_code=403, detail="Insufficient permissions.")
+    if ctx.role not in {"owner", "partner"}:
+        if not has_member_permission(ctx, "view_all_contributions"):
+            query = query.filter(ContributionAgreement.member_id == ctx.member.id)
     agreements = query.order_by(ContributionAgreement.start_date).all()
     if not agreements:
         return []
