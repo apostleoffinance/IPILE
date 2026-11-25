@@ -499,18 +499,21 @@ def run_purchase_check(
 
     if not result.affordable or raids_protected:
         decision = "do_not_proceed"
+        severity = "critical"
         recommended_action = "delay"
     elif result.severity == "warning" or period_after < 0 or forecast_after < minimum_buffer:
         decision = "review_or_delay"
+        severity = "warning"
         recommended_action = "review obligations / reduce purchase"
     else:
         decision = "proceed"
+        severity = "healthy"
         recommended_action = "proceed"
 
     return PurchaseCheckOut(
         amount=result.amount,
         affordable=result.affordable,
-        severity=result.severity,
+        severity=severity,
         decision=decision,
         reasons=reasons,
         impact=PurchaseCheckImpact(
