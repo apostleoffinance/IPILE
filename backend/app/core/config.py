@@ -89,7 +89,10 @@ class Settings(BaseSettings):
             self.mono_redirect_url,
             self.bank_data_encryption_key,
         )
-        if any(value.strip() for value in mono_values) and not all(value.strip() for value in mono_values):
+        if (
+            any(value.strip() for value in mono_values)
+            and not all(value.strip() for value in mono_values)
+        ):
             problems.append(
                 "Mono requires MONO_SECRET_KEY, MONO_WEBHOOK_SECRET, MONO_REDIRECT_URL "
                 "and BANK_DATA_ENCRYPTION_KEY together"

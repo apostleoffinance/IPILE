@@ -4,6 +4,7 @@ from typing import Any
 
 import httpx
 
+
 class MonoAPIError(RuntimeError):
     """Mono API rejected a request or returned an unusable response."""
 

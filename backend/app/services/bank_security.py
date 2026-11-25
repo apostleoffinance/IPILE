@@ -4,6 +4,7 @@ from cryptography.fernet import Fernet, InvalidToken
 
 from app.core.config import get_settings
 
+
 def _fernet() -> Fernet:
     key = get_settings().bank_data_encryption_key.strip()
     if not key:
