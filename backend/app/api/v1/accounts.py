@@ -130,9 +130,17 @@ def update_account(
                 status_code=403,
                 detail="Members may update only their own personal accounts.",
             )
+        updates = payload.model_dump(exclude_unset=True)
+        if set(updates) - {"name", "institution"}:
+            raise HTTPException(
+                status_code=403,
+                detail="Only account name and institution can be changed by a member.",
+            )
     elif ctx.role not in {"owner", "partner"}:
         raise HTTPException(status_code=403, detail="Insufficient permissions.")
-    for key, value in payload.model_dump(exclude_unset=True).items():
+    else:
+        updates = payload.model_dump(exclude_unset=True)
+    for key, value in updates.items():
         setattr(account, key, value)
     db.add(account)
     db.commit()
