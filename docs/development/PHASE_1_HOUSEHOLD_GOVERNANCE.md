@@ -6,13 +6,13 @@
 
 | ID | Capability | Current implementation |
 |---|---|---|
-| HG-01 | Personal/shared account management | Owners and partners manage household accounts; members can create and update only their own personal accounts. |
-| HG-02 | Personal/shared transaction management | Personal transactions are tied to the account owner; shared transactions use shared accounts. Cross-scope transfers are rejected until paired ledger entries exist. |
+| HG-01 | Personal/shared account management | Backend and UI support shared/personal account creation, ownership selection, and role-aware editing. Members can create and rename only their own personal accounts; only owners/partners control household balance flags. |
+| HG-02 | Personal/shared transaction management | Backend and UI bind transaction scope to the selected account, filter member attribution, and prevent cross-scope transfers. Members can create transactions only within accessible accounts. |
 | HG-03 | Ownership and visibility enforcement | Query filters enforce household, scope, and member ownership. Transaction references are checked against the active household. |
-| HG-04 | Member permission management | Owner-managed JSON permission grants are available for contribution and obligation visibility. Viewer/advisor defaults remain restricted; explicit grants are required. |
-| HG-05 | Member-scoped financial aggregates | Member overview and `/member/financial-summary` use only shared and own personal accounts/transactions. Household-wide wealth and Safe-to-Spend remain owner/partner-only. |
-| HG-06 | Contribution agreement management | Owners/partners create and update agreements; members see only their own agreements unless explicitly granted broader visibility. |
-| HG-07 | Contribution schedules and payment records | Schedule engine supports weekly, biweekly, monthly, quarterly, annual and one-off cadence. Members can record their own payments. |
+| HG-04 | Member permission management | Owner UI supports role changes and JSON permission grants for contribution/obligation visibility. Viewer/advisor defaults remain read-only; explicit grants expand read visibility only. |
+| HG-05 | Member-scoped financial aggregates | Member overview and `/member/financial-summary` show shared and own personal account/transaction totals; household-wide wealth and Safe-to-Spend remain owner/partner-only. |
+| HG-06 | Contribution agreement management | Backend supports owner/partner agreement creation and updates; member reads are scoped to own agreements unless explicitly granted broader visibility. |
+| HG-07 | Contribution schedules and payment records | Schedule engine supports weekly, biweekly, monthly, quarterly, annual and one-off cadence; UI exposes due/paid/outstanding amounts. Members can record their own payments. |
 | HG-08 | Contribution history and audit trails | Agreement create/update and contribution record creation write audit events. Contribution records are immutable ledger evidence. |
 
 ## Permission model
@@ -57,7 +57,7 @@ Returns the member's visible active account count, cash balance across visible l
 - [ ] Verify member account CRUD and transaction list/detail/update isolation end-to-end.
 - [ ] Verify contribution record linked-transaction validation, duplicate prevention, and audit events.
 - [ ] Verify all obligation visibility paths (list, detail, calendar, overview) for each role.
-- [ ] Validate full Alembic chain through `0019_member_permissions` on a disposable database branch.
+- [x] Validate full Alembic DDL through `0019_member_permissions` on a disposable Neon branch cloned from production; verify tables, columns, constraints and indexes; discard the branch.
 - [ ] Apply migrations to staging with the matching application release and verify rollback.
 - [ ] Obtain staging acceptance before production deployment.
 
