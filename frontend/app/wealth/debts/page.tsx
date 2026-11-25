@@ -258,7 +258,9 @@ function StrategyCard({
       <p className="mt-2 text-sm text-muted">
         {strategy.paid_off
           ? `Paid off in ${strategy.months} months`
-          : `Not paid off within ${strategy.months} months`}
+          : strategy.months === 0
+            ? "No payment capacity configured"
+            : `Not paid off within ${strategy.months} months`}
         {" · interest "}
         <MoneyAmount amount={strategy.total_interest} currency={currency} />
       </p>
