@@ -111,6 +111,7 @@ export default function DebtsPage() {
   return (
     <AppShell>
       <ContentContainer>
+        <div className="ipile-wealth-page ipile-wealth-debts">
         <PageHeader eyebrow="Wealth" title="Debts" description="Are we getting richer by paying down liabilities?" />
         {error ? <ErrorState message={error} /> : null}
         {!loaded && !error ? <LoadingState /> : null}
@@ -123,7 +124,7 @@ export default function DebtsPage() {
             {rows.map((row) => (
               <div
                 key={row.id}
-                className="flex items-baseline justify-between border border-line bg-surface px-4 py-3"
+                className="ipile-wealth-row flex items-baseline justify-between border border-line bg-surface px-4 py-3"
               >
                 <div>
                   <p className="text-sm">{row.name}</p>
@@ -170,7 +171,7 @@ export default function DebtsPage() {
           </section>
         ) : null}
 
-        <form onSubmit={onCreate} className="grid gap-3 rounded-md border border-line bg-surface p-5 md:grid-cols-3">
+        <form onSubmit={onCreate} className="ipile-wealth-form grid gap-3 rounded-md border border-line bg-surface p-5 md:grid-cols-3">
           <Input
             placeholder="Liability name"
             value={name}
@@ -205,7 +206,7 @@ export default function DebtsPage() {
           </Button>
         </form>
         {rows.some((row) => row.status !== "paid_off") ? (
-          <form onSubmit={onPay} className="grid gap-3 rounded-md border border-line bg-surface p-5 md:grid-cols-4">
+          <form onSubmit={onPay} className="ipile-wealth-form grid gap-3 rounded-md border border-line bg-surface p-5 md:grid-cols-4">
             <Select
               value={payId}
               onChange={(event) => setPayId(event.target.value)}
@@ -238,6 +239,7 @@ export default function DebtsPage() {
             </Button>
           </form>
         ) : null}
+        </div>
       </ContentContainer>
     </AppShell>
   );
