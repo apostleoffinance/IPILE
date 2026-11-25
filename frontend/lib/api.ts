@@ -627,6 +627,7 @@ export type SimulationMonth = {
   month_index: number;
   income: string;
   contributions: string;
+  debt_payments: string;
   surplus: string;
   cash: string;
   emergency: string;
@@ -655,6 +656,8 @@ export function runSimulation(body: {
   monthly_income?: string;
   income_change_rate?: string;
   contribution_change_rate?: string;
+  debt_strategy?: "snowball" | "avalanche";
+  debt_extra_payment?: string;
   expense_category_deltas?: Record<string, string>;
   obligation_deltas?: Record<string, string>;
   investment_override?: string;
