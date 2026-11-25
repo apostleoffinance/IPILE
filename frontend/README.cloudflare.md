@@ -32,6 +32,12 @@ Set this Worker secret in Cloudflare (Settings → Variables and Secrets):
 
 The same-origin Worker proxy uses this value at request time. Keep database URLs, session signing keys, billing webhook secrets, and other backend secrets exclusively in the backend environment.
 
+## Staging deployment
+
+The GitHub Actions workflow **Deploy IPÌLẸ̀ Cloudflare staging** deploys merged frontend changes from `main` to the isolated Worker `ipile-web-staging`. It binds `BACKEND_URL` to `https://ipile-staging-api-v2.onrender.com`, checks backend liveness/readiness before deployment, and smoke-tests the deployed homepage and same-origin API health proxy. It runs automatically when frontend files or the staging workflow change on `main`; it can also be started manually with `workflow_dispatch`.
+
+The staging Worker is separate from production. It must never reuse the production Worker name or production backend URL. The workflow uses the repository-level `CLOUDFLARE_API_TOKEN` and `CLOUDFLARE_ACCOUNT_ID` secrets listed below.
+
 ## Production deployment
 
 The GitHub Actions workflow **Deploy IPÌLẸ̀ Cloudflare production** deploys the Worker as `ipile-web` and sets `BACKEND_URL` to the existing production Render API.
@@ -41,7 +47,7 @@ Required GitHub Actions repository secrets:
 - `CLOUDFLARE_API_TOKEN`: scoped Cloudflare API token with permission to edit Workers scripts and read the account.
 - `CLOUDFLARE_ACCOUNT_ID`: Cloudflare account ID.
 
-Run the workflow manually from GitHub Actions. Select `main` and source ref `milestone/ipile-fe-01-cloudflare`.
+Run the production workflow manually from GitHub Actions and select `main`. Its explicit `APPROVE_PRODUCTION_FRONTEND_DEPLOYMENT` input remains mandatory.
 
 ## Release validation
 
