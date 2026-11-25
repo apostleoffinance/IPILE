@@ -1,11 +1,13 @@
+from datetime import date, timedelta
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy.orm import Session
 
 from app.api.deps import (
     HouseholdContext,
     get_db,
+    get_household_context,
     require_roles,
 )
 from app.models.contribution import ContributionAgreement, ContributionRecord
@@ -47,15 +49,17 @@ def _agreement(
 
 @router.get("", response_model=list[ContributionAgreementOut])
 def list_agreements(
-    ctx: HouseholdContext = Depends(require_roles("owner", "partner")),
+    ctx: HouseholdContext = Depends(get_household_context),
     db: Session = Depends(get_db),
 ):
-    return (
-        db.query(ContributionAgreement)
-        .filter(ContributionAgreement.household_id == ctx.household.id)
-        .order_by(ContributionAgreement.start_date.desc())
-        .all()
+    query = db.query(ContributionAgreement).filter(
+        ContributionAgreement.household_id == ctx.household.id
     )
+    if ctx.role == "member":
+        query = query.filter(ContributionAgreement.member_id == ctx.member.id)
+    elif ctx.role not in {"owner", "partner"}:
+        raise HTTPException(status_code=403, detail="Insufficient permissions.")
+    return query.order_by(ContributionAgreement.start_date.desc()).all()
 
 
 @router.post(
@@ -250,10 +254,10 @@ def record_contribution(
 )
 def list_records(
     agreement_id: UUID,
-    ctx: HouseholdContext = Depends(require_roles("owner", "partner")),
+    ctx: HouseholdContext = Depends(get_household_context),
     db: Session = Depends(get_db),
 ):
-    agreement = _agreement(db, ctx.household.id, agreement_id)
+    agreement = _visible_agreement(db, ctx, agreement_id)
     return (
         db.query(ContributionRecord)
         .filter(
