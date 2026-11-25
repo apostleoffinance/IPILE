@@ -295,6 +295,21 @@ def _allocated_emergency(lines) -> Decimal:
     )
 
 
+def _allocated_internal_transfers(lines) -> Decimal:
+    """Count earmarked assets as retained net worth, not household spending."""
+    internal_destinations = {"account", "fund", "obligation", "goal"}
+    return quantize_money(
+        sum(
+            (
+                line.amount
+                for line in lines
+                if line.destination_type in internal_destinations
+            ),
+            Decimal("0.00"),
+        )
+    )
+
+
 
 def _months_until_due(days_until_due: int) -> int:
     return max(1, (max(0, days_until_due) + 29) // 30)
@@ -434,11 +449,10 @@ def project(state: SimState, params: SimParams) -> SimulationResult:
             ),
             working.minimum_buffer,
         )
-        # Internal transfers to emergency savings and investments increase
-        # those asset balances while reducing the unallocated cash surplus.
-        net_worth_delta = quantize_money(
-            surplus + debt_principal + invested + emergency_added
-        )
+        # Earmarked account, fund, obligation, and goal allocations remain
+        # household assets. They reduce spendable cash but are not consumption.
+        internal_transfers = _allocated_internal_transfers(allocation.lines)
+        net_worth_delta = quantize_money(surplus + debt_principal + internal_transfers)
         net_worth = quantize_money(net_worth + net_worth_delta)
         month = MonthProjection(
             month_index=index,
