@@ -3,6 +3,7 @@ from decimal import Decimal
 from uuid import uuid4
 
 from app.services.allocation_engine import AllocationRuleSpec, allocate
+from app.services.debt_engine import DebtInput
 from app.services.simulation_engine import (
     SimObligation,
     SimParams,
@@ -177,3 +178,27 @@ def test_obligation_risk_advances_as_due_date_approaches() -> None:
     result = project(state, SimParams(horizon_months=2))
     assert result.months[0].obligations == "at risk"
     assert result.months[1].obligations == "unfunded"
+
+
+
+def test_simulation_models_debt_minimum_and_extra_payments() -> None:
+    debt = DebtInput(
+        id=uuid4(),
+        name="Credit card",
+        balance=Decimal("1000.00"),
+        interest_rate=Decimal("0.12"),
+        min_payment=Decimal("100.00"),
+    )
+    state = replace(_seed_state(), debts=(debt,))
+    baseline = project(state, SimParams(horizon_months=2))
+    accelerated = project(
+        state,
+        SimParams(
+            horizon_months=2,
+            debt_strategy="avalanche",
+            debt_extra_payment=Decimal("50.00"),
+        ),
+    )
+    assert baseline.months[0].debt_payments == Decimal("100.00")
+    assert accelerated.months[0].debt_payments == Decimal("150.00")
+    assert accelerated.months[0].cash == baseline.months[0].cash - Decimal("50.00")
