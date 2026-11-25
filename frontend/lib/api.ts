@@ -1407,6 +1407,26 @@ export type ContributionRecord = {
   note: string | null;
 };
 
+export type ContributionScheduleRow = {
+  agreement_id: string;
+  member_id: string;
+  name: string;
+  due_date: string;
+  currency: string;
+  expected_amount: string;
+  paid_amount: string;
+  outstanding_amount: string;
+  status: "paid" | "partial" | "overdue" | "upcoming";
+};
+
+export function listContributionSchedule(fromDate?: string, toDate?: string) {
+  const params = new URLSearchParams();
+  if (fromDate) params.set("from_date", fromDate);
+  if (toDate) params.set("to_date", toDate);
+  const query = params.toString() ? `?${params.toString()}` : "";
+  return request<ContributionScheduleRow[]>(`/api/v1/contributions/schedule${query}`);
+}
+
 export function listContributionAgreements() {
   return request<ContributionAgreement[]>("/api/v1/contributions");
 }
