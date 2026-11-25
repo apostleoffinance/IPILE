@@ -2,8 +2,8 @@ from collections.abc import Iterator
 
 import pytest
 from fastapi.testclient import TestClient
-from sqlalchemy import create_engine
-from sqlalchemy.orm import sessionmaker
+from sqlalchemy import create_engine, text
+from sqlalchemy.orm import Session, sessionmaker
 from sqlalchemy.pool import StaticPool
 
 from app.core.db import Base, get_db
@@ -45,6 +45,7 @@ from app.models import (  # noqa: F401
     Notification,
     Obligation,
     ObligationOccurrence,
+    ReceiptDocument,
     RecurringTransaction,
     Report,
     SchedulerTick,
@@ -122,3 +123,22 @@ def login(client: TestClient, email: str) -> None:
         json={"email": email, "password": "super-secret-12"},
     )
     assert response.status_code == 200, response.text
+
+
+def set_current_migration_version(db: Session) -> None:
+    """Mark the test database at the repository's actual Alembic head(s)."""
+    from app.api.v1.health import _expected_migration_heads
+
+    db.execute(
+        text(
+            "CREATE TABLE IF NOT EXISTS alembic_version "
+            "(version_num VARCHAR(32) NOT NULL)"
+        )
+    )
+    db.execute(text("DELETE FROM alembic_version"))
+    for revision in sorted(_expected_migration_heads()):
+        db.execute(
+            text("INSERT INTO alembic_version (version_num) VALUES (:revision)"),
+            {"revision": revision},
+        )
+    db.commit()
