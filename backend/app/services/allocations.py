@@ -52,6 +52,7 @@ def recognized_income(
 ) -> Decimal:
     query = db.query(Transaction).filter(
         Transaction.household_id == household_id,
+        Transaction.access_scope == "shared",
         Transaction.type == "income",
         Transaction.status.in_(("cleared", "reconciled")),
         Transaction.deleted_at.is_(None),
@@ -72,6 +73,7 @@ def source_amounts(
         db.query(Transaction)
         .filter(
             Transaction.household_id == household_id,
+            Transaction.access_scope == "shared",
             Transaction.type == "income",
             Transaction.status.in_(("cleared", "reconciled")),
             Transaction.deleted_at.is_(None),
