@@ -259,6 +259,19 @@ async def mono_webhook(request: Request, mono_webhook_secret: str | None = Heade
             row.revoked_at = now
             db.add(row)
 
+    elif event_type == "mono.events.account_reauthorized":
+        bank = data.get("account") if isinstance(data.get("account"), dict) else {}
+        provider_id = str(bank.get("_id") or bank.get("id") or "")
+        row = db.query(BankConnection).filter(
+            BankConnection.provider == "mono",
+            BankConnection.provider_account_id_hash == provider_account_hash(provider_id),
+        ).with_for_update().first() if provider_id else None
+        if row and row.status != "unlinked":
+            row.status = "pending_data"
+            row.data_status = "PROCESSING"
+            row.last_error = None
+            db.add(row)
+
     elif event_type == "mono.events.account_connected.failed":
         row = db.query(BankConnection).filter(BankConnection.provider == "mono",
             BankConnection.link_reference == reference, BankConnection.status == "pending").with_for_update().first()
