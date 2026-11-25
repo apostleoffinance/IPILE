@@ -29,6 +29,8 @@ export type Household = {
   slug: string;
   base_currency: string;
   timezone: string;
+  country: string;
+  fiscal_month_start_day: number;
   minimum_buffer_amount: string;
 };
 
