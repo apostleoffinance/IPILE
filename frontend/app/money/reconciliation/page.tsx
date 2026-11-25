@@ -73,7 +73,7 @@ export default function ReconciliationPage() {
      {i.suggested_transaction?<p className="text-xs">Suggested: {i.suggested_transaction.date} / {i.suggested_transaction.merchant||i.suggested_transaction.description}</p>:null}
      {active.status==="review"&&!["matched","posted","ignored"].includes(i.status)?<div className="flex flex-wrap gap-2">
       {i.suggested_transaction?<Button size="sm" disabled={busy} onClick={()=>void act(()=>matchReconciliationItem(i.id,i.suggested_transaction!.id))}>Confirm suggested match</Button>:null}
-      <Button size="sm" variant="outline" disabled={busy} onClick={()=>void act(async()=>setCandidateRows(current=>({...current,[i.id]:await getReconciliationCandidates(i.id)})))}>Find ledger matches</Button>
+      <Button size="sm" variant="outline" disabled={busy} onClick={()=>void act(async()=>{const rows=await getReconciliationCandidates(i.id);setCandidateRows(current=>({...current,[i.id]:rows}));})}>Find ledger matches</Button>
       {(candidateRows[i.id]||[]).map(tx=><Button key={tx.id} size="sm" variant="outline" disabled={busy} onClick={()=>void act(()=>matchReconciliationItem(i.id,tx.id))}>Match {tx.date} · {tx.merchant||tx.description||tx.amount}</Button>)}
       {i.type!=="transfer"?<Button size="sm" variant="outline" disabled={busy} onClick={()=>void act(()=>postReconciliationItem(i.id))}>Post new transaction</Button>:null}
       <Button size="sm" variant="ghost" disabled={busy} onClick={()=>void act(()=>ignoreReconciliationItem(i.id))}>Ignore</Button>
