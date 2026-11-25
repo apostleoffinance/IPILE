@@ -8,6 +8,7 @@ from app.schemas.money import MoneyAmount, MoneySigned
 class SafeToSpendComponents(BaseModel):
     liquid_cash: MoneySigned
     expected_income: MoneySigned
+    expected_contributions: MoneySigned
     committed_obligations: MoneySigned
     upcoming_bills: MoneySigned
     sinking_fund_requirements: MoneySigned

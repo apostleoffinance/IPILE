@@ -15,6 +15,7 @@ const snapshot = {
   components: {
     liquid_cash: "2000.00",
     expected_income: "500.00",
+    expected_contributions: "0.00",
     committed_obligations: "600.00",
     upcoming_bills: "250.00",
     sinking_fund_requirements: "100.00",

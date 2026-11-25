@@ -3,6 +3,7 @@ from datetime import date, timedelta
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from app.api.deps import (
@@ -23,6 +24,7 @@ from app.schemas.contribution import (
     ContributionRecordOut,
 )
 from app.services.audit import write_audit
+from app.services.contribution_forecast import contribution_forecast as build_contribution_forecast
 from app.services.contribution_schedule import build_contribution_schedule
 from app.services.finance_access import has_member_permission
 
@@ -124,6 +126,32 @@ def contribution_schedule(
         from_date=start,
         to_date=end,
         today=today,
+    )
+
+
+
+@router.get("/forecast")
+def forecast_contributions(
+    horizon_days: int = Query(default=90, ge=1, le=730),
+    ctx: HouseholdContext = Depends(get_household_context),
+    db: Session = Depends(get_db),
+):
+    """Forecast contributions without treating unverified receipts as available cash."""
+    member_id = None
+    if ctx.role not in {"owner", "partner"}:
+        if not has_member_permission(ctx, "view_all_contributions"):
+            if ctx.member is None:
+                raise HTTPException(
+                    status_code=403,
+                    detail="Contribution visibility is not available.",
+                )
+            member_id = ctx.member.id
+    return build_contribution_forecast(
+        db,
+        ctx.household.id,
+        ctx.household.base_currency,
+        horizon_days=horizon_days,
+        member_id=member_id,
     )
 
 
@@ -295,6 +323,16 @@ def record_contribution(
                 status_code=400,
                 detail="A contribution must link to an income transaction.",
             )
+        if transaction.access_scope != "shared":
+            raise HTTPException(
+                status_code=400,
+                detail="Only shared income transactions can verify a household contribution.",
+            )
+        if transaction.status not in {"cleared", "reconciled"}:
+            raise HTTPException(
+                status_code=400,
+                detail="Only cleared or reconciled income can verify a received contribution.",
+            )
         if ctx.role == "member" and transaction.member_id != ctx.member.id:
             raise HTTPException(
                 status_code=403,
@@ -303,10 +341,11 @@ def record_contribution(
         if (
             transaction.amount != payload.amount
             or transaction.currency != agreement.currency
+            or transaction.date != payload.contributed_on
         ):
             raise HTTPException(
                 status_code=400,
-                detail="Linked transaction amount or currency does not match.",
+                detail="Linked transaction amount, currency, or date does not match.",
             )
         if transaction.member_id and transaction.member_id != agreement.member_id:
             raise HTTPException(
@@ -338,7 +377,14 @@ def record_contribution(
             "amount": str(record.amount),
         },
     )
-    db.commit()
+    try:
+        db.commit()
+    except IntegrityError as exc:
+        db.rollback()
+        raise HTTPException(
+            status_code=409,
+            detail="This income transaction is already linked to a contribution.",
+        ) from exc
     db.refresh(record)
     return record
 

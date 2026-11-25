@@ -21,6 +21,7 @@ from app.services.allocations import (
 )
 from app.services.balances import OUTFLOW_TYPES
 from app.services.budgets import category_spent
+from app.services.contribution_forecast import contribution_forecast
 from app.services.obligation_engine import add_months
 from app.services.safe_to_spend_engine import (
     current_safe_to_spend,
@@ -37,6 +38,8 @@ FORECAST_DAYS = 90
 
 
 def counts_toward_current_sts(account: Account) -> bool:
+    if getattr(account, "access_scope", "shared") != "shared":
+        return False
     if account.status != "active":
         return False
     if account.type not in LIQUID_TYPES:
@@ -89,7 +92,7 @@ def protected_in_spendable(accounts: list[Account], funds: list[SinkingFund]) ->
 def protected_savings(accounts: list[Account], funds: list[SinkingFund]) -> Decimal:
     total = Decimal("0.00")
     for account in accounts:
-        if account.status != "active":
+        if getattr(account, "access_scope", "shared") != "shared" or account.status != "active":
             continue
         if account.is_protected or not account.include_in_safe_to_spend:
             if account.type in {"savings", "investment"} or account.is_protected:
@@ -97,7 +100,8 @@ def protected_savings(accounts: list[Account], funds: list[SinkingFund]) -> Deci
     counted_accounts = {
         account.id
         for account in accounts
-        if account.status == "active"
+        if getattr(account, "access_scope", "shared") == "shared"
+        and account.status == "active"
         and (account.is_protected or not account.include_in_safe_to_spend)
         and (account.type in {"savings", "investment"} or account.is_protected)
     }
@@ -141,6 +145,7 @@ def pending_outbound(db: Session, household_id: UUID) -> Decimal:
         db.query(Transaction)
         .filter(
             Transaction.household_id == household_id,
+            Transaction.access_scope == "shared",
             Transaction.deleted_at.is_(None),
             Transaction.status == "pending",
             Transaction.type.in_(tuple(OUTFLOW_TYPES)),
@@ -153,8 +158,12 @@ def pending_outbound(db: Session, household_id: UUID) -> Decimal:
 def upcoming_bills(db: Session, household_id: UUID, start: date, end: date) -> Decimal:
     rows = (
         db.query(RecurringTransaction)
+        .join(Account, Account.id == RecurringTransaction.account_id)
         .filter(
             RecurringTransaction.household_id == household_id,
+            Account.household_id == household_id,
+            Account.access_scope == "shared",
+            Account.deleted_at.is_(None),
             RecurringTransaction.deleted_at.is_(None),
             RecurringTransaction.is_active.is_(True),
             RecurringTransaction.type.in_(("expense", "giving")),
@@ -255,11 +264,17 @@ def compute_safe_to_spend(
     start, end = period_bounds(household, today)
     horizon = today + timedelta(days=horizon_days)
     accounts = _accounts(db, household.id)
-    funds = (
+    all_funds = (
         db.query(SinkingFund)
         .filter(SinkingFund.household_id == household.id, SinkingFund.deleted_at.is_(None))
         .all()
     )
+    shared_account_ids = {row.id for row in accounts if row.access_scope == "shared"}
+    funds = [
+        fund
+        for fund in all_funds
+        if fund.account_id is None or fund.account_id in shared_account_ids
+    ]
     liquid = liquid_cash(accounts)
     protected_held = protected_in_spendable(accounts, funds)
     pending = pending_outbound(db, household.id)
@@ -283,7 +298,14 @@ def compute_safe_to_spend(
     remaining_mandatory = remaining_mandatory_allocations(
         db, household, recognized, remaining_expected, today
     )
-    period_unfunded, period_rows = unfunded_occurrences(db, household.id, today, end)
+    # Due-today and overdue obligations are already deducted from current STS.
+    # Period STS subtracts only obligations that fall after today.
+    period_unfunded, period_rows = unfunded_occurrences(
+        db,
+        household.id,
+        today + timedelta(days=1),
+        end,
+    )
     period_unfunded = _exclude_obligation_destinations(
         db, period_rows, skip_obligations, period_unfunded
     )
@@ -305,7 +327,19 @@ def compute_safe_to_spend(
     horizon_funds = fund_contribution_remaining(db, funds, today, horizon, skip_funds)
     horizon_bills = upcoming_bills(db, household.id, today, horizon)
     expected_horizon = expected_in_horizon(monthly_expected, remaining_expected, start, horizon)
-    projected_liquid = quantize_money(liquid - protected_held - pending + expected_horizon)
+    contribution_projection = contribution_forecast(
+        db,
+        household.id,
+        household.base_currency,
+        today=today,
+        horizon_days=horizon_days,
+    )
+    # Linked receipts are already in ledger cash. Add only the remaining
+    # contribution commitments, never the received amount a second time.
+    expected_contributions = Decimal(str(contribution_projection["outstanding"]))
+    projected_liquid = quantize_money(
+        liquid - protected_held - pending + expected_horizon + expected_contributions
+    )
     projected_commitments = quantize_money(horizon_unfunded + horizon_funds + horizon_bills)
     buffer = quantize_money(Decimal(str(household.minimum_buffer_amount)))
     forecast = forecast_safe_to_spend(projected_liquid, projected_commitments, buffer)
@@ -320,6 +354,7 @@ def compute_safe_to_spend(
         components=SafeToSpendComponents(
             liquid_cash=liquid,
             expected_income=remaining_expected,
+            expected_contributions=expected_contributions,
             committed_obligations=due_now,
             upcoming_bills=bills_period,
             sinking_fund_requirements=remaining_funds,

@@ -16,7 +16,7 @@ def test_health(client: TestClient) -> None:
         db.execute(
             text(
                 "INSERT INTO alembic_version (version_num) "
-                "VALUES ('0019_member_permissions')"
+                "VALUES ('0020_unique_contribution_transaction')"
             )
         )
         db.commit()

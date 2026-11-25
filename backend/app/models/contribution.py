@@ -2,7 +2,7 @@ import uuid
 from datetime import date, datetime
 from decimal import Decimal
 
-from sqlalchemy import Date, DateTime, ForeignKey, Numeric, String, Uuid, func
+from sqlalchemy import Date, DateTime, ForeignKey, Index, Numeric, String, Uuid, func, text
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.core.db import Base
@@ -39,6 +39,15 @@ class ContributionAgreement(Base):
 
 class ContributionRecord(Base):
     __tablename__ = "contribution_records"
+    __table_args__ = (
+        Index(
+            "uq_contribution_records_transaction_id",
+            "transaction_id",
+            unique=True,
+            sqlite_where=text("transaction_id IS NOT NULL"),
+            postgresql_where=text("transaction_id IS NOT NULL"),
+        ),
+    )
 
     id: Mapped[uuid.UUID] = mapped_column(
         Uuid, primary_key=True, default=uuid.uuid4
