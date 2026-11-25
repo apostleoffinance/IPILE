@@ -13,7 +13,6 @@ from app.models.recurring import RecurringTransaction
 from app.models.transaction import Transaction
 from app.money import quantize_money
 from app.schemas.safe_to_spend import PurchaseCheckOut, SafeToSpendComponents, SafeToSpendOut
-from app.services.contribution_forecast import contribution_forecast
 from app.services.allocations import (
     compute_allocation,
     expected_income,
@@ -22,6 +21,7 @@ from app.services.allocations import (
 )
 from app.services.balances import OUTFLOW_TYPES
 from app.services.budgets import category_spent
+from app.services.contribution_forecast import contribution_forecast
 from app.services.obligation_engine import add_months
 from app.services.safe_to_spend_engine import (
     current_safe_to_spend,
