@@ -20,11 +20,14 @@ import {
   deleteCurrentHousehold,
   exportHousehold,
   getBilling,
+  getCurrentHousehold,
+  updateCurrentHousehold,
   listInvites,
   listSupportTickets,
   revokeInvite,
   setHouseholdId,
   type Billing,
+  type Household,
   type Invite,
   type SupportTicket,
 } from "@/lib/api";
@@ -36,6 +39,10 @@ export default function SettingsPage() {
   const [pending, setPending] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [billing, setBilling] = useState<Billing | null>(null);
+  const [household, setHousehold] = useState<Household | null>(null);
+  const [householdName, setHouseholdName] = useState("");
+  const [bufferAmount, setBufferAmount] = useState("");
+  const [fiscalMonth, setFiscalMonth] = useState("1");
   const [invites, setInvites] = useState<Invite[]>([]);
   const [tickets, setTickets] = useState<SupportTicket[]>([]);
   const [inviteEmail, setInviteEmail] = useState("");
@@ -47,12 +54,17 @@ export default function SettingsPage() {
   const [newPassword, setNewPassword] = useState("");
 
   async function refresh() {
-    const [nextBilling, nextInvites, nextTickets] = await Promise.all([
+    const [nextBilling, nextInvites, nextTickets, nextHousehold] = await Promise.all([
       getBilling(),
       listInvites().catch(() => [] as Invite[]),
       listSupportTickets(),
+      getCurrentHousehold(),
     ]);
     setBilling(nextBilling);
+    setHousehold(nextHousehold);
+    setHouseholdName(nextHousehold.name);
+    setBufferAmount(nextHousehold.minimum_buffer_amount);
+    setFiscalMonth(String(nextHousehold.fiscal_month_start_day));
     setInvites(nextInvites);
     setTickets(nextTickets);
   }
@@ -65,6 +77,29 @@ export default function SettingsPage() {
         setReady(true);
       });
   }, []);
+
+  async function onSaveHousehold(event: FormEvent) {
+    event.preventDefault();
+    setPending(true);
+    setError(null);
+    setMessage(null);
+    try {
+      const updated = await updateCurrentHousehold({
+        name: householdName.trim(),
+        minimum_buffer_amount: bufferAmount,
+        fiscal_month_start_day: Number(fiscalMonth),
+      });
+      setHousehold(updated);
+      setHouseholdName(updated.name);
+      setBufferAmount(updated.minimum_buffer_amount);
+      setFiscalMonth(String(updated.fiscal_month_start_day));
+      setMessage("Household settings saved.");
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Could not save household settings.");
+    } finally {
+      setPending(false);
+    }
+  }
 
   async function onExport() {
     setPending(true);
@@ -153,6 +188,20 @@ export default function SettingsPage() {
         />
         {error ? <ErrorState message={error} /> : null}
         {message ? <p className="text-sm text-muted">{message}</p> : null}
+
+        <section className="ipile-settings-section">
+          <div className="ipile-settings-section-heading">
+            <div><p className="ipile-settings-eyebrow">Household profile</p><h2>Household configuration</h2><p>Keep your household identity and planning conventions accurate.</p></div>
+            <span className="ipile-settings-meta">Owner-managed</span>
+          </div>
+          {household ? <form className="ipile-settings-form" onSubmit={onSaveHousehold}>
+            <label>Household name<Input value={householdName} onChange={(e) => setHouseholdName(e.target.value)} maxLength={200} required /></label>
+            <label>Minimum cash buffer<Input value={bufferAmount} onChange={(e) => setBufferAmount(e.target.value)} inputMode="decimal" required /></label>
+            <label>Fiscal year starts in<select value={fiscalMonth} onChange={(e) => setFiscalMonth(e.target.value)}>{Array.from({length:12},(_,i)=><option key={i+1} value={i+1}>{new Date(2026,i,1).toLocaleString(undefined,{month:"long"})}</option>)}</select></label>
+            <div className="ipile-settings-readonly"><span>Base currency</span><strong>{household.base_currency}</strong><span>Time zone</span><strong>{household.timezone}</strong><span>Country</span><strong>{household.country}</strong><p>Currency, country and time zone are displayed from the household record. This screen does not offer unsupported changes to those fields.</p></div>
+            <div className="ipile-settings-form-actions"><Button type="submit" disabled={pending || !householdName.trim()}>Save household settings</Button><span>Changes are recorded by the household settings API.</span></div>
+          </form> : <LoadingState />}
+        </section>
 
         <section className="max-w-xl space-y-3">
           <h2 className="text-lg font-medium">Appearance</h2>
