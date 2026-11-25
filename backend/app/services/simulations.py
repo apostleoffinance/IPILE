@@ -147,7 +147,7 @@ def clone_state(db: Session, household: Household, today: date | None = None) ->
     for budget in budgets:
         snapshot = serialize_budget(db, budget)
         essentials += snapshot.allocated_total
-        first_month_essentials += snapshot.remaining_total
+        first_month_essentials += max(Decimal("0.00"), snapshot.remaining_total)
         for line in snapshot.categories:
             kind = "expense"
             category = db.get(Category, line.category_id)
@@ -159,7 +159,7 @@ def clone_state(db: Session, household: Household, today: date | None = None) ->
                     name=line.category_name,
                     allocated=line.allocated_amount,
                     kind=kind,
-                    remaining=line.remaining_amount,
+                    remaining=max(Decimal("0.00"), line.remaining_amount),
                 )
             )
     return SimState(
