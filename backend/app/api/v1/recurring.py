@@ -42,7 +42,7 @@ def _require_account(db: Session, household_id: UUID, account_id: UUID) -> Accou
 
 @router.get("", response_model=list[RecurringOut])
 def list_recurring(
-    ctx: HouseholdContext = Depends(get_household_context),
+    ctx: HouseholdContext = Depends(require_roles("owner", "partner")),
     db: Session = Depends(get_db),
 ):
     return _templates(db, ctx.household.id).order_by(RecurringTransaction.next_date).all()
