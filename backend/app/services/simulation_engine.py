@@ -124,6 +124,7 @@ class MonthProjection:
     income: Decimal
     contributions: Decimal
     debt_payments: Decimal
+    debt_interest: Decimal
     surplus: Decimal
     cash: Decimal
     emergency: Decimal
@@ -323,6 +324,7 @@ def project(state: SimState, params: SimParams) -> SimulationResult:
             income=total_income,
             contributions=contributions,
             debt_payments=debt_payments,
+            debt_interest=debt_interest,
             surplus=surplus,
             cash=cash,
             emergency=emergency,
