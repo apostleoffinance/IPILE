@@ -59,12 +59,32 @@ export function PurchaseCheckModal({
         </form>
         {result ? (
           <div className="rounded-md border border-line p-3">
-            <p className="capitalize text-muted">{result.severity}</p>
-            <p className="mt-1">{result.affordable ? "Affordable" : "Not affordable"}</p>
+            <p className="capitalize text-muted">{result.severity.replaceAll("_", " ")}</p>
+            <p className="mt-1 font-semibold">{result.decision.replaceAll("_", " ")}</p>
             <p className="mt-2">
-              Remaining Safe to Spend{" "}
-              <MoneyAmount amount={result.remaining_current_sts} currency={currency} />
+              Current Safe to Spend after purchase{" "}
+              <MoneyAmount amount={result.impact.current_sts_after} currency={currency} />
             </p>
+            <div className="mt-3 grid grid-cols-2 gap-3 border-t border-line pt-3">
+              <Metric label="Period after purchase" amount={result.impact.period_sts_after} currency={currency} />
+              <Metric label="Forecast after purchase" amount={result.impact.forecast_sts_after} currency={currency} />
+              <Metric label="Minimum buffer" amount={result.impact.minimum_buffer} currency={currency} />
+              <Metric label="Expected contributions (forecast only)" amount={result.impact.expected_contributions_excluded_from_current} currency={currency} />
+            </div>
+            <div className="mt-3 border-t border-line pt-3">
+              <p className="font-medium">Why this decision?</p>
+              <ul className="mt-2 list-disc space-y-1 pl-5">
+                {result.reasons.map((reason) => <li key={reason}>{reason}</li>)}
+              </ul>
+            </div>
+            {result.obligations_affected.length > 0 ? (
+              <div className="mt-3 border-t border-line pt-3">
+                <p className="font-medium">Upcoming obligations needing attention</p>
+                <ul className="mt-2 list-disc space-y-1 pl-5">
+                  {result.obligations_affected.map((item) => <li key={item}>{item}</li>)}
+                </ul>
+              </div>
+            ) : null}
             {result.buffer_breached ? (
               <p className="mt-2 text-warning">This would breach the household minimum buffer.</p>
             ) : null}
