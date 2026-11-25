@@ -48,3 +48,10 @@ For either provider:
 ## Launch gate
 
 Until all required cases pass in provider sandbox and the live cutover is approved, label plans accurately as pilot access and do not collect subscription payments.
+
+
+## Pilot-mode enforcement
+
+As of the operational-readiness follow-up, paid plan activation is explicitly disabled in the billing service. The owner-only plan endpoint may retain a household on the `pilot` plan, but requests to activate `family` are rejected until a verified payment integration is implemented and separately reviewed. The plan catalogue labels Family as planned/unavailable. The webhook remains an audit-only stub and cannot grant paid entitlements.
+
+Do not remove this guard or enable `PAID_PLANS_ENABLED` as a configuration shortcut. The release must include provider checkout, signature verification, idempotent event handling, reconciliation and lifecycle acceptance described above.
