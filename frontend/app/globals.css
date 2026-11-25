@@ -62,8 +62,8 @@
   --color-input-bg: #080f0c;
   --radius-md: 12px;
   --shadow-sm: 0 1px 2px rgb(0 0 0 / 0.35);
-  --font-display: "Cormorant Garamond", "Times New Roman", serif;
-  --font-sans: "Source Sans 3", "Segoe UI", ui-sans-serif, system-ui, sans-serif;
+  --font-display: "Sora", "Segoe UI", ui-sans-serif, system-ui, sans-serif;
+  --font-sans: "Sora", "Segoe UI", ui-sans-serif, system-ui, sans-serif;
 }
 
 html,
@@ -741,3 +741,55 @@ button, a, input, select, textarea { transition-duration: 220ms; }
 .ipile-settings-workspace>section:not(.ipile-settings-section)>p{font-size:12px;line-height:1.7;color:var(--color-text-secondary)}
 .ipile-settings-workspace>section:not(.ipile-settings-section) form{max-width:650px}
 .ipile-settings-workspace>section:not(.ipile-settings-section) input,.ipile-settings-workspace>section:not(.ipile-settings-section) textarea,.ipile-settings-workspace>section:not(.ipile-settings-section) select{border-radius:8px}
+
+
+/* Phase 9 — accessibility and responsive interaction polish */
+.ipile-mobile-nav a,
+.ipile-mobile-nav button {
+  min-height: 56px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+  padding-inline: 4px !important;
+  line-height: 1.25;
+}
+.ipile-mobile-nav a:focus-visible,
+.ipile-mobile-nav button:focus-visible,
+.ipile-sidebar a:focus-visible,
+.ipile-main a:focus-visible,
+.ipile-main button:focus-visible {
+  outline: 2px solid var(--color-accent-gold);
+  outline-offset: 3px;
+  border-radius: 8px;
+}
+.ipile-main :is(input, select, textarea, button) {
+  scroll-margin-block: 96px;
+}
+.ipile-main [role="tabpanel"] {
+  min-width: 0;
+}
+.ipile-main :is(.overflow-x-auto, [data-scroll-region="horizontal"]) {
+  overscroll-behavior-inline: contain;
+}
+@media (max-width: 767px) {
+  .ipile-main :is(table) {
+    min-width: 560px;
+  }
+  .ipile-main :is(.overflow-x-auto, [data-scroll-region="horizontal"]) {
+    max-width: 100%;
+  }
+  .ipile-main h1 {
+    overflow-wrap: anywhere;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  html { scroll-behavior: auto; }
+  .ipile-main *,
+  .ipile-sidebar *,
+  .ipile-mobile-nav * {
+    scroll-behavior: auto !important;
+    transition-duration: 0.01ms !important;
+  }
+}
