@@ -93,6 +93,7 @@ class SimParams:
     obligation_deltas: dict[str, Decimal] | None = None
     investment_override: Decimal | None = None
     unexpected_expense: Decimal | None = None
+    contribution_change_rate: Decimal = Decimal("0")
     horizon_months: int = 12
 
 
@@ -109,12 +110,14 @@ class SimState:
     rules: tuple[AllocationRuleSpec, ...]
     obligations: tuple[SimObligation, ...]
     categories: tuple[SimCategory, ...] = ()
+    expected_contributions: Decimal = Decimal("0.00")
 
 
 @dataclass(frozen=True)
 class MonthProjection:
     month_index: int
     income: Decimal
+    contributions: Decimal
     surplus: Decimal
     cash: Decimal
     emergency: Decimal
@@ -196,12 +199,14 @@ def apply_params(state: SimState, params: SimParams) -> SimState:
     if params.monthly_income is not None:
         income = quantize_money(params.monthly_income)
     income = _scale(income, params.income_change_rate)
+    contributions = _scale(state.expected_contributions, params.contribution_change_rate)
     planned = state.planned_investment
     if params.investment_override is not None:
         planned = quantize_money(params.investment_override)
     return replace(
         state,
         expected_income=income,
+        expected_contributions=contributions,
         essentials=essentials,
         planned_investment=planned,
         rules=tuple(rules),
@@ -250,7 +255,8 @@ def project(state: SimState, params: SimParams) -> SimulationResult:
         unexpected = Decimal("0.00")
         if index == 1 and params.unexpected_expense:
             unexpected = quantize_money(params.unexpected_expense)
-        allocation = allocate(working.expected_income, list(working.rules))
+        total_income = quantize_money(working.expected_income + working.expected_contributions)
+        allocation = allocate(total_income, list(working.rules))
         surplus = quantize_money(allocation.surplus - unexpected)
         cash = quantize_money(cash + surplus)
         if unexpected:
@@ -277,14 +283,15 @@ def project(state: SimState, params: SimParams) -> SimulationResult:
         net_worth = quantize_money(net_worth + surplus)
         month = MonthProjection(
             month_index=index,
-            income=working.expected_income,
+            income=total_income,
+            contributions=working.expected_contributions,
             surplus=surplus,
             cash=cash,
             emergency=emergency,
             investments=investments,
             net_worth=net_worth,
             forecast_sts=forecast,
-            cash_flow=cash_flow_status(surplus, working.expected_income),
+            cash_flow=cash_flow_status(surplus, total_income),
             obligations=_worst_obligation(working.obligations),
             emergency_fund=emergency_status(months_emergency),
             investments_status=investment_status(working.planned_investment, invested),
@@ -292,6 +299,6 @@ def project(state: SimState, params: SimParams) -> SimulationResult:
             net_worth_delta=surplus,
         )
         months.append(month)
-        # subsequent months have no one-time shock; funded amounts do not increase (clone only)
+        # Subsequent months have no one-time shock; live balances and obligation funding are untouched.
     summary = months[-1]
     return SimulationResult(months=tuple(months), summary=summary)
