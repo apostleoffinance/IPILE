@@ -18,18 +18,36 @@ import { EmptyState } from "@/components/shared/EmptyState";
 import { ErrorState } from "@/components/shared/ErrorState";
 import { LoadingState } from "@/components/shared/LoadingState";
 import { Button } from "@/components/ui/button";
-import { api, getOverview, type HouseholdOverview } from "@/lib/api";
+import { api, getMemberFinancialSummary, getOverview, type HouseholdOverview, type Member, type MemberFinancialSummary } from "@/lib/api";
 
 export default function OverviewPage() {
   const [data, setData] = useState<HouseholdOverview | null>(null);
+  const [currentMember, setCurrentMember] = useState<Member | null>(null);
+  const [memberSummary, setMemberSummary] = useState<MemberFinancialSummary | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [checkOpen, setCheckOpen] = useState(false);
   const [whyOpen, setWhyOpen] = useState(false);
   const [greetingName, setGreetingName] = useState("there");
 
   useEffect(() => {
-    getOverview().then(setData).catch((err: Error) => setError(err.message));
-    api.me().then((me) => setGreetingName(me.display_name.split(" ")[0] || me.display_name));
+    async function load() {
+      try {
+        const [overview, member, user] = await Promise.all([
+          getOverview(),
+          api.currentMember(),
+          api.me(),
+        ]);
+        setData(overview);
+        setCurrentMember(member);
+        setGreetingName(user.display_name.split(" ")[0] || user.display_name);
+        if (member.role === "member") {
+          setMemberSummary(await getMemberFinancialSummary());
+        }
+      } catch (err) {
+        setError(err instanceof Error ? err.message : "Could not load your financial overview.");
+      }
+    }
+    void load();
   }, []);
 
   const attention = useMemo(() => {
@@ -94,19 +112,31 @@ export default function OverviewPage() {
             title={`Good day, ${greetingName}`}
             description="Here's how your household is doing."
             actions={
-              <Button type="button" variant="outline" size="sm" onClick={() => setCheckOpen(true)}>
-                Check a purchase
-              </Button>
+              currentMember && ["owner", "partner"].includes(currentMember.role) ? (
+                <Button type="button" variant="outline" size="sm" onClick={() => setCheckOpen(true)}>
+                  Check a purchase
+                </Button>
+              ) : undefined
             }
           />
 
-          {data.safe_to_spend ? (
+          {data.safe_to_spend && currentMember && ["owner", "partner"].includes(currentMember.role) ? (
             <SafeToSpend
               snapshot={data.safe_to_spend}
               currency={data.currency}
               onInspect={() => setCheckOpen(true)}
             />
-          ) : (
+          ) : memberSummary ? (
+            <section className="border border-line bg-surface px-6 py-6">
+              <p className="text-xs uppercase tracking-[0.25em] text-muted">Your accessible finances</p>
+              <p className="mt-2 font-display text-2xl text-ink">
+                {memberSummary.accessible_accounts} accessible accounts
+              </p>
+              <p className="mt-2 max-w-xl text-sm text-muted">
+                This view includes shared household accounts and your own personal accounts. It does not include private records belonging to other members.
+              </p>
+            </section>
+          ) : currentMember && ["owner", "partner"].includes(currentMember.role) ? (
             <section className="border border-line bg-surface px-6 py-8">
               <p className="text-xs uppercase tracking-[0.25em] text-muted">Safe to spend</p>
               <p className="mt-3 font-display text-3xl text-ink">Not ready yet</p>
@@ -114,19 +144,28 @@ export default function OverviewPage() {
                 Add accounts, income, and obligations so IPÌLẸ̀ can compute Safe to Spend from real data.
               </p>
             </section>
-          )}
+          ) : null}
 
           <section className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-            <Metric label="Income this month" amount={data.period_income} currency={data.currency} />
-            {data.allocated_total != null ? (
-              <Metric label="Allocated" amount={data.allocated_total} currency={data.currency} />
-            ) : null}
-            <Metric label="Cash" amount={data.cash_total} currency={data.currency} />
-            <Metric
-              label="Net worth"
-              amount={data.wealth?.net_worth ?? "0.00"}
-              currency={data.currency}
-            />
+            {memberSummary ? (
+              <>
+                <Metric label="Income this month" amount={memberSummary.income} currency={memberSummary.currency} />
+                <Metric label="Expenses this month" amount={memberSummary.expenses} currency={memberSummary.currency} />
+                <Metric label="Cash in accessible accounts" amount={memberSummary.cash_total} currency={memberSummary.currency} />
+                <Metric label="Net cash flow" amount={memberSummary.net_cash_flow} currency={memberSummary.currency} />
+              </>
+            ) : (
+              <>
+                <Metric label="Income this month" amount={data.period_income} currency={data.currency} />
+                {data.allocated_total != null ? (
+                  <Metric label="Allocated" amount={data.allocated_total} currency={data.currency} />
+                ) : null}
+                <Metric label="Cash" amount={data.cash_total} currency={data.currency} />
+                {currentMember && ["owner", "partner"].includes(currentMember.role) ? (
+                  <Metric label="Net worth" amount={data.wealth?.net_worth ?? "0.00"} currency={data.currency} />
+                ) : null}
+              </>
+            )}
           </section>
 
           {data.wealth ? (
@@ -205,6 +244,7 @@ export default function OverviewPage() {
             </section>
           ) : null}
 
+          {currentMember && ["owner", "partner"].includes(currentMember.role) ? (
           <section>
             <div className="mb-3 flex items-end justify-between">
               <h2 className="font-display text-2xl">Money plan</h2>
@@ -223,6 +263,7 @@ export default function OverviewPage() {
               <AllocationBar lines={data.allocation.lines} currency={data.currency} />
             )}
           </section>
+          ) : null}
 
           <section>
             <h2 className="mb-3 font-display text-2xl">Coming up</h2>
@@ -230,8 +271,8 @@ export default function OverviewPage() {
               <EmptyState
                 title="What must your household prepare for?"
                 body="Add rent, school fees, family support, or anything with a due date."
-                actionLabel="Add obligation"
-                actionHref="/plan/obligations"
+                actionLabel={currentMember && ["owner", "partner"].includes(currentMember.role) ? "Add obligation" : undefined}
+                actionHref={currentMember && ["owner", "partner"].includes(currentMember.role) ? "/plan/obligations" : undefined}
               />
             ) : (
               <div className="space-y-3">
@@ -253,8 +294,8 @@ export default function OverviewPage() {
               <EmptyState
                 title="No movement yet"
                 body="Record income or spending. IPÌLẸ̀ will update budgets and Safe to Spend automatically."
-                actionLabel="Add transaction"
-                actionHref="/money/transactions"
+                actionLabel={currentMember && ["owner", "partner", "member"].includes(currentMember.role) ? "Add transaction" : undefined}
+                actionHref={currentMember && ["owner", "partner", "member"].includes(currentMember.role) ? "/money/transactions" : undefined}
               />
             ) : (
               <div className="space-y-2">
