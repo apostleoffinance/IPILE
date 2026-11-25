@@ -1610,3 +1610,7 @@ export const matchReconciliationItem = (id: string,transactionId: string) => req
 export const postReconciliationItem = (id: string) => request<ReconciliationItem>("/api/v1/reconciliation/items/"+id+"/post",{method:"POST"});
 export const ignoreReconciliationItem = (id: string) => request<ReconciliationItem>("/api/v1/reconciliation/items/"+id+"/ignore",{method:"POST"});
 export const completeReconciliationSession = (id: string) => request<ReconciliationSession>("/api/v1/reconciliation/sessions/"+id+"/complete",{method:"POST"});
+
+export type ReconciliationCandidate = Pick<Transaction, "id" | "date" | "amount" | "currency" | "type" | "merchant" | "description">;
+export const getReconciliationCandidates = (id: string) =>
+  request<ReconciliationCandidate[]>("/api/v1/reconciliation/items/" + id + "/candidates");
