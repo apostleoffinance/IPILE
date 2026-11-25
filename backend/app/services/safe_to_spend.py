@@ -493,9 +493,9 @@ def run_purchase_check(
         reasons.append(
             "After this purchase, projected cash for the current period becomes negative."
         )
-    if forecast_after < minimum_buffer:
+    if forecast_after < 0:
         reasons.append(
-            "After this purchase, the forecast falls below the household minimum buffer."
+            "After this purchase, the forecast would breach the reserved household minimum buffer."
         )
     expected_contributions = Decimal(str(sts.components.expected_contributions))
     if expected_contributions > 0:
@@ -504,7 +504,7 @@ def run_purchase_check(
         )
 
     affected: list[str] = []
-    if period_after < 0 or forecast_after < minimum_buffer:
+    if period_after < 0 or forecast_after < 0:
         horizon_end = today + timedelta(days=sts.horizon_days)
         rows = (
             db.query(Obligation, ObligationOccurrence)
@@ -534,7 +534,7 @@ def run_purchase_check(
         decision = "do_not_proceed"
         severity = "critical"
         recommended_action = "delay"
-    elif result.severity == "warning" or period_after < 0 or forecast_after < minimum_buffer:
+    elif result.severity == "warning" or period_after < 0 or forecast_after < 0:
         decision = "review_or_delay"
         severity = "warning"
         recommended_action = (
