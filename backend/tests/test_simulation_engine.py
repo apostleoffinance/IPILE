@@ -205,4 +205,5 @@ def test_simulation_models_debt_minimum_and_extra_payments() -> None:
     )
     assert baseline.months[0].debt_payments == Decimal("100.00")
     assert accelerated.months[0].debt_payments == Decimal("150.00")
+    assert accelerated.months[0].debt_interest == Decimal("10.00")
     assert accelerated.months[0].cash == baseline.months[0].cash - Decimal("50.00")
