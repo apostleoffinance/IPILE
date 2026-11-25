@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, type FormEvent } from "react";
 import { ContentContainer } from "@/components/layouts/ContentContainer";
 import { PageHeader } from "@/components/layouts/PageHeader";
 import { SectionHeader } from "@/components/layouts/SectionHeader";
@@ -72,7 +72,7 @@ export default function TransactionsPage() {
     setEditMemberId(transaction.member_id ?? "");
   }
 
-  async function onUpdateTransaction(event: React.FormEvent) {
+  async function onUpdateTransaction(event: FormEvent) {
     event.preventDefault();
     if (!editingTransaction) return;
     setPending(true);
