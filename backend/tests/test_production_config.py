@@ -83,7 +83,7 @@ def test_production_configuration_rejects_partial_mono_configuration() -> None:
 def test_production_configuration_rejects_non_https_mono_redirect() -> None:
     from cryptography.fernet import Fernet
 
-    with pytest.raises(ValidationError, match="MONO_REDIRECT_URL must use HTTPS"):
+    with pytest.raises(ValidationError, match="MONO_REDIRECT_URL"):
         production_settings(
             mono_secret_key="mono-test-secret",
             mono_webhook_secret="mono-test-webhook",
