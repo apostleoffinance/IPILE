@@ -6,13 +6,14 @@ import shutil
 from decimal import Decimal, InvalidOperation
 from io import BytesIO
 
-import fitz
+import pypdfium2 as pdfium
 import pytesseract
 from PIL import Image, ImageOps
 from pytesseract import Output
 
 MAX_PDF_PAGES = 5
 MAX_IMAGE_PIXELS = 20_000_000
+MAX_PDF_PAGE_PIXELS = 4_000_000
 CURRENCY_CODES = {
     "NGN": "NGN", "₦": "NGN", "USD": "USD", "$": "USD",
     "GBP": "GBP", "£": "GBP", "EUR": "EUR", "€": "EUR",
@@ -51,18 +52,33 @@ def _ocr_image(image: Image.Image) -> tuple[str, float]:
 def _images_from_upload(content: bytes, media_type: str) -> list[Image.Image]:
     if media_type == "application/pdf":
         try:
-            document = fitz.open(stream=content, filetype="pdf")
+            document = pdfium.PdfDocument(content)
         except Exception as exc:
             raise ValueError("The uploaded PDF is invalid or unreadable.") from exc
-        if document.page_count < 1 or document.page_count > MAX_PDF_PAGES:
-            raise ValueError(f"Receipt PDF must contain between 1 and {MAX_PDF_PAGES} pages.")
-        images = []
-        for page in document:
-            if page.rect.width * 2 > 10000 or page.rect.height * 2 > 10000:
-                raise ValueError("Receipt PDF page dimensions exceed the processing limit.")
-            pixmap = page.get_pixmap(matrix=fitz.Matrix(2, 2), alpha=False)
-            images.append(Image.open(BytesIO(pixmap.tobytes("png"))).convert("RGB"))
-        return images
+        try:
+            if len(document) < 1 or len(document) > MAX_PDF_PAGES:
+                raise ValueError(
+                    f"Receipt PDF must contain between 1 and {MAX_PDF_PAGES} pages."
+                )
+            images = []
+            for index in range(len(document)):
+                page = document[index]
+                try:
+                    width, height = page.get_size()
+                    if width * height * 4 > MAX_PDF_PAGE_PIXELS:
+                        raise ValueError(
+                            "Receipt PDF page dimensions exceed the processing limit."
+                        )
+                    bitmap = page.render(scale=2)
+                    try:
+                        images.append(bitmap.to_pil().convert("RGB"))
+                    finally:
+                        bitmap.close()
+                finally:
+                    page.close()
+            return images
+        finally:
+            document.close()
     try:
         image = Image.open(BytesIO(content))
         if image.width < 1 or image.height < 1 or image.width * image.height > MAX_IMAGE_PIXELS:

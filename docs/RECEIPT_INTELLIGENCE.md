@@ -12,7 +12,7 @@
 ## Runtime
 
 The backend image installs the Tesseract OCR executable. Python dependencies are declared in
-backend/pyproject.toml (pytesseract, Pillow and PyMuPDF). The OCR engine is local; no external
+backend/pyproject.toml (pytesseract, Pillow and pypdfium2). The OCR engine is local; no external
 OCR vendor or API credential is required.
 
 If Tesseract is unavailable, the upload endpoint returns HTTP 503. It does not silently mark a
