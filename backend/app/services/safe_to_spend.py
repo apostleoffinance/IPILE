@@ -13,6 +13,7 @@ from app.models.recurring import RecurringTransaction
 from app.models.transaction import Transaction
 from app.money import quantize_money
 from app.schemas.safe_to_spend import PurchaseCheckOut, SafeToSpendComponents, SafeToSpendOut
+from app.services.contribution_forecast import contribution_forecast
 from app.services.allocations import (
     compute_allocation,
     expected_income,
@@ -305,7 +306,19 @@ def compute_safe_to_spend(
     horizon_funds = fund_contribution_remaining(db, funds, today, horizon, skip_funds)
     horizon_bills = upcoming_bills(db, household.id, today, horizon)
     expected_horizon = expected_in_horizon(monthly_expected, remaining_expected, start, horizon)
-    projected_liquid = quantize_money(liquid - protected_held - pending + expected_horizon)
+    contribution_projection = contribution_forecast(
+        db,
+        household.id,
+        household.base_currency,
+        today=today,
+        horizon_days=horizon_days,
+    )
+    # Linked receipts are already in ledger cash. Add only the remaining
+    # contribution commitments, never the received amount a second time.
+    expected_contributions = Decimal(str(contribution_projection["outstanding"]))
+    projected_liquid = quantize_money(
+        liquid - protected_held - pending + expected_horizon + expected_contributions
+    )
     projected_commitments = quantize_money(horizon_unfunded + horizon_funds + horizon_bills)
     buffer = quantize_money(Decimal(str(household.minimum_buffer_amount)))
     forecast = forecast_safe_to_spend(projected_liquid, projected_commitments, buffer)
@@ -320,6 +333,7 @@ def compute_safe_to_spend(
         components=SafeToSpendComponents(
             liquid_cash=liquid,
             expected_income=remaining_expected,
+            expected_contributions=expected_contributions,
             committed_obligations=due_now,
             upcoming_bills=bills_period,
             sinking_fund_requirements=remaining_funds,
