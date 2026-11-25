@@ -287,10 +287,14 @@ def _monthly_obligation_commitment(row: SimObligation, month_index: int) -> Deci
     months_to_due = _months_until_due(row.days_until_due)
     remaining = max(Decimal("0.00"), quantize_money(row.amount - row.funded_amount))
     if month_index <= months_to_due:
-        return quantize_money(remaining / Decimal(months_to_due))
+        # Reserve progressively toward the next due date, not the same slice
+        # independently in every month.
+        return quantize_money(remaining * Decimal(month_index) / Decimal(months_to_due))
     if row.frequency == "one_time":
         return Decimal("0.00")
-    return obligation_monthly(row.amount, row.frequency)
+    # Keep the first due amount reserved after it passes and begin reserving
+    # the next recurring cycle. The scenario does not post a live payment.
+    return quantize_money(remaining + obligation_monthly(row.amount, row.frequency))
 
 
 def _projected_obligations(
