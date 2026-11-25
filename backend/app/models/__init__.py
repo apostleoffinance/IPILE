@@ -4,6 +4,12 @@ from app.models.allocation import AllocationLine, AllocationRule, AllocationRun
 from app.models.analytics import FinancialScore, FinancialSnapshot, Report
 from app.models.audit import AuditLog
 from app.models.automation import Notification, SchedulerTick
+from app.models.banking import (
+    BankConnection,
+    BankWebhookEvent,
+    ReconciliationItem,
+    ReconciliationSession,
+)
 from app.models.budget import Budget, BudgetCategory
 from app.models.business import Business, BusinessEmployee, BusinessTransaction
 from app.models.category import Category
@@ -29,9 +35,13 @@ __all__ = [
     "Account",
     "AccountBalance",
     "AuditLog",
+    "BankConnection",
+    "BankWebhookEvent",
     "FinancialScore",
     "FinancialSnapshot",
     "Report",
+    "ReconciliationItem",
+    "ReconciliationSession",
     "Alert",
     "Asset",
     "AllocationLine",

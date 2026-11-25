@@ -55,6 +55,7 @@ const primaryNav: NavGroup[] = [
       { href: "/money/cash-flow", label: "Cash flow" },
       { href: "/money/import", label: "Import" },
       { href: "/money/receipts", label: "Receipts" },
+      { href: "/money/reconciliation", label: "Reconciliation & banks" },
     ],
   },
   {
