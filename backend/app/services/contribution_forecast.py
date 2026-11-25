@@ -75,6 +75,9 @@ def contribution_forecast(
             Transaction.household_id == household_id,
             Transaction.type == "income",
             Transaction.status.in_(RECOGNIZED),
+            Transaction.amount == ContributionRecord.amount,
+            Transaction.currency == ContributionRecord.currency,
+            Transaction.date == ContributionRecord.contributed_on,
             Transaction.deleted_at.is_(None),
         )
         .order_by(ContributionRecord.contributed_on, ContributionRecord.created_at)
