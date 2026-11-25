@@ -314,7 +314,7 @@ def project(state: SimState, params: SimParams) -> SimulationResult:
                     for row in month_obligations
                 ),
                 Decimal("0.00"),
-            ) + debt_payments,
+            ),
             working.minimum_buffer,
         )
         net_worth_delta = quantize_money(surplus + debt_principal)
