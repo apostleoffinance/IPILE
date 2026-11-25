@@ -266,6 +266,33 @@ The snapshot history is six hours, not the 24-hour RPO target stated in this doc
 - The production Cloudflare workflow remains `workflow_dispatch`-only, checks out `main`, and targets the `production` environment. A follow-up code change now requires an explicit dispatch input and checks both backend health endpoints before it changes the Cloudflare secret or deploys the frontend. CI regression tests cover these safeguards.
 - Render's production backend deploy is a separate manual operation. Its Docker startup command still runs `alembic upgrade head` before Uvicorn; therefore a manual production backend deploy also executes migrations. Do not trigger it without an explicit release decision that names both the deployment and migration scope.
 
+### Additional verification — 2026-11-25 (current safety clone)
+
+The safety clone was rechecked after provisioning a dedicated minimum-size read-write compute endpoint. Read-only catalog queries against both production and the clone returned the same current schema evidence:
+
+- Production branch `br-mute-rice-bedagamw`: Alembic revision `0016_import_mailboxes`, 45 public base tables.
+- Safety clone `br-mute-dawn-be0f06fq`: Alembic revision `0016_import_mailboxes`, 45 public base tables.
+- Clone compute endpoint `ep-spring-lake-beajfxk3` reached `active`.
+
+This establishes that the current safety clone has the same migration head and table count as production at the time of inspection. It is **not** a restore-from-backup drill, does not prove row-level completeness or application-level recovery, and is not a substitute for a retained snapshot or scheduled backup. No customer-row contents were queried.
+
+Capacity was tested again without deleting or replacing the existing snapshot:
+
+- Creating a fresh production snapshot still fails with `snapshots limit exceeded`.
+- Configuring a daily production snapshot schedule still fails with `backup schedule creation is not enabled for this project`.
+- The only retained project snapshot remains the 2026-11-19 pre-schema snapshot.
+
+Render production request logs returned no entries for `/health` or `/health/live` in the inspected window. This is not an HTTP probe and does not establish endpoint health. The production Render service still has an empty health-check path.
+
+### Operator evidence still required
+
+- **Neon plan/capacity:** an account owner must enable a plan/project configuration that permits current scheduled backups, adequate retention, and protected production branches. Then create a post-schema snapshot and complete an isolated restore drill, including schema, representative row-count checks, household isolation, and measured RPO/RTO.
+- **Render configuration:** set the production service health-check path to `/health` in the Render dashboard (the connected Render integration exposes no service-update operation for this field). Repeat for staging if appropriate. Then issue and record successful external GETs to `/health/live` and `/health`.
+- **GitHub environment:** an administrator must configure and verify required reviewers and `main`-only deployment restrictions for the `production` environment. The connected GitHub integration cannot read or write those environment-protection settings.
+- **Sentry:** supply the production Sentry DSN through the secret manager/Render environment, configure a monitored alert destination, and prove delivery with a synthetic event. The repository's code scrubbing is not proof of live delivery.
+- **Support:** appoint primary and backup responders, publish a monitored support address/channel, set a response target, and test an end-to-end ticket.
+- **Privacy:** controller identity, privacy contact, actual vendor/transfer inventory, retention schedule and qualified Nigerian privacy review require the responsible legal/business owners. Do not invent these values or publish the draft without approval.
+
 ### Remaining release blockers
 
 1. Upgrade/reconfigure Neon to provide a current backup schedule, sufficient retention/snapshot capacity and production branch protection; then create a post-schema recovery point.
