@@ -3,6 +3,7 @@ from datetime import date, timedelta
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from app.api.deps import (
@@ -312,6 +313,11 @@ def record_contribution(
                 status_code=400,
                 detail="A contribution must link to an income transaction.",
             )
+        if transaction.status not in {"cleared", "reconciled"}:
+            raise HTTPException(
+                status_code=400,
+                detail="Only cleared or reconciled income can verify a received contribution.",
+            )
         if ctx.role == "member" and transaction.member_id != ctx.member.id:
             raise HTTPException(
                 status_code=403,
@@ -355,7 +361,14 @@ def record_contribution(
             "amount": str(record.amount),
         },
     )
-    db.commit()
+    try:
+        db.commit()
+    except IntegrityError as exc:
+        db.rollback()
+        raise HTTPException(
+            status_code=409,
+            detail="This income transaction is already linked to a contribution.",
+        ) from exc
     db.refresh(record)
     return record
 
