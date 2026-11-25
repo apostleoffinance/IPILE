@@ -482,16 +482,16 @@ button, a, input, select, textarea { transition-duration: 220ms; }
   border:1px solid var(--color-border); border-radius:999px;
   background:var(--color-bg-surface); font-size:11px;
 }
-.ipile-wealth-overview .grid.md\\:grid-cols-2 > div {
+.ipile-wealth-overview .grid.md\:grid-cols-2 > div {
   padding:22px 24px !important; border-radius:15px;
 }
-.ipile-wealth-overview .grid.md\\:grid-cols-2 > div h2 {
+.ipile-wealth-overview .grid.md\:grid-cols-2 > div h2 {
   margin-bottom:17px; font-size:11px; letter-spacing:.14em;
 }
-.ipile-wealth-overview .grid.md\\:grid-cols-2 > div > div {
+.ipile-wealth-overview .grid.md\:grid-cols-2 > div > div {
   padding:9px 0; border-bottom:1px solid var(--color-border);
 }
-.ipile-wealth-overview .grid.md\\:grid-cols-2 > div > div:last-child {
+.ipile-wealth-overview .grid.md\:grid-cols-2 > div > div:last-child {
   margin-top:8px; border-top:1px solid var(--color-border); border-bottom:0;
 }
 .ipile-wealth-page section > .ipile-chart-shell,
@@ -539,7 +539,7 @@ button, a, input, select, textarea { transition-duration: 220ms; }
 [data-theme="dark"] .ipile-wealth-overview [aria-label="Net worth summary"] > div:not(:first-child) {
   background:linear-gradient(145deg,#0c1410,#101c16);
 }
-[data-theme="dark"] .ipile-wealth-overview .grid.md\\:grid-cols-2 > div,
+[data-theme="dark"] .ipile-wealth-overview .grid.md\:grid-cols-2 > div,
 [data-theme="dark"] .ipile-wealth-page .ipile-wealth-form,
 [data-theme="dark"] .ipile-wealth-page .ipile-wealth-row {
   background:var(--color-bg-surface);
