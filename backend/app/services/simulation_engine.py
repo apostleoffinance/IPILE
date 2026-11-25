@@ -278,7 +278,11 @@ def project(state: SimState, params: SimParams) -> SimulationResult:
         )
         total_income = quantize_money(working.expected_income + contributions)
         allocation = allocate(total_income, list(working.rules))
-        debt_month = debt_result.schedule[index - 1] if index <= len(debt_result.schedule) else None
+        debt_month = (
+            debt_result.schedule[index - 1]
+            if index <= len(debt_result.schedule)
+            else None
+        )
         debt_payments = debt_month.total_payment if debt_month else Decimal("0.00")
         debt_interest = debt_month.total_interest if debt_month else Decimal("0.00")
         debt_principal = quantize_money(debt_payments - debt_interest)
