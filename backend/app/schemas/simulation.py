@@ -13,7 +13,7 @@ class SimulationIn(BaseModel):
     income_change_rate: str = "0"
     contribution_change_rate: str = "0"
     debt_strategy: Literal["snowball", "avalanche"] = "avalanche"
-    debt_extra_payment: MoneySigned = "0.00"
+    debt_extra_payment: MoneySigned = Decimal("0.00")
     expense_category_deltas: dict[str, str] = Field(default_factory=dict)
     obligation_deltas: dict[str, str] = Field(default_factory=dict)
     investment_override: MoneySigned | None = None
