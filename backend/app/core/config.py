@@ -1,5 +1,7 @@
 from functools import lru_cache
+from urllib.parse import urlsplit
 
+from cryptography.fernet import Fernet
 from pydantic import model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
@@ -97,8 +99,25 @@ class Settings(BaseSettings):
                 "Mono requires MONO_SECRET_KEY, MONO_WEBHOOK_SECRET, MONO_REDIRECT_URL "
                 "and BANK_DATA_ENCRYPTION_KEY together"
             )
-        if self.mono_redirect_url and not self.mono_redirect_url.lower().startswith("https://"):
-            problems.append("MONO_REDIRECT_URL must use HTTPS")
+        if self.mono_redirect_url:
+            redirect = urlsplit(self.mono_redirect_url)
+            if (
+                redirect.scheme.lower() != "https"
+                or not redirect.hostname
+                or redirect.username
+                or redirect.password
+            ):
+                problems.append(
+                    "MONO_REDIRECT_URL must be an absolute HTTPS URL without embedded credentials"
+                )
+        if self.bank_data_encryption_key:
+            try:
+                Fernet(self.bank_data_encryption_key.encode("ascii"))
+            except (ValueError, UnicodeEncodeError):
+                problems.append(
+                    "BANK_DATA_ENCRYPTION_KEY must be a valid URL-safe base64-encoded "
+                    "32-byte Fernet key"
+                )
 
         if problems:
             raise ValueError("Invalid production configuration: " + "; ".join(problems))

@@ -61,3 +61,62 @@ def test_production_configuration_accepts_separate_migration_database_url() -> N
 def test_production_migration_database_url_fails_closed(migration_url: str) -> None:
     with pytest.raises(ValidationError, match="DATABASE_MIGRATION_URL"):
         production_settings(database_migration_url=migration_url)
+
+
+def test_production_configuration_accepts_complete_mono_configuration() -> None:
+    from cryptography.fernet import Fernet
+
+    settings = production_settings(
+        mono_secret_key="mono-test-secret",
+        mono_webhook_secret="mono-test-webhook",
+        mono_redirect_url="https://ipile.example/api/v1/bank-connections/callback",
+        bank_data_encryption_key=Fernet.generate_key().decode("ascii"),
+    )
+    assert settings.mono_connect_configured is True
+
+
+def test_production_configuration_rejects_partial_mono_configuration() -> None:
+    with pytest.raises(ValidationError, match="Mono requires"):
+        production_settings(mono_secret_key="mono-test-secret")
+
+
+def test_production_configuration_rejects_non_https_mono_redirect() -> None:
+    from cryptography.fernet import Fernet
+
+    with pytest.raises(ValidationError, match="MONO_REDIRECT_URL"):
+        production_settings(
+            mono_secret_key="mono-test-secret",
+            mono_webhook_secret="mono-test-webhook",
+            mono_redirect_url="http://ipile.example/callback",
+            bank_data_encryption_key=Fernet.generate_key().decode("ascii"),
+        )
+
+
+@pytest.mark.parametrize("key", ["not-a-fernet-key", "also-invalid"])
+def test_production_configuration_rejects_invalid_mono_encryption_key(key: str) -> None:
+    values = {
+        "mono_secret_key": "mono-test-secret",
+        "mono_webhook_secret": "mono-test-webhook",
+        "mono_redirect_url": "https://ipile.example/callback",
+        "bank_data_encryption_key": key,
+    }
+    with pytest.raises(ValidationError, match="BANK_DATA_ENCRYPTION_KEY"):
+        production_settings(**values)
+
+
+@pytest.mark.parametrize(
+    "redirect_url",
+    ["http://ipile.example/callback", "https://", "https://user:pass@ipile.example/callback"],
+)
+def test_production_configuration_rejects_unsafe_mono_redirect_urls(
+    redirect_url: str,
+) -> None:
+    from cryptography.fernet import Fernet
+
+    with pytest.raises(ValidationError, match="MONO_REDIRECT_URL"):
+        production_settings(
+            mono_secret_key="mono-test-secret",
+            mono_webhook_secret="mono-test-webhook",
+            mono_redirect_url=redirect_url,
+            bank_data_encryption_key=Fernet.generate_key().decode("ascii"),
+        )

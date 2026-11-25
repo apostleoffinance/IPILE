@@ -2,7 +2,7 @@
 
 **Purpose:** prove that the service can be operated safely, recover household data, detect failures, handle support, and meet its stated privacy and billing obligations.
 
-This document distinguishes implementation from live operational evidence. A green build is not proof of a backup, restore, alert delivery, legal compliance, or payment settlement.
+This document distinguishes implementation from live operational evidence. A green build is not proof of a backup, restore, alert delivery, legal compliance, or payment settlement. The production observations below were recorded on 2026-11-19 and have not been independently reverified for this Phase 6 review; treat them as historical until an operator refreshes the evidence.
 
 ## Current production observations (2026-11-19)
 
@@ -161,3 +161,32 @@ A release is **GO** only when:
 | 2026-11-19 | Neon scheduled backups | Scheduled snapshot API returned `backup schedule creation is not enabled for this project`; project history retention is 6 hours | **Not passed** | Database operator |
 | 2026-11-19 | Backup/restore | No IPÌLẸ̀ backup schedule or restore evidence verified | **Not passed** | Database operator |
 | 2026-11-19 | Billing | Plan switching and webhook stub only | **Not paid-ready** | Product/finance |
+
+
+## 7. Deployment governance and traffic controls
+
+### Deployment workflow
+
+The repository's Cloudflare production workflow is manual-only, checks out `main`, serializes production deployments, runs dependency audit, typecheck, frontend tests, Worker build and dry-run, then deploys once. It targets the GitHub Actions environment named `production`.
+
+Repository administrators must configure that environment with:
+- Required reviewer approval before a deployment job can access production secrets.
+- Deployment branch restrictions limited to `main`.
+- Environment-scoped `CLOUDFLARE_API_TOKEN` and `CLOUDFLARE_ACCOUNT_ID` secrets.
+- A monitored owner responsible for approval and rollback.
+
+The workflow file cannot enforce required reviewers by itself. Confirm the environment settings in GitHub before enabling a production deployment.
+
+### Backend deployment guard
+
+The 2026-11-19 Render observation recorded the API service as auto-deploying from `main`, and the backend Dockerfile runs `alembic upgrade head` during container startup. Both settings must be reverified before merging changes to `main`. If Render still auto-deploys from `main`, a merge can trigger a production backend deployment and migrations; disable auto-deploy or use an approved release process before merging code that must not reach production.
+
+### Authentication rate limiting
+
+The current API rate limiter stores counters in process memory and derives client identity from proxy-forwarded headers. This is not a durable multi-instance limiter, and forwarded headers are only trustworthy when the origin is protected so clients cannot spoof them. Before scaling beyond one trusted application instance or exposing authentication endpoints to untrusted direct-origin traffic:
+- Establish and document the trusted proxy/origin boundary.
+- Use a shared rate-limit store or managed edge rate limiting with explicit per-action policies.
+- Test spoofed forwarding headers, parallel requests, process restarts and multi-instance behavior.
+- Confirm 429 responses and Retry-After behavior without logging credentials or request payloads.
+
+These controls remain release-readiness items; CI does not prove the live Render, GitHub environment, backup, monitoring or proxy configuration.
