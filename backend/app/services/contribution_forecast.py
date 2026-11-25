@@ -27,6 +27,7 @@ def contribution_forecast(
     *,
     today: date | None = None,
     horizon_days: int = 90,
+    member_id: UUID | None = None,
 ) -> dict:
     """Return due-by-date expected, verified received, and outstanding amounts.
 
@@ -37,18 +38,18 @@ def contribution_forecast(
         raise ValueError("horizon_days must be between 1 and 730.")
     today = today or date.today()
     end = today + timedelta(days=horizon_days)
-    agreements = (
-        db.query(ContributionAgreement)
-        .filter(
+    agreements_query = db.query(ContributionAgreement).filter(
             ContributionAgreement.household_id == household_id,
             ContributionAgreement.status == ACTIVE,
             ContributionAgreement.start_date <= end,
             (ContributionAgreement.end_date.is_(None))
             | (ContributionAgreement.end_date >= today),
         )
-        .order_by(ContributionAgreement.start_date, ContributionAgreement.id)
-        .all()
-    )
+    if member_id is not None:
+        agreements_query = agreements_query.filter(ContributionAgreement.member_id == member_id)
+    agreements = agreements_query.order_by(
+        ContributionAgreement.start_date, ContributionAgreement.id
+    ).all()
     if not agreements:
         return {
             "currency": base_currency,
