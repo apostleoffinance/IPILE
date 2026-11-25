@@ -155,6 +155,18 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     window.location.assign(pathname.startsWith("/onboarding") ? "/overview" : pathname);
   }
 
+  useEffect(() => {
+    function handleEscape(event: KeyboardEvent) {
+      if (event.key === "Escape") {
+        setMoreOpen(false);
+        setCommandOpen(false);
+        setAddOpen(false);
+      }
+    }
+    window.addEventListener("keydown", handleEscape);
+    return () => window.removeEventListener("keydown", handleEscape);
+  }, []);
+
   if (!user) {
     return (
       <main className="flex min-h-screen items-center justify-center bg-canvas">
@@ -188,7 +200,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         ) : (
           <p className="ipile-household mt-3 text-sm text-muted">{household?.name ?? "Household"}</p>
         )}
-        <nav className="mt-8 flex-1 space-y-1 text-sm">
+        <nav aria-label="Primary navigation" className="mt-8 flex-1 space-y-1 text-sm">
           {primaryNav.map((link) => {
             const sectionActive =
               pathname === link.match ||
@@ -304,8 +316,8 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         <main id="main-content" tabIndex={-1} className="ipile-main flex-1 px-5 py-8 outline-none md:px-10">
           {children}
         </main>
-        <nav className="ipile-mobile-nav fixed inset-x-0 bottom-0 z-30 grid grid-cols-5 border-t border-line bg-surface text-center text-[11px] md:hidden">
-          {primaryNav.slice(0, 4).map((link) => {
+        <nav aria-label="Mobile primary navigation" className="ipile-mobile-nav fixed inset-x-0 bottom-0 z-30 grid grid-cols-5 border-t border-line bg-surface text-center text-[11px] md:hidden">
+          {primaryNav.filter((link) => ["/overview", "/money", "/plan", "/wealth"].includes(link.href)).map((link) => {
             const Icon = link.icon;
             const active =
               pathname.startsWith(link.match) || (link.match === "/overview" && pathname === "/overview");
@@ -342,7 +354,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           <Plus className="h-5 w-5" />
         </Button>
         {moreOpen ? (
-          <div id="mobile-more-menu" className="ipile-mobile-nav fixed inset-x-0 bottom-12 z-30 max-h-[70vh] overflow-y-auto border-t border-line bg-surface p-4 md:hidden">
+          <div id="mobile-more-menu" role="region" aria-label="More navigation" className="ipile-mobile-nav fixed inset-x-0 bottom-12 z-30 max-h-[70vh] overflow-y-auto border-t border-line bg-surface p-4 md:hidden">
             <div className="space-y-4 text-sm">
               {primaryNav.slice(1).map((group) => (
                 <section key={group.href}>
