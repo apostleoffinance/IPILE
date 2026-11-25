@@ -93,6 +93,7 @@ export default function InvestmentsPage() {
   return (
     <AppShell>
       <ContentContainer>
+        <div className="ipile-wealth-page ipile-wealth-investments">
         <PageHeader eyebrow="Wealth" title="Investments" description="Are we getting richer through holdings?" />
         {error ? <ErrorState message={error} /> : null}
         {!loaded && !error ? <LoadingState /> : null}
@@ -105,7 +106,7 @@ export default function InvestmentsPage() {
             {rows.map((row) => (
               <div
                 key={row.id}
-                className="flex items-baseline justify-between border border-line bg-surface px-4 py-3"
+                className="ipile-wealth-row flex items-baseline justify-between border border-line bg-surface px-4 py-3"
               >
                 <div>
                   <p className="text-sm">{row.name}</p>
@@ -120,7 +121,7 @@ export default function InvestmentsPage() {
             ))}
           </div>
         )}
-        <form onSubmit={onCreate} className="grid gap-3 rounded-md border border-line bg-surface p-5 md:grid-cols-4">
+        <form onSubmit={onCreate} className="ipile-wealth-form grid gap-3 rounded-md border border-line bg-surface p-5 md:grid-cols-4">
           <Input
             placeholder="Holding name"
             value={name}
@@ -147,7 +148,7 @@ export default function InvestmentsPage() {
           </Button>
         </form>
         {rows.length ? (
-          <form onSubmit={onBuy} className="grid gap-3 rounded-md border border-line bg-surface p-5 md:grid-cols-4">
+          <form onSubmit={onBuy} className="ipile-wealth-form grid gap-3 rounded-md border border-line bg-surface p-5 md:grid-cols-4">
             <Select
               value={buyId}
               onChange={(event) => setBuyId(event.target.value)}
@@ -178,6 +179,7 @@ export default function InvestmentsPage() {
             </Button>
           </form>
         ) : null}
+        </div>
       </ContentContainer>
     </AppShell>
   );
