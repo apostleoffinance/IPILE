@@ -170,6 +170,16 @@ def test_contribution_link_requires_cleared_income_and_is_unique(
         },
     )
     assert cleared.status_code == 201, cleared.text
+    mismatched_date = client.post(
+        f"/api/v1/contributions/{agreement['id']}/records",
+        json={
+            "amount": "10000.00",
+            "contributed_on": (today + __import__("datetime").timedelta(days=1)).isoformat(),
+            "transaction_id": cleared.json()["id"],
+        },
+    )
+    assert mismatched_date.status_code == 400
+
     payload = {
         "amount": "10000.00",
         "contributed_on": today.isoformat(),
