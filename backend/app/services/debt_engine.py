@@ -48,6 +48,17 @@ def _money(value: Decimal | None) -> Decimal:
     return quantize_money(Decimal(str(value or 0)))
 
 
+def _apr(value: Decimal | None) -> Decimal:
+    rate = Decimal(str(value or 0))
+    # Older records may have stored APR as whole percentages (18 = 18%).
+    # New API writes use decimal fractions; normalize legacy values safely.
+    if rate > Decimal("5") and rate <= Decimal("500"):
+        rate /= Decimal("100")
+    if not rate.is_finite() or rate < ZERO or rate > Decimal("5"):
+        raise ValueError("Interest rate must be between 0 and 5 as an APR fraction.")
+    return rate
+
+
 def snowball_order(debts: list[DebtInput]) -> list[DebtInput]:
     """Smallest balance first; ties by name."""
     return sorted(debts, key=lambda d: (_money(d.balance), d.name.lower(), str(d.id)))
@@ -121,7 +132,7 @@ def amortize_strategy(
             id=d.id,
             name=d.name,
             balance=_money(d.balance),
-            interest_rate=Decimal(str(d.interest_rate or 0)),
+            interest_rate=_apr(d.interest_rate),
             min_payment=_money(d.min_payment),
         )
         for d in debts
@@ -132,8 +143,6 @@ def amortize_strategy(
         return _empty_result(strategy, ordered)
 
     for debt in active:
-        if debt.interest_rate < ZERO or debt.interest_rate > Decimal("5"):
-            raise ValueError("Interest rate must be between 0 and 5 as an APR fraction.")
         if debt.min_payment < ZERO:
             raise ValueError("Minimum payment cannot be negative.")
     monthly_capacity = quantize_money(sum((d.min_payment for d in ordered), ZERO) + extra)
