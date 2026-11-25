@@ -5,8 +5,8 @@ Revises: 0019_member_permissions
 """
 from typing import Sequence, Union
 
-from alembic import op
 import sqlalchemy as sa
+from alembic import op
 
 revision: str = "0020_unique_contribution_transaction"
 down_revision: Union[str, None] = "0019_member_permissions"
