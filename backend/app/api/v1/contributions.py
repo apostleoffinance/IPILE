@@ -250,7 +250,7 @@ def record_contribution(
 )
 def list_records(
     agreement_id: UUID,
-    ctx: HouseholdContext = Depends(get_household_context),
+    ctx: HouseholdContext = Depends(require_roles("owner", "partner")),
     db: Session = Depends(get_db),
 ):
     agreement = _agreement(db, ctx.household.id, agreement_id)
