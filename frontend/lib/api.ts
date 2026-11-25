@@ -1465,6 +1465,23 @@ export function listContributionAgreements() {
   return request<ContributionAgreement[]>("/api/v1/contributions");
 }
 
+export function updateContributionAgreement(
+  id: string,
+  body: {
+    amount?: string;
+    cadence?: string;
+    due_day?: number | null;
+    end_date?: string | null;
+    status?: string;
+    notes?: string | null;
+  },
+) {
+  return request<ContributionAgreement>(`/api/v1/contributions/${id}`, {
+    method: "PATCH",
+    body: JSON.stringify(body),
+  });
+}
+
 export function createContributionAgreement(body: {
   member_id: string;
   name: string;
