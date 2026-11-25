@@ -12,6 +12,7 @@ import { Label } from "@/components/ui/label";
 import { Select } from "@/components/ui/select";
 import {
   createContributionAgreement,
+  getContributionForecast,
   listContributionAgreements,
   listContributionRecords,
   listContributionSchedule,
@@ -21,6 +22,7 @@ import {
   type ContributionRecord,
   type Member,
   type ContributionScheduleRow,
+  type ContributionForecast,
   api,
 } from "@/lib/api";
 
@@ -28,6 +30,7 @@ export default function ContributionsPage() {
   const [members, setMembers] = useState<Member[]>([]);
   const [currentMember, setCurrentMember] = useState<Member | null>(null);
   const [schedule, setSchedule] = useState<ContributionScheduleRow[]>([]);
+  const [forecast, setForecast] = useState<ContributionForecast | null>(null);
   const [agreements, setAgreements] = useState<ContributionAgreement[]>([]);
   const [records, setRecords] = useState<Record<string, ContributionRecord[]>>({});
   const [memberId, setMemberId] = useState("");
@@ -51,15 +54,17 @@ export default function ContributionsPage() {
   const [loaded, setLoaded] = useState(false);
 
   async function refresh() {
-    const [memberRows, me, agreementRows, scheduleRows] = await Promise.all([
+    const [memberRows, me, agreementRows, scheduleRows, forecastRows] = await Promise.all([
       api.members(),
       api.currentMember(),
       listContributionAgreements(),
       listContributionSchedule(),
+      getContributionForecast(),
     ]);
     setMembers(memberRows);
     setCurrentMember(me);
     setSchedule(scheduleRows);
+    setForecast(forecastRows);
     setAgreements(agreementRows);
     if (!memberId && memberRows[0]) setMemberId(memberRows[0].id);
     const entries = await Promise.all(
@@ -207,7 +212,7 @@ export default function ContributionsPage() {
                     <th className="px-4 py-3">Due date</th>
                     <th className="px-4 py-3">Agreement</th>
                     <th className="px-4 py-3 text-right">Expected</th>
-                    <th className="px-4 py-3 text-right">Paid</th>
+                    <th className="px-4 py-3 text-right">Recorded</th>
                     <th className="px-4 py-3 text-right">Outstanding</th>
                     <th className="px-4 py-3">Status</th>
                   </tr>
@@ -227,7 +232,36 @@ export default function ContributionsPage() {
               </table>
             </div>
           )}
+          <p className="text-xs text-muted">
+            Recorded amounts include reported payments. Only matching cleared or reconciled income in shared household accounts counts as verified receipts in financial forecasts.
+          </p>
         </section>
+
+        {forecast ? (
+          <section className="mb-8 space-y-3">
+            <div>
+              <h2 className="font-semibold">Contribution forecast · {forecast.horizon_days} days</h2>
+              <p className="text-sm text-muted">Expected commitments are forecasts, not cash on hand. Verified receipts are already recorded in the shared ledger.</p>
+            </div>
+            <div className="grid gap-3 md:grid-cols-3">
+              {[
+                ["Expected", forecast.expected],
+                ["Verified received", forecast.verified_received],
+                ["Outstanding", forecast.outstanding],
+              ].map(([label, value]) => (
+                <div key={label} className="border border-line bg-surface p-4">
+                  <p className="text-xs uppercase tracking-wide text-muted">{label}</p>
+                  <p className="mt-2 text-xl font-semibold tabular-nums">{forecast.currency} {value}</p>
+                </div>
+              ))}
+            </div>
+            {Object.keys(forecast.other_currency_outstanding).length > 0 ? (
+              <p className="text-xs text-muted">
+                Other currencies are shown separately and are not converted without an exchange rate: {Object.entries(forecast.other_currency_outstanding).map(([code, value]) => `${code} ${value}`).join(" · ")}
+              </p>
+            ) : null}
+          </section>
+        ) : null}
 
         <div className="space-y-5">
           {agreements.length === 0 ? <p className="border border-line p-5 text-sm text-muted">No contribution agreements yet.</p> : agreements.map((agreement) => {
