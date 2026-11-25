@@ -27,3 +27,15 @@ Merged in PR #31 as commit `83e352452aca4228202db6d00eeb99183fa4ffa8`. Post-merg
 - Personal accounts are excluded; only shared household accounts may be linked/reconciled.
 - Backend/frontend tests, lint, dependency audit and release acceptance pass.
 - No production migration or live bank connection occurs without deployment-owner approval.
+
+
+## Phase 6 — Hardening and controlled rollout
+
+| Workstream | Scope | Status |
+|---|---|---|
+| Production configuration | Fail-closed validation for optional Mono credentials and encryption key | In implementation |
+| Database release gate | Empty PostgreSQL migration upgrade and revision verification in CI | In implementation |
+| Deployment safety | Main-only source, serialized manual deployment, protected environment, pre-deploy checks | In implementation |
+| Operational readiness | Backup/restore, monitoring, support, privacy and billing evidence | External operator evidence required |
+
+Production migrations and deployments are not authorized by this phase's code changes. The release decision remains NO-GO until the operational evidence in [OPERATIONAL_READINESS.md](OPERATIONAL_READINESS.md) is verified and signed off.

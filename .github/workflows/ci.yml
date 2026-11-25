@@ -45,8 +45,63 @@ jobs:
       - name: Frontend unit tests
         run: npm test
 
+  migration-smoke:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_DB: ipile
+          POSTGRES_USER: ipile
+          POSTGRES_PASSWORD: ipile-ci-password
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U ipile -d ipile"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 12
+    defaults:
+      run:
+        working-directory: backend
+    env:
+      DATABASE_URL: postgresql+psycopg://ipile:ipile-ci-password@localhost:5432/ipile
+      DATABASE_MIGRATION_URL: postgresql+psycopg://ipile:ipile-ci-password@localhost:5432/ipile
+      ENVIRONMENT: test
+      SEED_ON_START: "false"
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install backend
+        run: pip install -e ".[dev]"
+      - name: Upgrade an empty PostgreSQL database to head
+        run: alembic upgrade head
+      - name: Verify database revision matches all migration heads
+        run: |
+          python - <<'PY'
+          from alembic.config import Config
+          from alembic.script import ScriptDirectory
+          from sqlalchemy import create_engine, text
+
+          config = Config("alembic.ini")
+          script = ScriptDirectory.from_config(config)
+          expected_heads = set(script.get_heads())
+          engine = create_engine(__import__("os").environ["DATABASE_URL"])
+          with engine.connect() as connection:
+              actual_heads = set(connection.execute(
+                  text("SELECT version_num FROM alembic_version")
+              ).scalars())
+          assert actual_heads == expected_heads, (
+              f"Migration mismatch: expected {expected_heads}, got {actual_heads}"
+          )
+          print(f"Verified migration head(s): {sorted(actual_heads)}")
+          engine.dispose()
+          PY
+
   release-acceptance:
-    needs: [backend, frontend]
+    needs: [backend, frontend, migration-smoke]
     runs-on: ubuntu-latest
     defaults:
       run:
