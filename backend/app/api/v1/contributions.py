@@ -137,11 +137,21 @@ def forecast_contributions(
     db: Session = Depends(get_db),
 ):
     """Forecast contributions without treating unverified receipts as available cash."""
+    member_id = None
+    if ctx.role not in {"owner", "partner"}:
+        if not has_member_permission(ctx, "view_all_contributions"):
+            if ctx.member is None:
+                raise HTTPException(
+                    status_code=403,
+                    detail="Contribution visibility is not available.",
+                )
+            member_id = ctx.member.id
     return build_contribution_forecast(
         db,
         ctx.household.id,
         ctx.household.base_currency,
         horizon_days=horizon_days,
+        member_id=member_id,
     )
 
 
@@ -312,6 +322,11 @@ def record_contribution(
             raise HTTPException(
                 status_code=400,
                 detail="A contribution must link to an income transaction.",
+            )
+        if transaction.access_scope != "shared":
+            raise HTTPException(
+                status_code=400,
+                detail="Only shared income transactions can verify a household contribution.",
             )
         if transaction.status not in {"cleared", "reconciled"}:
             raise HTTPException(
