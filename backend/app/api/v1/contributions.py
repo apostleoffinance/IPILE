@@ -24,8 +24,8 @@ from app.schemas.contribution import (
     ContributionRecordOut,
 )
 from app.services.audit import write_audit
-from app.services.contribution_schedule import build_contribution_schedule
 from app.services.contribution_forecast import contribution_forecast as build_contribution_forecast
+from app.services.contribution_schedule import build_contribution_schedule
 from app.services.finance_access import has_member_permission
 
 router = APIRouter(prefix="/contributions", tags=["household-governance"])
