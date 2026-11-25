@@ -48,7 +48,7 @@ def _get(db: Session, household_id: UUID, business_id: UUID) -> Business:
 
 @router.get("", response_model=list[BusinessOut])
 def list_businesses(
-    ctx: HouseholdContext = Depends(get_household_context),
+    ctx: HouseholdContext = Depends(require_roles("owner", "partner")),
     db: Session = Depends(get_db),
 ):
     rows = _active(db, ctx.household.id).order_by(Business.name)
@@ -85,7 +85,7 @@ def create_business(
 @router.get("/{business_id}", response_model=BusinessOut)
 def get_business(
     business_id: UUID,
-    ctx: HouseholdContext = Depends(get_household_context),
+    ctx: HouseholdContext = Depends(require_roles("owner", "partner")),
     db: Session = Depends(get_db),
 ):
     return serialize_business(db, _get(db, ctx.household.id, business_id))
@@ -94,7 +94,7 @@ def get_business(
 @router.get("/{business_id}/pnl", response_model=BusinessPnLOut)
 def get_pnl(
     business_id: UUID,
-    ctx: HouseholdContext = Depends(get_household_context),
+    ctx: HouseholdContext = Depends(require_roles("owner", "partner")),
     db: Session = Depends(get_db),
 ):
     return serialize_pnl(business_pnl(db, _get(db, ctx.household.id, business_id)))
