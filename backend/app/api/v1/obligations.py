@@ -7,6 +7,7 @@ from sqlalchemy.orm import Session
 from app.api.deps import HouseholdContext, get_db, require_roles
 from app.api.v1.transactions import create_transaction
 from app.models.fund import SinkingFund
+from app.models.category import Category
 from app.models.member import HouseholdMember
 from app.models.obligation import Obligation, ObligationOccurrence
 from app.schemas.obligation import ObligationCreate, ObligationOut, ObligationPay, ObligationUpdate
@@ -76,6 +77,18 @@ def create_obligation(
                 detail="Beneficiary member not found in this household.",
             )
     category_id = payload.category_id
+    if category_id:
+        category = (
+            db.query(Category)
+            .filter(
+                Category.id == category_id,
+                Category.household_id == ctx.household.id,
+                Category.deleted_at.is_(None),
+            )
+            .first()
+        )
+        if category is None:
+            raise HTTPException(status_code=404, detail="Category not found in this household.")
     if category_id is None:
         category_id = obligation_category(db, ctx.household.id).id
     obligation = Obligation(
@@ -126,6 +139,18 @@ def update_obligation(
         raise HTTPException(status_code=400, detail="Invalid priority.")
     if "status" in data and data["status"] not in OBLIGATION_STATUSES:
         raise HTTPException(status_code=400, detail="Invalid obligation status.")
+    if "category_id" in data and data["category_id"]:
+        category = (
+            db.query(Category)
+            .filter(
+                Category.id == data["category_id"],
+                Category.household_id == ctx.household.id,
+                Category.deleted_at.is_(None),
+            )
+            .first()
+        )
+        if category is None:
+            raise HTTPException(status_code=404, detail="Category not found in this household.")
     if "beneficiary_member_id" in data and data["beneficiary_member_id"]:
         member = (
             db.query(HouseholdMember)
