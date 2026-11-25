@@ -40,7 +40,7 @@ def _get(db: Session, household_id: UUID, obligation_id: UUID) -> Obligation:
 
 @router.get("", response_model=list[ObligationOut])
 def list_obligations(
-    ctx: HouseholdContext = Depends(get_household_context),
+    ctx: HouseholdContext = Depends(require_roles("owner", "partner")),
     db: Session = Depends(get_db),
 ):
     rows = _active(db, ctx.household.id).order_by(Obligation.next_due_date).all()
