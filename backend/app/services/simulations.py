@@ -14,7 +14,10 @@ from app.money import format_money, quantize_money
 from app.schemas.simulation import SimulationIn
 from app.services.allocations import active_rules, expected_income, period_bounds, to_spec
 from app.services.budgets import serialize_budget
-from app.services.contribution_forecast import monthly_expected_contributions
+from app.services.contribution_forecast import (
+    contribution_forecast,
+    monthly_expected_contributions,
+)
 from app.services.simulation_engine import (
     SimCategory,
     SimObligation,
@@ -141,6 +144,17 @@ def clone_state(db: Session, household: Household, today: date | None = None) ->
             household.id,
             household.base_currency,
             today=today,
+        ),
+        first_month_contributions=Decimal(
+            str(
+                contribution_forecast(
+                    db,
+                    household.id,
+                    household.base_currency,
+                    today=today,
+                    horizon_days=max(1, (end - today).days),
+                )["outstanding"]
+            )
         ),
         minimum_buffer=quantize_money(Decimal(str(household.minimum_buffer_amount))),
         essentials=quantize_money(essentials),
