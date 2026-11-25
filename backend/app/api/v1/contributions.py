@@ -326,10 +326,11 @@ def record_contribution(
         if (
             transaction.amount != payload.amount
             or transaction.currency != agreement.currency
+            or transaction.date != payload.contributed_on
         ):
             raise HTTPException(
                 status_code=400,
-                detail="Linked transaction amount or currency does not match.",
+                detail="Linked transaction amount, currency, or date does not match.",
             )
         if transaction.member_id and transaction.member_id != agreement.member_id:
             raise HTTPException(
