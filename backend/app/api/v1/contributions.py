@@ -24,6 +24,7 @@ from app.schemas.contribution import (
 )
 from app.services.audit import write_audit
 from app.services.contribution_schedule import build_contribution_schedule
+from app.services.contribution_forecast import contribution_forecast as build_contribution_forecast
 from app.services.finance_access import has_member_permission
 
 router = APIRouter(prefix="/contributions", tags=["household-governance"])
@@ -124,6 +125,22 @@ def contribution_schedule(
         from_date=start,
         to_date=end,
         today=today,
+    )
+
+
+
+@router.get("/forecast")
+def forecast_contributions(
+    horizon_days: int = Query(default=90, ge=1, le=730),
+    ctx: HouseholdContext = Depends(get_household_context),
+    db: Session = Depends(get_db),
+):
+    """Forecast contributions without treating unverified receipts as available cash."""
+    return build_contribution_forecast(
+        db,
+        ctx.household.id,
+        ctx.household.base_currency,
+        horizon_days=horizon_days,
     )
 
 
