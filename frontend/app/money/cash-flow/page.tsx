@@ -29,7 +29,7 @@ export default function CashFlowPage() {
 
   return (
     <AppShell>
-      <ContentContainer>
+      <ContentContainer className="ipile-workspace ipile-money-workspace">
         <PageHeader
           eyebrow="Money"
           title="Cash flow"

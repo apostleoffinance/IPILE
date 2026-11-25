@@ -44,7 +44,7 @@ type NavGroup = {
 const primaryNav: NavGroup[] = [
   { href: "/overview", label: "Home", match: "/overview", icon: Home },
   {
-    href: "/money/transactions",
+    href: "/money",
     label: "Money",
     match: "/money",
     icon: Wallet,
@@ -59,7 +59,7 @@ const primaryNav: NavGroup[] = [
     ],
   },
   {
-    href: "/plan/budget",
+    href: "/plan",
     label: "Plan",
     match: "/plan",
     icon: Landmark,

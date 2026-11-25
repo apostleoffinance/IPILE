@@ -88,7 +88,7 @@ export default function IncomePage() {
 
   return (
     <AppShell>
-      <ContentContainer>
+      <ContentContainer className="ipile-workspace ipile-money-workspace">
         <PageHeader eyebrow="Money" title="Income" description="What is coming in?" />
         {error ? <ErrorState message={error} /> : null}
         {formError ? <p className="text-sm text-critical" role="alert">{formError}</p> : null}

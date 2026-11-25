@@ -109,7 +109,7 @@ export default function TransactionsPage() {
 
   return (
     <AppShell>
-      <ContentContainer>
+      <ContentContainer className="ipile-workspace ipile-money-workspace">
         <PageHeader
           eyebrow="Money"
           title="Transactions"

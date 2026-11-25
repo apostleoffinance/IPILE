@@ -30,7 +30,7 @@ export default function ReconciliationPage() {
  async function act(fn:()=>Promise<unknown>) { setBusy(true); setError(null); try { await fn(); await refresh(); } catch(e) {setError(e instanceof Error?e.message:"Action failed.");} finally {setBusy(false);} }
  async function upload(e:FormEvent) {e.preventDefault(); if(!file||!accountId)return; await act(async()=>{setActive(await previewReconciliationStatement(accountId,file));setFile(null);});}
  if(!accounts)return <AppShell><LoadingState/></AppShell>;
- return <AppShell><ContentContainer>
+ return <AppShell><ContentContainer className="ipile-workspace ipile-money-workspace">
   <PageHeader eyebrow="Money" title="Reconciliation & bank connections" description="Import bank activity, reconcile it against your ledger, and securely connect a bank."/>
   {error?<ErrorState message={error}/>:null}
   <div className="max-w-4xl space-y-8">

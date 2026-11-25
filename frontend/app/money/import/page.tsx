@@ -84,7 +84,7 @@ export default function ImportPage() {
 
   return (
     <AppShell>
-      <ContentContainer>
+      <ContentContainer className="ipile-workspace ipile-money-workspace">
         <PageHeader
           eyebrow="Money"
           title="Import transactions"
