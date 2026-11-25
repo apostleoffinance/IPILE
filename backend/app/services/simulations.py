@@ -25,6 +25,7 @@ from app.services.contribution_forecast import (
     monthly_expected_contributions,
 )
 from app.services.debt_engine import DebtInput
+from app.services.safe_to_spend import compute_safe_to_spend
 from app.services.simulation_engine import (
     SimCategory,
     SimObligation,
@@ -33,7 +34,6 @@ from app.services.simulation_engine import (
     SimulationResult,
     project,
 )
-from app.services.safe_to_spend import compute_safe_to_spend
 from app.services.wealth import household_net_worth
 
 
@@ -60,6 +60,11 @@ def params_from_payload(payload: SimulationIn) -> SimParams:
 def clone_state(db: Session, household: Household, today: date | None = None) -> SimState:
     today = today or date.today()
     start, end = period_bounds(household, today)
+    monthly_income = expected_income(db, household.id)
+    first_month_income = max(
+        Decimal("0.00"),
+        monthly_income - recognized_income(db, household.id, start, end),
+    )
     # Start from actual household Safe-to-Spend, not total account balances.
     # This excludes personal accounts, protected cash, pending outflows, and
     # obligations already due today; expected income/contributions remain separate.
@@ -167,14 +172,8 @@ def clone_state(db: Session, household: Household, today: date | None = None) ->
         emergency=wealth.emergency_fund,
         investments=wealth.investments,
         net_worth=wealth.net_worth,
-        expected_income=expected_income(db, household.id),
-        first_month_income=quantize_money(
-            max(
-                Decimal("0.00"),
-                expected_income(db, household.id)
-                - recognized_income(db, household.id, start, end),
-            )
-        ),
+        expected_income=monthly_income,
+        first_month_income=quantize_money(first_month_income),
         expected_contributions=monthly_expected_contributions(
             db,
             household.id,
