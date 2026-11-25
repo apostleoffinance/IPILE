@@ -276,16 +276,6 @@ def baseline_snapshot(state: SimState) -> dict:
             }
             for row in state.debts
         ],
-        "debts": [
-            {
-                "id": str(row.id),
-                "name": row.name,
-                "balance": format_money(row.balance),
-                "interest_rate": str(row.interest_rate),
-                "minimum_payment": format_money(row.min_payment),
-            }
-            for row in state.debts
-        ],
     }
 
 
