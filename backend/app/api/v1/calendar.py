@@ -4,6 +4,7 @@ from sqlalchemy.orm import Session
 from app.api.deps import HouseholdContext, get_db, get_household_context
 from app.schemas.calendar import CalendarEventOut
 from app.services.calendar_events import build_calendar_events
+from app.services.finance_access import has_member_permission
 
 router = APIRouter(prefix="/calendar", tags=["calendar"])
 
@@ -17,5 +18,11 @@ def list_calendar(
     if ctx.role in {"owner", "partner"}:
         return build_calendar_events(db, ctx.household.id, days=days)
     if ctx.role == "member":
-        return build_calendar_events(db, ctx.household.id, days=days, member_id=ctx.member.id)
+        return build_calendar_events(
+            db,
+            ctx.household.id,
+            days=days,
+            member_id=ctx.member.id,
+            include_all_obligations=has_member_permission(ctx, "view_all_obligations"),
+        )
     raise HTTPException(status_code=403, detail="Insufficient permissions.")
