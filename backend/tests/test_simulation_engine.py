@@ -1,7 +1,9 @@
+from dataclasses import replace
 from decimal import Decimal
 from uuid import uuid4
 
 from app.services.allocation_engine import AllocationRuleSpec, allocate
+from app.services.debt_engine import DebtInput
 from app.services.simulation_engine import (
     SimObligation,
     SimParams,
@@ -153,9 +155,151 @@ def test_simulation_rejects_inputs_that_create_negative_financial_values() -> No
         SimulationIn(expense_category_deltas={"food": "-1.1"})
     with pytest.raises(ValidationError):
         SimulationIn(unexpected_expense="-100.00")
+    with pytest.raises(ValidationError):
+        SimulationIn(debt_extra_payment="-1.00")
+    with pytest.raises(ValidationError):
+        SimulationIn(debt_strategy="unknown")
     valid = SimulationIn(
         income_change_rate="-0.25",
         expense_category_deltas={"food": "-0.10"},
         horizon_months=6,
     )
     assert valid.horizon_months == 6
+
+
+
+def test_obligation_risk_advances_as_due_date_approaches() -> None:
+    state = _seed_state()
+    obligation = SimObligation(
+        id=uuid4(),
+        name="Quarterly fees",
+        amount=Decimal("100.00"),
+        frequency="quarterly",
+        days_until_due=31,
+        funded_amount=Decimal("50.00"),
+    )
+    state = replace(state, obligations=(obligation,))
+    result = project(state, SimParams(horizon_months=2))
+    assert result.months[0].obligations == "unfunded"
+    assert result.months[1].obligations == "funded"
+
+
+
+def test_simulation_models_debt_minimum_and_extra_payments() -> None:
+    debt = DebtInput(
+        id=uuid4(),
+        name="Credit card",
+        balance=Decimal("1000.00"),
+        interest_rate=Decimal("0.12"),
+        min_payment=Decimal("100.00"),
+    )
+    state = replace(_seed_state(), debts=(debt,))
+    baseline = project(state, SimParams(horizon_months=2))
+    accelerated = project(
+        state,
+        SimParams(
+            horizon_months=2,
+            debt_strategy="avalanche",
+            debt_extra_payment=Decimal("50.00"),
+        ),
+    )
+    assert baseline.months[0].debt_payments == Decimal("100.00")
+    assert accelerated.months[0].debt_payments == Decimal("150.00")
+    assert accelerated.months[0].debt_interest == Decimal("10.00")
+    assert accelerated.months[0].cash == baseline.months[0].cash - Decimal("50.00")
+    assert accelerated.months[0].forecast_sts == (
+        baseline.months[0].forecast_sts - Decimal("50.00")
+    )
+
+
+def test_simulation_uses_remaining_income_in_first_month_then_full_run_rate() -> None:
+    state = replace(
+        _seed_state(),
+        expected_income=Decimal("200.00"),
+        first_month_income=Decimal("120.00"),
+        expected_contributions=Decimal("0.00"),
+        first_month_contributions=Decimal("0.00"),
+    )
+    result = project(state, SimParams(horizon_months=2))
+    assert result.months[0].income == Decimal("120.00")
+    assert result.months[1].income == Decimal("200.00")
+
+
+def test_simulation_uses_remaining_budget_in_first_month() -> None:
+    state = replace(
+        _seed_state(),
+        cash=Decimal("1000.00"),
+        expected_income=Decimal("200.00"),
+        first_month_income=Decimal("200.00"),
+        minimum_buffer=Decimal("0.00"),
+        essentials=Decimal("100.00"),
+        first_month_essentials=Decimal("60.00"),
+        rules=(
+            _rule("Budget", "fixed", amount="80.00", priority=0, dest="budget"),
+        ),
+        obligations=(),
+        debts=(),
+    )
+    result = project(state, SimParams(horizon_months=2))
+    assert result.months[0].surplus == Decimal("140.00")
+    assert result.months[1].surplus == Decimal("100.00")
+
+
+def test_one_time_obligation_is_reserved_until_due_not_repeated_forever() -> None:
+    obligation = SimObligation(
+        id=uuid4(),
+        name="One-time school fee",
+        amount=Decimal("120.00"),
+        frequency="one_time",
+        days_until_due=60,
+        funded_amount=Decimal("0.00"),
+    )
+    state = replace(
+        _seed_state(),
+        cash=Decimal("1000.00"),
+        expected_income=Decimal("0.00"),
+        first_month_income=Decimal("0.00"),
+        expected_contributions=Decimal("0.00"),
+        first_month_contributions=Decimal("0.00"),
+        minimum_buffer=Decimal("0.00"),
+        essentials=Decimal("0.00"),
+        first_month_essentials=Decimal("0.00"),
+        rules=(),
+        obligations=(obligation,),
+        debts=(),
+    )
+    result = project(state, SimParams(horizon_months=3))
+    assert [row.forecast_sts for row in result.months] == [
+        Decimal("940.00"),
+        Decimal("880.00"),
+        Decimal("1000.00"),
+    ]
+    assert result.months[1].obligations == "funded"
+
+
+def test_funded_obligation_amount_is_not_reserved_twice() -> None:
+    obligation = SimObligation(
+        id=uuid4(),
+        name="Quarterly fees",
+        amount=Decimal("120.00"),
+        frequency="quarterly",
+        days_until_due=30,
+        funded_amount=Decimal("20.00"),
+    )
+    state = replace(
+        _seed_state(),
+        cash=Decimal("1000.00"),
+        expected_income=Decimal("0.00"),
+        first_month_income=Decimal("0.00"),
+        expected_contributions=Decimal("0.00"),
+        first_month_contributions=Decimal("0.00"),
+        minimum_buffer=Decimal("0.00"),
+        essentials=Decimal("0.00"),
+        first_month_essentials=Decimal("0.00"),
+        rules=(),
+        obligations=(obligation,),
+        debts=(),
+    )
+    result = project(state, SimParams(horizon_months=2))
+    assert result.months[0].forecast_sts == Decimal("900.00")
+    assert result.months[1].forecast_sts == Decimal("860.00")
