@@ -56,6 +56,16 @@ def create_account(
                 status_code=403,
                 detail="Members may create only their own personal accounts.",
             )
+        if (
+            payload.is_protected
+            or payload.is_emergency
+            or not payload.include_in_safe_to_spend
+            or not payload.include_in_net_worth
+        ):
+            raise HTTPException(
+                status_code=403,
+                detail="Only owners and partners can change household balance calculation flags.",
+            )
     elif ctx.role not in {"owner", "partner"}:
         raise HTTPException(status_code=403, detail="Insufficient permissions.")
     if payload.type not in ACCOUNT_TYPES:
