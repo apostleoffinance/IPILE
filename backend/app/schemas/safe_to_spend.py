@@ -39,10 +39,22 @@ class PurchaseCheckIn(BaseModel):
         return value
 
 
+class PurchaseCheckImpact(BaseModel):
+    current_sts_before: MoneySigned
+    current_sts_after: MoneySigned
+    period_sts_after: MoneySigned
+    forecast_sts_after: MoneySigned
+    minimum_buffer: MoneyAmount
+    expected_contributions_excluded_from_current: MoneySigned
+
+
 class PurchaseCheckOut(BaseModel):
     amount: MoneyAmount
     affordable: bool
     severity: str
+    decision: str
+    reasons: list[str]
+    impact: PurchaseCheckImpact
     remaining_current_sts: MoneySigned
     obligations_affected: list[str]
     buffer_breached: bool
