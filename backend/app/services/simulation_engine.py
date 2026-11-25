@@ -46,11 +46,12 @@ def emergency_status(months: Decimal) -> str:
 
 
 def sts_status(forecast: Decimal, minimum_buffer: Decimal) -> str:
+    """Classify forecast headroom after the minimum buffer is already reserved."""
     forecast = quantize_money(forecast)
     buffer = quantize_money(minimum_buffer)
-    if forecast < buffer:
+    if forecast < 0:
         return "critical"
-    if forecast < quantize_money(buffer * Decimal("2")):
+    if forecast < buffer:
         return "warning"
     return "healthy"
 
