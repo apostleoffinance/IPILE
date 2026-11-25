@@ -48,7 +48,7 @@ def get_notifications(
 @router.post("/notifications/{notification_id}/read", response_model=NotificationOut)
 def read_notification(
     notification_id: UUID,
-    ctx: HouseholdContext = Depends(get_household_context),
+    ctx: HouseholdContext = Depends(require_roles("owner", "partner")),
     db: Session = Depends(get_db),
 ):
     row = (
