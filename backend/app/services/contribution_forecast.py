@@ -118,3 +118,47 @@ def contribution_forecast(
         },
         "rows": rows,
     }
+
+
+
+def monthly_expected_contributions(
+    db: Session,
+    household_id: UUID,
+    base_currency: str,
+    *,
+    today: date | None = None,
+) -> Decimal:
+    """Return a conservative monthly run-rate for active recurring agreements.
+
+    One-off agreements and foreign-currency agreements are omitted: one-off
+    payments need a date-specific event model and foreign currencies need FX.
+    This is a scenario input only, never a ledger posting.
+    """
+    today = today or date.today()
+    agreements = (
+        db.query(ContributionAgreement)
+        .filter(
+            ContributionAgreement.household_id == household_id,
+            ContributionAgreement.status == ACTIVE,
+            ContributionAgreement.start_date <= today,
+            (ContributionAgreement.end_date.is_(None))
+            | (ContributionAgreement.end_date >= today),
+            ContributionAgreement.currency == base_currency.upper(),
+        )
+        .all()
+    )
+    total = ZERO
+    for agreement in agreements:
+        amount = Decimal(str(agreement.amount))
+        if agreement.cadence == "weekly":
+            amount = amount * Decimal("52") / Decimal("12")
+        elif agreement.cadence == "biweekly":
+            amount = amount * Decimal("26") / Decimal("12")
+        elif agreement.cadence == "quarterly":
+            amount = amount / Decimal("3")
+        elif agreement.cadence == "annually":
+            amount = amount / Decimal("12")
+        elif agreement.cadence != "monthly":
+            continue
+        total += amount
+    return total.quantize(Decimal("0.01"))
