@@ -14,12 +14,12 @@ import { ErrorState } from "@/components/shared/ErrorState";
 import { LoadingState } from "@/components/shared/LoadingState";
 import { Button } from "@/components/ui/button";
 import { useHouseholdCurrency } from "@/hooks/useHouseholdCurrency";
-import { api, type Account, type CalendarEvent, type Obligation } from "@/lib/api";
+import { api, type Account, type CalendarEvent, type Member, type Obligation } from "@/lib/api";
 
 export default function ObligationsPage() {
   const currency = useHouseholdCurrency();
   const [items, setItems] = useState<Obligation[]>([]);
-  const [currentMember, setCurrentMember] = useState<import("@/lib/api").Member | null>(null);
+  const [currentMember, setCurrentMember] = useState<Member | null>(null);
   const [events, setEvents] = useState<CalendarEvent[]>([]);
   const [accounts, setAccounts] = useState<Account[]>([]);
   const [accountId, setAccountId] = useState("");
