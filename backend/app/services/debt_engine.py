@@ -70,7 +70,7 @@ def avalanche_order(debts: list[DebtInput]) -> list[DebtInput]:
     """Highest interest rate first; ties by balance then name."""
 
     def sort_key(d: DebtInput):
-        return (-Decimal(str(d.interest_rate or 0)), _money(d.balance), d.name.lower(), str(d.id))
+        return (-_apr(d.interest_rate), _money(d.balance), d.name.lower(), str(d.id))
 
     return sorted(debts, key=sort_key)
 
