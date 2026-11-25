@@ -515,7 +515,11 @@ def run_purchase_check(
     elif result.severity == "warning" or period_after < 0 or forecast_after < minimum_buffer:
         decision = "review_or_delay"
         severity = "warning"
-        recommended_action = "review obligations / reduce purchase"
+        recommended_action = (
+            result.recommended_action
+            if result.buffer_breached
+            else "review obligations / reduce purchase"
+        )
     else:
         decision = "proceed"
         severity = "healthy"
