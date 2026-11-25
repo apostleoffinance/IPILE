@@ -33,6 +33,6 @@ def transaction_visibility(query, model, ctx: HouseholdContext):
 def has_member_permission(ctx: HouseholdContext, permission: str) -> bool:
     if ctx.role in {"owner", "partner"}:
         return True
-    if ctx.role != "member" or ctx.member is None:
+    if ctx.member is None:
         return False
     return bool((ctx.member.permissions or {}).get(permission, False))
