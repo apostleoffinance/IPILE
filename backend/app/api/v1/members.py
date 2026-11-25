@@ -105,7 +105,10 @@ def update_member(
     if data.get("role") == "owner" and member.role != "owner":
         raise HTTPException(status_code=400, detail="Cannot transfer ownership in this phase.")
     if member.role == "owner" and data.get("role", "owner") != "owner":
-        raise HTTPException(status_code=400, detail="Household ownership cannot be removed in this phase.")
+        raise HTTPException(
+            status_code=400,
+            detail="Household ownership cannot be removed in this phase.",
+        )
     if "role" in data and data["role"] not in ROLES:
         raise HTTPException(status_code=400, detail="Invalid role.")
     if "relationship" in data and data["relationship"] not in RELATIONSHIPS:
