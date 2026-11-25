@@ -268,7 +268,23 @@ def update_transaction(
     _authorize_write(ctx, payload.member_id or transaction.member_id)
     if ctx.role == "member" and transaction.member_id != ctx.member.id:
         raise HTTPException(status_code=403, detail="Members may only edit their own transactions.")
-    for key, value in payload.model_dump(exclude_unset=True).items():
+    updates = payload.model_dump(exclude_unset=True)
+    if "member_id" in updates:
+        _require_household_reference(
+            db, HouseholdMember, ctx.household.id, updates["member_id"], "Member"
+        )
+        if transaction.access_scope == "personal":
+            account = _get_account(db, ctx.household.id, transaction.account_id)
+            if updates["member_id"] != account.owner_member_id:
+                raise HTTPException(
+                    status_code=400,
+                    detail="A personal transaction must remain assigned to its account owner.",
+                )
+    if "category_id" in updates:
+        _require_household_reference(
+            db, Category, ctx.household.id, updates["category_id"], "Category"
+        )
+    for key, value in updates.items():
         setattr(transaction, key, value)
     db.add(transaction)
     db.flush()
