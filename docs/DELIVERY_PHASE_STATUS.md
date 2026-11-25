@@ -5,11 +5,15 @@ This tracker records delivery milestones added after the original roadmap. Origi
 | Delivery phase | Scope | Status |
 |---|---|---|
 | 4 | Receipt intelligence and OCR | merged |
-| 5 | Reconciliation and bank connectivity | implementation in progress |
+| 5 | Reconciliation and bank connectivity | merged |
 
 ## Phase 4
 
 Receipt intelligence and OCR merged to main in commit `d19e14d6e24f9718ae53b1af41d3a30c712992ce`.
+
+## Phase 5 — Reconciliation and bank connectivity
+
+Merged in PR #31 as commit `83e352452aca4228202db6d00eeb99183fa4ffa8`. Post-merge backend, frontend and multi-household release-acceptance checks passed.
 
 ## Phase 5 definition of done
 
