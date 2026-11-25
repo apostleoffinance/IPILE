@@ -1,3 +1,4 @@
+from dataclasses import replace
 from decimal import Decimal
 from uuid import uuid4
 
@@ -159,3 +160,20 @@ def test_simulation_rejects_inputs_that_create_negative_financial_values() -> No
         horizon_months=6,
     )
     assert valid.horizon_months == 6
+
+
+
+def test_obligation_risk_advances_as_due_date_approaches() -> None:
+    state = _seed_state()
+    obligation = SimObligation(
+        id=uuid4(),
+        name="Quarterly fees",
+        amount=Decimal("100.00"),
+        frequency="quarterly",
+        days_until_due=31,
+        funded_amount=Decimal("50.00"),
+    )
+    state = replace(state, obligations=(obligation,))
+    result = project(state, SimParams(horizon_months=2))
+    assert result.months[0].obligations == "at risk"
+    assert result.months[1].obligations == "unfunded"
