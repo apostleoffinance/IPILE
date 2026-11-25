@@ -177,3 +177,10 @@ def test_legacy_whole_percentage_apr_is_normalized() -> None:
     legacy = _debt("Legacy APR", "1000.00", "18", "100.00")
     result = amortize_strategy([legacy], strategy="avalanche")
     assert result.order[0]["interest_rate"] == "0.18"
+
+
+def test_avalanche_ranks_legacy_and_fractional_apr_consistently() -> None:
+    legacy_eighteen = _debt("Legacy 18%", "1000.00", "18", "100.00")
+    modern_twenty_four = _debt("Modern 24%", "1000.00", "0.24", "100.00")
+    ordered = avalanche_order([legacy_eighteen, modern_twenty_four])
+    assert [row.name for row in ordered] == ["Modern 24%", "Legacy 18%"]
