@@ -2,6 +2,7 @@ from datetime import date, timedelta
 from decimal import Decimal
 from uuid import UUID
 
+from fastapi import HTTPException
 from sqlalchemy.orm import Session
 
 from app.models.account import Account
@@ -147,6 +148,7 @@ def pending_outbound(db: Session, household_id: UUID) -> Decimal:
         db.query(Transaction)
         .filter(
             Transaction.household_id == household_id,
+            Transaction.access_scope == "shared",
             Transaction.deleted_at.is_(None),
             Transaction.status == "pending",
             Transaction.type.in_(tuple(OUTFLOW_TYPES)),
@@ -159,8 +161,12 @@ def pending_outbound(db: Session, household_id: UUID) -> Decimal:
 def upcoming_bills(db: Session, household_id: UUID, start: date, end: date) -> Decimal:
     rows = (
         db.query(RecurringTransaction)
+        .join(Account, Account.id == RecurringTransaction.account_id)
         .filter(
             RecurringTransaction.household_id == household_id,
+            Account.household_id == household_id,
+            Account.access_scope == "shared",
+            Account.deleted_at.is_(None),
             RecurringTransaction.deleted_at.is_(None),
             RecurringTransaction.is_active.is_(True),
             RecurringTransaction.type.in_(("expense", "giving")),
@@ -261,11 +267,17 @@ def compute_safe_to_spend(
     start, end = period_bounds(household, today)
     horizon = today + timedelta(days=horizon_days)
     accounts = _accounts(db, household.id)
-    funds = (
+    all_funds = (
         db.query(SinkingFund)
         .filter(SinkingFund.household_id == household.id, SinkingFund.deleted_at.is_(None))
         .all()
     )
+    shared_account_ids = {row.id for row in accounts if row.access_scope == "shared"}
+    funds = [
+        fund
+        for fund in all_funds
+        if fund.account_id is None or fund.account_id in shared_account_ids
+    ]
     liquid = liquid_cash(accounts)
     protected_held = protected_in_spendable(accounts, funds)
     pending = pending_outbound(db, household.id)
@@ -439,7 +451,14 @@ def run_purchase_check(
             )
             .first()
         )
-        if account is not None and (account.is_protected or not account.include_in_safe_to_spend):
+        if account is None:
+            raise HTTPException(status_code=404, detail="Account not found.")
+        if account.access_scope != "shared":
+            raise HTTPException(
+                status_code=400,
+                detail="Purchase checks can only use shared household accounts.",
+            )
+        if account.is_protected or not account.include_in_safe_to_spend:
             raids_protected = True
     budget_exceeded = False
     if category_id is not None:
