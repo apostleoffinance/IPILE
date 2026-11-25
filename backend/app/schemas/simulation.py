@@ -10,6 +10,7 @@ class SimulationIn(BaseModel):
     name: str = Field(default="Scenario", min_length=1, max_length=100)
     monthly_income: MoneySigned | None = None
     income_change_rate: str = "0"
+    contribution_change_rate: str = "0"
     expense_category_deltas: dict[str, str] = Field(default_factory=dict)
     obligation_deltas: dict[str, str] = Field(default_factory=dict)
     investment_override: MoneySigned | None = None
@@ -23,15 +24,15 @@ class SimulationIn(BaseModel):
             raise ValueError("Scenario amounts cannot be negative.")
         return value
 
-    @field_validator("income_change_rate")
+    @field_validator("income_change_rate", "contribution_change_rate")
     @classmethod
-    def validate_income_change_rate(cls, value):
+    def validate_income_change_rates(cls, value):
         try:
             rate = Decimal(value)
         except InvalidOperation as exc:
-            raise ValueError("Income change rate must be a decimal.") from exc
+            raise ValueError("Income change rates must be decimals.") from exc
         if not rate.is_finite() or rate < -1:
-            raise ValueError("Income change rate cannot reduce income below zero.")
+            raise ValueError("Income change rates cannot reduce income below zero.")
         return value
 
     @field_validator("expense_category_deltas", "obligation_deltas")
@@ -50,6 +51,7 @@ class SimulationIn(BaseModel):
 class MonthOut(BaseModel):
     month_index: int
     income: MoneySigned
+    contributions: MoneySigned
     surplus: MoneySigned
     cash: MoneySigned
     emergency: MoneySigned
