@@ -4,6 +4,11 @@ from uuid import UUID
 from pydantic import BaseModel, Field
 
 
+class MemberPermissions(BaseModel):
+    view_all_contributions: bool = False
+    view_all_obligations: bool = False
+
+
 class MemberCreate(BaseModel):
     display_name: str = Field(min_length=1, max_length=200)
     role: str = Field(default="member")
@@ -11,6 +16,7 @@ class MemberCreate(BaseModel):
     member_type: str = Field(default="adult")
     date_of_birth: date | None = None
     is_financial_contributor: bool = False
+    permissions: MemberPermissions = Field(default_factory=MemberPermissions)
     user_id: UUID | None = None
     email: str | None = None
 
@@ -21,6 +27,7 @@ class MemberUpdate(BaseModel):
     relationship: str | None = None
     member_type: str | None = None
     is_financial_contributor: bool | None = None
+    permissions: MemberPermissions | None = None
 
 
 class MemberOut(BaseModel):
@@ -33,5 +40,6 @@ class MemberOut(BaseModel):
     member_type: str
     date_of_birth: date | None
     is_financial_contributor: bool
+    permissions: MemberPermissions
 
     model_config = {"from_attributes": True}
