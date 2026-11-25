@@ -171,3 +171,9 @@ def test_liability_api_rejects_percentage_not_fraction_apr(client) -> None:
         },
     )
     assert valid.status_code == 201, valid.text
+
+
+def test_legacy_whole_percentage_apr_is_normalized() -> None:
+    legacy = _debt("Legacy APR", "1000.00", "18", "100.00")
+    result = amortize_strategy([legacy], strategy="avalanche")
+    assert result.order[0]["interest_rate"] == "0.18"
