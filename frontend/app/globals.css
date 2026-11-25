@@ -440,3 +440,115 @@ button, a, input, select, textarea { transition-duration: 220ms; }
 
 /* Plan workspace — intentional planning hierarchy */
 .ipile-plan-workspace{max-width:1440px;gap:30px}.ipile-plan-workspace>.ipile-page-header{padding-bottom:22px;border-bottom:1px solid var(--color-border)}.ipile-plan-workspace>.ipile-page-header .eyebrow{color:var(--color-accent-primary);font-weight:600}.ipile-plan-workspace section{scroll-margin-top:100px}.ipile-plan-workspace form.border.border-line,.ipile-plan-workspace section.border.border-line,.ipile-plan-workspace .border.border-line.bg-surface{border-radius:14px;box-shadow:0 8px 26px rgba(5,8,7,.035)}.ipile-plan-workspace [role=progressbar]{border-radius:999px;overflow:hidden}.ipile-plan-workspace table thead{background:var(--color-bg-subtle)}.ipile-plan-workspace table th,.ipile-plan-workspace table td{padding-top:13px;padding-bottom:13px}[data-theme=dark] .ipile-plan-workspace form.border.border-line,[data-theme=dark] .ipile-plan-workspace section.border.border-line,[data-theme=dark] .ipile-plan-workspace .border.border-line.bg-surface{box-shadow:0 10px 28px rgba(0,0,0,.16)}@media(max-width:640px){.ipile-plan-workspace{gap:23px}}
+
+
+/* Phase 5 — Wealth: calm, data-led portfolio and planning surfaces */
+.ipile-wealth-page { display:grid; gap:28px; max-width:1320px; margin:0 auto; }
+.ipile-wealth-page > .ipile-page-header { margin-bottom:0; }
+.ipile-wealth-page .ipile-page-header .eyebrow { color:var(--color-accent-primary); }
+.ipile-wealth-page [aria-label="Net worth summary"] {
+  gap:12px; margin-top:2px;
+}
+.ipile-wealth-overview [aria-label="Net worth summary"] > div:first-child {
+  grid-column:1/-1; position:relative; overflow:hidden;
+  min-height:190px; display:flex; flex-direction:column; justify-content:center;
+  padding:clamp(24px,4vw,42px); border:0 !important; border-radius:18px;
+  background:linear-gradient(118deg,#003d35 0%,#052b25 62%,#050807 100%) !important;
+  color:#f7f6f2; box-shadow:0 18px 42px rgba(0,61,53,.15) !important;
+}
+.ipile-wealth-overview [aria-label="Net worth summary"] > div:first-child:after {
+  content:""; position:absolute; width:300px; height:300px; right:-95px; top:-195px;
+  border:1px solid rgba(201,164,92,.3); border-radius:50%;
+  box-shadow:0 0 0 30px rgba(201,164,92,.035),0 0 0 65px rgba(201,164,92,.025);
+}
+.ipile-wealth-overview [aria-label="Net worth summary"] > div:first-child > p:first-child {
+  color:rgba(247,246,242,.68); font-size:10px; letter-spacing:.18em;
+}
+.ipile-wealth-overview [aria-label="Net worth summary"] > div:first-child .text-4xl {
+  margin-top:12px; font-size:clamp(38px,5vw,62px); line-height:1.08;
+  letter-spacing:-.075em; font-weight:400;
+}
+.ipile-wealth-overview [aria-label="Net worth summary"] > div:not(:first-child) {
+  padding:19px 21px; border-radius:13px; background:var(--color-bg-surface);
+}
+.ipile-wealth-overview [aria-label="Net worth summary"] > div:not(:first-child) > p:first-child {
+  font-size:10px; letter-spacing:.13em;
+}
+.ipile-wealth-overview [aria-label="Net worth summary"] > div:not(:first-child) > p:last-child {
+  margin-top:9px; font-size:clamp(19px,2vw,25px); letter-spacing:-.05em;
+}
+.ipile-wealth-overview > p.text-sm.text-muted {
+  width:fit-content; margin-top:-13px; padding:9px 13px;
+  border:1px solid var(--color-border); border-radius:999px;
+  background:var(--color-bg-surface); font-size:11px;
+}
+.ipile-wealth-overview .grid.md\:grid-cols-2 > div {
+  padding:22px 24px !important; border-radius:15px;
+}
+.ipile-wealth-overview .grid.md\:grid-cols-2 > div h2 {
+  margin-bottom:17px; font-size:11px; letter-spacing:.14em;
+}
+.ipile-wealth-overview .grid.md\:grid-cols-2 > div > div {
+  padding:9px 0; border-bottom:1px solid var(--color-border);
+}
+.ipile-wealth-overview .grid.md\:grid-cols-2 > div > div:last-child {
+  margin-top:8px; border-top:1px solid var(--color-border); border-bottom:0;
+}
+.ipile-wealth-page section > .ipile-chart-shell,
+.ipile-wealth-page section .echarts-for-react {
+  border-radius:14px; overflow:hidden;
+}
+.ipile-wealth-page .ipile-wealth-form {
+  padding:22px !important; border-radius:15px !important;
+  box-shadow:var(--ipile-shadow-card);
+}
+.ipile-wealth-page .ipile-wealth-form input,
+.ipile-wealth-page .ipile-wealth-form select {
+  min-height:44px; width:100%; border:1px solid var(--color-border);
+  background:var(--color-bg-canvas); padding:10px 12px; font-size:13px;
+}
+.ipile-wealth-page .ipile-wealth-form button { min-height:44px; }
+.ipile-wealth-page .ipile-wealth-row {
+  align-items:center; gap:18px; min-height:74px; padding:17px 20px !important;
+  border-radius:13px !important; background:var(--color-bg-surface);
+}
+.ipile-wealth-page .ipile-wealth-row > div { min-width:0; }
+.ipile-wealth-page .ipile-wealth-row > div p:first-child { font-weight:500; }
+.ipile-wealth-page .ipile-wealth-row > div p:last-child {
+  color:var(--color-text-secondary); line-height:1.7;
+}
+.ipile-wealth-goals > div.space-y-4 > div {
+  padding:22px 24px; border-radius:15px;
+}
+.ipile-wealth-goals > div.space-y-4 > div > div:nth-child(2) {
+  height:8px; background:var(--color-bg-subtle);
+}
+.ipile-wealth-goals > div.space-y-4 > div > div:nth-child(2) > div {
+  border-radius:999px; background:var(--color-accent-primary);
+}
+.ipile-wealth-debts section > div.grid > div {
+  border-radius:14px; padding:22px;
+}
+.ipile-wealth-page .ipile-page-header a {
+  text-decoration:none; border:1px solid var(--color-border);
+  border-radius:999px; padding:8px 12px; color:var(--color-accent-primary);
+}
+.ipile-wealth-page .ipile-page-header a:hover {
+  background:var(--color-bg-subtle);
+}
+[data-theme="dark"] .ipile-wealth-overview [aria-label="Net worth summary"] > div:not(:first-child) {
+  background:linear-gradient(145deg,#0c1410,#101c16);
+}
+[data-theme="dark"] .ipile-wealth-overview .grid.md\:grid-cols-2 > div,
+[data-theme="dark"] .ipile-wealth-page .ipile-wealth-form,
+[data-theme="dark"] .ipile-wealth-page .ipile-wealth-row {
+  background:var(--color-bg-surface);
+  border-color:rgba(247,246,242,.1) !important;
+}
+@media(max-width:640px) {
+  .ipile-wealth-page { gap:23px; }
+  .ipile-wealth-overview [aria-label="Net worth summary"] > div:first-child { min-height:160px; }
+  .ipile-wealth-page .ipile-wealth-form { padding:17px !important; }
+  .ipile-wealth-page .ipile-wealth-row { align-items:flex-start; padding:15px !important; }
+  .ipile-wealth-goals > div.space-y-4 > div { padding:18px; }
+}

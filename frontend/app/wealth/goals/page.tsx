@@ -92,6 +92,7 @@ export default function GoalsPage() {
   return (
     <AppShell>
       <ContentContainer>
+        <div className="ipile-wealth-page ipile-wealth-goals">
         <PageHeader eyebrow="Wealth" title="Goals" description="Are we getting closer?" />
         {error ? <ErrorState message={error} /> : null}
         {!loaded && !error ? <LoadingState /> : null}
@@ -115,7 +116,7 @@ export default function GoalsPage() {
             ))}
           </div>
         )}
-        <form onSubmit={onCreate} className="grid gap-3 rounded-md border border-line bg-surface p-5 md:grid-cols-3">
+        <form onSubmit={onCreate} className="ipile-wealth-form grid gap-3 rounded-md border border-line bg-surface p-5 md:grid-cols-3">
           <Input
             placeholder="Goal name"
             value={name}
@@ -157,7 +158,7 @@ export default function GoalsPage() {
           </Button>
         </form>
         {rows.some((row) => row.status !== "completed" && row.status !== "cancelled") ? (
-          <form onSubmit={onContribute} className="grid gap-3 rounded-md border border-line bg-surface p-5 md:grid-cols-4">
+          <form onSubmit={onContribute} className="ipile-wealth-form grid gap-3 rounded-md border border-line bg-surface p-5 md:grid-cols-4">
             <Select
               value={goalId}
               onChange={(event) => setGoalId(event.target.value)}
@@ -191,6 +192,7 @@ export default function GoalsPage() {
             </Button>
           </form>
         ) : null}
+        </div>
       </ContentContainer>
     </AppShell>
   );
