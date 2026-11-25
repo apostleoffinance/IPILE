@@ -197,6 +197,7 @@ def _month_payload(month) -> dict:
         "income": format_money(month.income),
         "contributions": format_money(month.contributions),
         "debt_payments": format_money(month.debt_payments),
+        "debt_interest": format_money(month.debt_interest),
         "surplus": format_money(month.surplus),
         "cash": format_money(month.cash),
         "emergency": format_money(month.emergency),
