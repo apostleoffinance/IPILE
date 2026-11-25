@@ -106,7 +106,7 @@ export default function OverviewPage() {
       {!data && !error ? <LoadingState /> : null}
       {error ? <ErrorState message={error} /> : null}
       {data ? (
-        <ContentContainer>
+        <ContentContainer className="ipile-overview">
           <PageHeader
             eyebrow={today}
             title={`Good day, ${greetingName}`}
@@ -146,7 +146,7 @@ export default function OverviewPage() {
             </section>
           ) : null}
 
-          <section className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+          <section className="ipile-overview-metrics grid gap-3 sm:grid-cols-2 lg:grid-cols-4" aria-label="Household financial summary">
             {memberSummary ? (
               <>
                 <Metric label="Income this month" amount={memberSummary.income} currency={memberSummary.currency} />
@@ -169,14 +169,14 @@ export default function OverviewPage() {
           </section>
 
           {data.wealth ? (
-            <section className="grid gap-3 md:grid-cols-3">
+            <section className="ipile-overview-secondary-metrics grid gap-3 md:grid-cols-3" aria-label="Wealth indicators">
               <Metric label="Emergency" amount={data.wealth.emergency_fund} currency={data.currency} />
               <Metric label="Debt" amount={data.wealth.debt} currency={data.currency} />
               <Metric label="Investments" amount={data.wealth.investments} currency={data.currency} />
             </section>
           ) : null}
 
-          <section>
+          <section className="ipile-dashboard-health">
             {data.health_ready && data.health ? (
               <HealthScore health={data.health} onOpen={() => setWhyOpen(true)} />
             ) : (
@@ -191,8 +191,8 @@ export default function OverviewPage() {
             )}
           </section>
 
-          <section>
-            <h2 className="font-display text-2xl text-ink">What needs your attention?</h2>
+          <section className="ipile-dashboard-attention">
+            <div className="ipile-dashboard-section-heading"><div><p className="eyebrow">Stay ahead</p><h2 className="font-display text-2xl text-ink">What needs your attention?</h2></div><span className="ipile-section-caption">Household signals</span></div>
             <div className="mt-4 space-y-3">
               {attention.length === 0 ? (
                 <p className="border border-line bg-surface px-4 py-3 text-sm text-muted">
@@ -213,7 +213,7 @@ export default function OverviewPage() {
           </section>
 
           {data.foundation ? (
-            <section className="border border-line bg-surface p-5">
+            <section className="ipile-foundation-card border border-line bg-surface p-5">
               <p className="text-xs uppercase tracking-[0.2em] text-muted">Your IPÌLẸ̀ foundation</p>
               <p className="mt-2 font-display text-3xl">
                 {Math.round((data.foundation.completed / data.foundation.total) * 100)}%
@@ -245,7 +245,7 @@ export default function OverviewPage() {
           ) : null}
 
           {currentMember && ["owner", "partner"].includes(currentMember.role) ? (
-          <section>
+          <section className="ipile-dashboard-plan">
             <div className="mb-3 flex items-end justify-between">
               <h2 className="font-display text-2xl">Money plan</h2>
               <Link href="/plan/allocation" className="text-sm text-accent underline">
@@ -265,8 +265,8 @@ export default function OverviewPage() {
           </section>
           ) : null}
 
-          <section>
-            <h2 className="mb-3 font-display text-2xl">Coming up</h2>
+          <section className="ipile-dashboard-upcoming">
+            <div className="ipile-dashboard-section-heading"><div><p className="eyebrow">Plan ahead</p><h2 className="mb-1 font-display text-2xl">Coming up</h2></div><Link href="/plan/obligations" className="ipile-section-link">View obligations ↗</Link></div>
             {!data.upcoming_obligations?.length ? (
               <EmptyState
                 title="What must your household prepare for?"
@@ -283,9 +283,8 @@ export default function OverviewPage() {
             )}
           </section>
 
-          <section>
-            <div className="mb-3 flex items-end justify-between">
-              <h2 className="font-display text-2xl">Recent money</h2>
+          <section className="ipile-dashboard-activity">
+            <div className="ipile-dashboard-section-heading"><div><p className="eyebrow">Latest movement</p><h2 className="font-display text-2xl">Recent money</h2></div>
               <Link href="/money/transactions" className="text-sm text-accent underline">
                 All activity
               </Link>
@@ -332,9 +331,9 @@ function Metric({
   currency: string;
 }) {
   return (
-    <div className="border border-line bg-surface px-4 py-4">
+    <div className="ipile-metric-card border border-line bg-surface px-4 py-4">
       <p className="text-xs uppercase tracking-wide text-muted">{label}</p>
-      <p className="mt-2 text-2xl tabular">
+      <p className="mt-3 text-2xl tabular">
         <MoneyAmount amount={amount} currency={currency} />
       </p>
     </div>
