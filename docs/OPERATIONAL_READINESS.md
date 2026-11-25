@@ -190,3 +190,40 @@ The current API rate limiter stores counters in process memory and derives clien
 - Confirm 429 responses and Retry-After behavior without logging credentials or request payloads.
 
 These controls remain release-readiness items; CI does not prove the live Render, GitHub environment, backup, monitoring or proxy configuration.
+
+
+## 8. Phase 6 live verification — 2026-11-25
+
+This section supersedes older observations only where it explicitly records a newer observation. It is an evidence log, not a GO decision.
+
+| Control | Live evidence on 2026-11-25 | Result |
+|---|---|---|
+| Render auto-deploy | Production `IPILE`, staging `ipile-staging-api-v2`, and legacy staging `ipile-staging-api` all report `autoDeploy=no` / `autoDeployTrigger=off`. | **Passed** |
+| Staging release | Render deploy `dep-dc3hc8afngtc73e0osv0` for commit `a830a85cd9a3500483289614892c077e93ae0e16` reached `live`; build and deploy events succeeded. | **Passed** |
+| Staging migration | Staging Neon branch `br-bitter-term-bex566zc` reports `0022_bank_reconciliation`; startup logs show migrations 0017–0022 completed. | **Passed** |
+| Production migration boundary | Production Neon branch `br-mute-rice-bedagamw` remains at `0016_import_mailboxes`. No production migration or deploy was triggered. | **Passed — unchanged** |
+| Production API health | Render service is configured as live, but the connected inspection path could not retrieve an external HTTP response from the public health endpoints. | **Not independently verified** |
+| Render health check | Service metadata reports no configured Render `healthCheckPath`. | **Action required** |
+| Automated backup schedule | Neon snapshot schedule is empty. Attempt to configure a daily schedule returned `backup schedule creation is not enabled for this project`. | **Blocked by current Neon project/plan** |
+| Manual snapshot capacity | Project has one manual snapshot, `ipile-before-first-migration-2026-11-19`. A new snapshot request returned `snapshots limit exceeded`. Existing snapshot predates schema bootstrap and is not a usable current recovery point. | **Release blocker** |
+| Restore drill | Existing pre-migration snapshot restored successfully to isolated branch `ipile-restore-drill-2026-11-25`, but the restored branch contains zero public tables and no `alembic_version`. This proves the provider restore operation only; it does **not** prove recovery of current application data/schema. | **Failed acceptance / release blocker** |
+| Safety clone | A no-compute clone of the current production branch was created and reached `ready`: `ipile-prod-safety-clone-2026-11-25` (`br-mute-dawn-be0f06fq`). It is an isolated copy, not a scheduled backup or tested application restore. | **Partial mitigation only** |
+| Branch protection | Neon refused to protect the production branch because the current plan has reached its protected-branch limit. | **Blocked by plan quota** |
+| GitHub deployment governance | Repository rulesets endpoint returns an empty list. Branch-protection inspection returned 403 for the connected GitHub integration; required reviewers and environment branch restrictions could not be independently verified or configured through this connection. | **Not verified / admin action required** |
+| Sentry | Code supports Sentry and strips request bodies, cookies, query strings, user data and sensitive headers. No live test event/alert delivery evidence was available. | **Not verified / release blocker** |
+| Support | Support-ticket endpoints exist, but no named primary/backup owner, monitored response channel or staffed SLA was evidenced. | **Not verified / release blocker** |
+| Privacy | `docs/PRIVACY_NOTICE_DRAFT.md` remains a draft requiring controller identity, contact, retention schedule, vendor review and qualified Nigerian privacy review. | **Not approved / release blocker** |
+| Billing | Payment provider integration is not implemented. The plan mutation endpoint previously allowed an owner to select the `family` plan without payment. A follow-up code change now rejects non-pilot plan activation until a verified payment integration is deliberately enabled. | **Code fix proposed; merge and CI required** |
+
+### Required operator actions before production GO
+
+1. Upgrade or reconfigure the Neon project so it supports automated backups/snapshots, sufficient retention, and a protected production branch. Create a fresh post-migration snapshot after the migration plan is approved.
+2. Perform a restore drill from a fresh snapshot into an isolated database/branch with compute enabled. Verify the restored Alembic head, representative table counts, household isolation, and staging API readiness. Record RPO/RTO.
+3. Configure the Render production and staging health-check path to `/health`; independently probe `/health/live` and `/health` after deployment.
+4. Configure GitHub's `production` environment with required reviewers and a `main`-only deployment branch policy using an administrator-capable GitHub account. Confirm settings in the UI/API.
+5. Configure Sentry production DSN and alert routing, then trigger a synthetic exception and capture proof that the monitored operator receives the alert. Recheck event scrubbing.
+6. Assign named support primary and backup owners, publish a monitored contact channel, and test an end-to-end support ticket.
+7. Complete the privacy notice, data retention schedule, processor/transfer review and qualified NDPA/NDPC review before publication.
+8. Keep billing in pilot mode. Do not enable paid plan activation until checkout, raw-body signature verification, idempotency, payment reconciliation, subscription lifecycle, refunds and sandbox acceptance are complete.
+
+**Production release decision on 2026-11-25: NO-GO.** The successful staging rollout does not authorize production deployment or migrations.

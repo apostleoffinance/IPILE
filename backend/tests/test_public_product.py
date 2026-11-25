@@ -92,8 +92,11 @@ def test_billing_and_support(client: TestClient) -> None:
     assert billing.status_code == 200, billing.text
     assert billing.json()["plan"] == "pilot"
     upgraded = client.post("/api/v1/billing/plan", json={"plan": "family"})
-    assert upgraded.status_code == 200, upgraded.text
-    assert upgraded.json()["plan"] == "family"
+    assert upgraded.status_code == 400, upgraded.text
+    assert "Paid plans are unavailable" in upgraded.json()["detail"]
+    unchanged = client.get("/api/v1/billing")
+    assert unchanged.status_code == 200
+    assert unchanged.json()["plan"] == "pilot"
     ticket = client.post(
         "/api/v1/support/tickets",
         json={"subject": "Need help", "body": "How do I invite my partner?"},

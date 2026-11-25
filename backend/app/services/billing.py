@@ -16,7 +16,7 @@ PLANS = {
         "name": "Family",
         "price_monthly": "15000.00",
         "currency": "NGN",
-        "description": "Public family plan — multi-member, export, support.",
+        "description": "Planned paid plan — unavailable until verified payment integration.",
     },
 }
 
@@ -38,6 +38,9 @@ def billing_snapshot(household: Household) -> dict:
     }
 
 
+PAID_PLANS_ENABLED = False
+
+
 def change_plan(
     db: Session,
     household: Household,
@@ -47,6 +50,11 @@ def change_plan(
 ) -> Household:
     if plan not in PLANS:
         raise ValueError("Unknown plan.")
+    if plan != "pilot" and not PAID_PLANS_ENABLED:
+        raise ValueError(
+            "Paid plans are unavailable while IPÌLẸ̀ is in pilot mode. "
+            "A verified payment integration is required before upgrading."
+        )
     household.plan = plan
     household.billing_status = "active"
     db.add(household)
