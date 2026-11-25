@@ -21,6 +21,9 @@ export default function SimulatePage() {
   const currency = useHouseholdCurrency();
   const [obligations, setObligations] = useState<Obligation[]>([]);
   const [incomeRate, setIncomeRate] = useState("-0.20");
+  const [contributionRate, setContributionRate] = useState("0");
+  const [debtStrategy, setDebtStrategy] = useState<"avalanche" | "snowball">("avalanche");
+  const [debtExtraPayment, setDebtExtraPayment] = useState("0.00");
   const [unexpected, setUnexpected] = useState("300000.00");
   const [feeRate, setFeeRate] = useState("0.15");
   const [feeId, setFeeId] = useState("");
@@ -51,6 +54,9 @@ export default function SimulatePage() {
         await runSimulation({
           name: "What if",
           income_change_rate: incomeRate,
+          contribution_change_rate: contributionRate,
+          debt_strategy: debtStrategy,
+          debt_extra_payment: debtExtraPayment,
           unexpected_expense: unexpected || undefined,
           obligation_deltas,
           horizon_months: Number(horizon),
@@ -80,6 +86,37 @@ export default function SimulatePage() {
               className="mt-1"
               value={incomeRate}
               onChange={(event) => setIncomeRate(event.target.value)}
+            />
+          </div>
+          <div>
+            <Label htmlFor="sim-contribution-rate">Contribution change rate</Label>
+            <Input
+              id="sim-contribution-rate"
+              className="mt-1"
+              value={contributionRate}
+              onChange={(event) => setContributionRate(event.target.value)}
+            />
+            <p className="mt-1 text-xs text-muted">Use recurring agreements not already counted in expected income sources. One-off contributions are included only when due this period.</p>
+          </div>
+          <div>
+            <Label htmlFor="sim-debt-strategy">Debt payoff strategy</Label>
+            <Select
+              id="sim-debt-strategy"
+              className="mt-1"
+              value={debtStrategy}
+              onChange={(event) => setDebtStrategy(event.target.value as "avalanche" | "snowball")}
+            >
+              <option value="avalanche">Avalanche (highest interest first)</option>
+              <option value="snowball">Snowball (smallest balance first)</option>
+            </Select>
+          </div>
+          <div>
+            <Label htmlFor="sim-debt-extra">Extra monthly debt payment</Label>
+            <Input
+              id="sim-debt-extra"
+              className="mt-1 tabular"
+              value={debtExtraPayment}
+              onChange={(event) => setDebtExtraPayment(event.target.value)}
             />
           </div>
           <div>
@@ -167,7 +204,10 @@ export default function SimulatePage() {
                 >
                   <span>Month {row.month_index}</span>
                   <span className="tabular">
-                    Income <MoneyAmount amount={row.income} currency={currency ?? "NGN"} /> · surplus{" "}
+                    Income <MoneyAmount amount={row.income} currency={currency ?? "NGN"} /> (contributions{" "}
+                    <MoneyAmount amount={row.contributions} currency={currency ?? "NGN"} />) · debt{" "}
+                    <MoneyAmount amount={row.debt_payments} currency={currency ?? "NGN"} /> (interest{" "}
+                    <MoneyAmount amount={row.debt_interest} currency={currency ?? "NGN"} />) · surplus{" "}
                     <MoneyAmount amount={row.surplus} currency={currency ?? "NGN"} /> · {row.cash_flow}
                   </span>
                 </div>
