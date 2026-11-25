@@ -224,12 +224,15 @@ def apply_params(state: SimState, params: SimParams) -> SimState:
     )
     if params.monthly_income is not None:
         income = quantize_money(params.monthly_income)
+    income = _scale(income, params.income_change_rate)
+    # Income already recognized in the current period is historical cash,
+    # not part of the hypothetical change. Recompute remaining income after
+    # changing the monthly run-rate instead of scaling receipts already made.
+    if params.monthly_income is not None or params.income_change_rate != 0:
         first_month_income = max(
             Decimal("0.00"),
             quantize_money(income - state.recognized_income),
         )
-    income = _scale(income, params.income_change_rate)
-    first_month_income = _scale(first_month_income, params.income_change_rate)
     contributions = _scale(state.expected_contributions, params.contribution_change_rate)
     first_month_contributions = _scale(
         state.first_month_contributions,
