@@ -50,6 +50,10 @@ def category_spent(
     )
     if member_id is not None:
         query = query.filter(Transaction.member_id == member_id)
+    else:
+        # Household budgets are funded by shared money; private spending must
+        # not consume the household's remaining budget.
+        query = query.filter(Transaction.access_scope == "shared")
     rows = [(row.type, quantize_money(Decimal(str(row.amount)))) for row in query.all()]
     return spent_from_lines(rows)
 
