@@ -4,7 +4,7 @@ from uuid import UUID
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy.orm import Session
 
-from app.api.deps import HouseholdContext, get_db, get_household_context, require_roles
+from app.api.deps import HouseholdContext, get_db, get_household_context
 from app.models.account import Account
 from app.models.business import Business
 from app.models.member import HouseholdMember
@@ -126,7 +126,10 @@ def update_account(
         raise HTTPException(status_code=404, detail="Account not found.")
     if ctx.role == "member":
         if account.access_scope != "personal" or account.owner_member_id != ctx.member.id:
-            raise HTTPException(status_code=403, detail="Members may update only their own personal accounts.")
+            raise HTTPException(
+                status_code=403,
+                detail="Members may update only their own personal accounts.",
+            )
     elif ctx.role not in {"owner", "partner"}:
         raise HTTPException(status_code=403, detail="Insufficient permissions.")
     for key, value in payload.model_dump(exclude_unset=True).items():
