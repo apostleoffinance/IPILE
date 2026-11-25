@@ -87,6 +87,7 @@ export default function ObligationsPage() {
           )}
         </section>
 
+        {currentMember && ["owner", "partner"].includes(currentMember.role) ? (
         <section id="list">
           <SectionHeader title="Add obligation" />
           <ObligationForm
