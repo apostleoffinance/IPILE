@@ -41,7 +41,10 @@ def create_category(
             .first()
         )
         if parent is None:
-            raise HTTPException(status_code=404, detail="Parent category not found in this household.")
+            raise HTTPException(
+                status_code=404,
+                detail="Parent category not found in this household.",
+            )
     category = Category(
         household_id=ctx.household.id,
         name=payload.name,
