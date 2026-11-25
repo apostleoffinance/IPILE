@@ -1328,6 +1328,10 @@ export const api = {
     description?: string;
     merchant?: string;
   }) => request<Transaction>("/api/v1/transactions", { method: "POST", body: JSON.stringify(body) }),
+  updateTransaction: (
+    id: string,
+    body: { merchant?: string | null; description?: string | null; category_id?: string | null; date?: string; member_id?: string | null },
+  ) => request<Transaction>(`/api/v1/transactions/${id}`, { method: "PATCH", body: JSON.stringify(body) }),
   voidTransaction: (id: string) =>
     request<Transaction>(`/api/v1/transactions/${id}/void`, { method: "POST" }),
   budgets: () => request<Budget[]>("/api/v1/budget"),
