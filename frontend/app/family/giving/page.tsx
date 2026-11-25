@@ -86,6 +86,7 @@ export default function GivingPage() {
   return (
     <AppShell>
       <ContentContainer>
+        <div className="ipile-family-page ipile-family-giving">
         <PageHeader
           eyebrow="Family"
           title="Giving"
@@ -277,6 +278,7 @@ export default function GivingPage() {
             <EmptyState title="No giving recorded" body="Post a gift against a policy." />
           )}
         </section>
+              </div>
       </ContentContainer>
     </AppShell>
   );
