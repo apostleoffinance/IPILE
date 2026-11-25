@@ -1,4 +1,5 @@
 from decimal import Decimal, InvalidOperation
+from typing import Literal
 from uuid import UUID
 
 from pydantic import BaseModel, Field, field_validator
@@ -11,13 +12,20 @@ class SimulationIn(BaseModel):
     monthly_income: MoneySigned | None = None
     income_change_rate: str = "0"
     contribution_change_rate: str = "0"
+    debt_strategy: Literal["snowball", "avalanche"] = "avalanche"
+    debt_extra_payment: MoneySigned = "0.00"
     expense_category_deltas: dict[str, str] = Field(default_factory=dict)
     obligation_deltas: dict[str, str] = Field(default_factory=dict)
     investment_override: MoneySigned | None = None
     unexpected_expense: MoneySigned | None = None
     horizon_months: int = Field(default=12, ge=1, le=60)
 
-    @field_validator("monthly_income", "investment_override", "unexpected_expense")
+    @field_validator(
+        "monthly_income",
+        "investment_override",
+        "unexpected_expense",
+        "debt_extra_payment",
+    )
     @classmethod
     def hypothetical_amounts_must_be_non_negative(cls, value):
         if value is not None and value < 0:
@@ -52,6 +60,7 @@ class MonthOut(BaseModel):
     month_index: int
     income: MoneySigned
     contributions: MoneySigned
+    debt_payments: MoneySigned
     surplus: MoneySigned
     cash: MoneySigned
     emergency: MoneySigned
