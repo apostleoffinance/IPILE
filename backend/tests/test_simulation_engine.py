@@ -316,6 +316,10 @@ def test_monthly_income_override_preserves_income_already_received() -> None:
     assert scaled.expected_income == Decimal("300.00")
     assert scaled.first_month_income == Decimal("220.00")
 
+    reduced = apply_params(state, SimParams(income_change_rate=Decimal("-0.20")))
+    assert reduced.expected_income == Decimal("160.00")
+    assert reduced.first_month_income == Decimal("80.00")
+
 
 def test_simulation_projects_emergency_and_investment_transfers_into_net_worth() -> None:
     state = replace(
