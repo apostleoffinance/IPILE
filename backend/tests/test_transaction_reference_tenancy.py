@@ -39,3 +39,20 @@ def test_transaction_cannot_reference_a_member_from_another_household(
     assert response.status_code == 404
     assert response.json()["detail"] == "Member not found in this household."
     assert client.get("/api/v1/transactions").json() == []
+
+    valid = client.post(
+        "/api/v1/transactions",
+        json={
+            "account_id": account_a["id"],
+            "amount": "25.00",
+            "type": "expense",
+            "date": date.today().isoformat(),
+        },
+    )
+    assert valid.status_code == 201, valid.text
+    update = client.patch(
+        f"/api/v1/transactions/{valid.json()['id']}",
+        json={"member_id": member_b["id"]},
+    )
+    assert update.status_code == 404
+    assert update.json()["detail"] == "Member not found in this household."
