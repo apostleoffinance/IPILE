@@ -1,4 +1,4 @@
-import base64
+from base64 import b64decode
 from decimal import Decimal
 
 from fastapi.testclient import TestClient
@@ -6,7 +6,7 @@ from fastapi.testclient import TestClient
 from tests.conftest import register
 
 
-PDF_STATEMENT = base64.b64decode(
+PDF_STATEMENT = b64decode(
     "JVBERi0xLjMKJZOMi54gUmVwb3J0TGFiIEdlbmVyYXRlZCBQREYgZG9jdW1lbnQgKG9wZW5zb3VyY2Up"
     "CjEgMCBvYmoKPDwKL0YxIDIgMCBSCj4+CmVuZG9iagoyIDAgb2JqCjw8Ci9CYXNlRm9udCAvSGVsdmV0"
     "aWNhIC9FbmNvZGluZyAvV2luQW5zaUVuY29kaW5nIC9OYW1lIC9GMSAvU3VidHlwZSAvVHlwZTEgL1R5"
