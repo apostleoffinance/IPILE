@@ -44,17 +44,17 @@ def _get(db: Session, household_id: UUID, obligation_id: UUID) -> Obligation:
 
 def _visible_obligations(db: Session, ctx: HouseholdContext):
     query = _active(db, ctx.household.id)
-    if ctx.role in {"owner", "partner"}:
+    if ctx.role in {"owner", "partner"} or has_member_permission(ctx, "view_all_obligations"):
         return query
     if ctx.role == "member":
-        if has_member_permission(ctx, "view_all_obligations"):
-            return query
         return query.filter(
             or_(
                 Obligation.beneficiary_member_id.is_(None),
                 Obligation.beneficiary_member_id == ctx.member.id,
             )
         )
+    if ctx.role in {"viewer", "advisor"}:
+        return query.filter(Obligation.beneficiary_member_id.is_(None))
     raise HTTPException(status_code=403, detail="Insufficient permissions.")
 
 
