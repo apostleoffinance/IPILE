@@ -1,4 +1,4 @@
-from datetime import date
+from datetime import date, timedelta
 from decimal import Decimal
 
 from fastapi.testclient import TestClient
@@ -174,7 +174,7 @@ def test_contribution_link_requires_cleared_income_and_is_unique(
         f"/api/v1/contributions/{agreement['id']}/records",
         json={
             "amount": "10000.00",
-            "contributed_on": (today + __import__("datetime").timedelta(days=1)).isoformat(),
+            "contributed_on": (today + timedelta(days=1)).isoformat(),
             "transaction_id": cleared.json()["id"],
         },
     )
