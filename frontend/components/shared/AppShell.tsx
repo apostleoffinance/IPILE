@@ -59,7 +59,7 @@ const primaryNav: NavGroup[] = [
     ],
   },
   {
-    href: "/plan/budget",
+    href: "/plan",
     label: "Plan",
     match: "/plan",
     icon: Landmark,

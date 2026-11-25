@@ -43,7 +43,7 @@ export default function RecurringPage() {
 
   return (
     <AppShell>
-      <ContentContainer>
+      <ContentContainer className="ipile-workspace ipile-plan-workspace">
         <PageHeader eyebrow="Plan" title="Recurring" description="What repeats?" />
         {error ? <ErrorState message={error} /> : null}
         {!loaded && !error ? <LoadingState /> : null}

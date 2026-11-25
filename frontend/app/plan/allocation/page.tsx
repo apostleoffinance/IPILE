@@ -43,7 +43,7 @@ export default function AllocationPage() {
 
   return (
     <AppShell>
-      <ContentContainer>
+      <ContentContainer className="ipile-workspace ipile-plan-workspace">
         <PageHeader
           eyebrow="Plan"
           title="Money plan"

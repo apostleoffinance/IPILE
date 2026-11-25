@@ -70,7 +70,7 @@ export default function FundsPage() {
 
   return (
     <AppShell>
-      <ContentContainer>
+      <ContentContainer className="ipile-workspace ipile-plan-workspace">
         <PageHeader eyebrow="Plan" title="Funds" description="Are reserves building on time?" />
         {error ? <ErrorState message={error} /> : null}
         {!loaded && !error ? <LoadingState /> : null}
