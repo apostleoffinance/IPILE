@@ -2,9 +2,10 @@ from datetime import UTC, datetime
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException, status
+from sqlalchemy import or_
 from sqlalchemy.orm import Session
 
-from app.api.deps import HouseholdContext, get_db, require_roles
+from app.api.deps import HouseholdContext, get_db, get_household_context, require_roles
 from app.api.v1.transactions import create_transaction
 from app.models.category import Category
 from app.models.fund import SinkingFund
@@ -40,12 +41,26 @@ def _get(db: Session, household_id: UUID, obligation_id: UUID) -> Obligation:
     return obligation
 
 
+def _visible_obligations(db: Session, ctx: HouseholdContext):
+    query = _active(db, ctx.household.id)
+    if ctx.role in {"owner", "partner"}:
+        return query
+    if ctx.role == "member":
+        return query.filter(
+            or_(
+                Obligation.beneficiary_member_id.is_(None),
+                Obligation.beneficiary_member_id == ctx.member.id,
+            )
+        )
+    raise HTTPException(status_code=403, detail="Insufficient permissions.")
+
+
 @router.get("", response_model=list[ObligationOut])
 def list_obligations(
-    ctx: HouseholdContext = Depends(require_roles("owner", "partner")),
+    ctx: HouseholdContext = Depends(get_household_context),
     db: Session = Depends(get_db),
 ):
-    rows = _active(db, ctx.household.id).order_by(Obligation.next_due_date).all()
+    rows = _visible_obligations(db, ctx).order_by(Obligation.next_due_date).all()
     return [serialize_obligation(db, row) for row in rows]
 
 
@@ -118,10 +133,13 @@ def create_obligation(
 @router.get("/{obligation_id}", response_model=ObligationOut)
 def get_obligation(
     obligation_id: UUID,
-    ctx: HouseholdContext = Depends(require_roles("owner", "partner")),
+    ctx: HouseholdContext = Depends(get_household_context),
     db: Session = Depends(get_db),
 ):
-    return serialize_obligation(db, _get(db, ctx.household.id, obligation_id))
+    obligation = _visible_obligations(db, ctx).filter(Obligation.id == obligation_id).first()
+    if obligation is None:
+        raise HTTPException(status_code=404, detail="Obligation not found.")
+    return serialize_obligation(db, obligation)
 
 
 @router.patch("/{obligation_id}", response_model=ObligationOut)
