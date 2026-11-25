@@ -735,3 +735,9 @@ button, a, input, select, textarea { transition-duration: 220ms; }
 .ipile-onboarding-invite{border-radius:14px;background:var(--color-bg-surface)}
 [data-theme=dark] .ipile-settings-section,[data-theme=dark] .ipile-onboarding-progress,[data-theme=dark] .ipile-onboarding-page form:not(.ipile-onboarding-invite){background:var(--color-bg-surface);border-color:rgba(247,246,242,.1)}
 @media(max-width:650px){.ipile-settings-form{grid-template-columns:1fr}.ipile-settings-form-actions{align-items:flex-start;flex-direction:column}.ipile-settings-section-heading{flex-direction:column}.ipile-onboarding-page{padding-left:18px;padding-right:18px}}
+
+.ipile-settings-workspace>section:not(.ipile-settings-section){max-width:none;padding:clamp(18px,3vw,25px);border:1px solid var(--color-border);border-radius:14px;background:var(--color-bg-surface)}
+.ipile-settings-workspace>section:not(.ipile-settings-section)>h2{font-size:16px;font-weight:600;letter-spacing:-.025em}
+.ipile-settings-workspace>section:not(.ipile-settings-section)>p{font-size:12px;line-height:1.7;color:var(--color-text-secondary)}
+.ipile-settings-workspace>section:not(.ipile-settings-section) form{max-width:650px}
+.ipile-settings-workspace>section:not(.ipile-settings-section) input,.ipile-settings-workspace>section:not(.ipile-settings-section) textarea,.ipile-settings-workspace>section:not(.ipile-settings-section) select{border-radius:8px}
