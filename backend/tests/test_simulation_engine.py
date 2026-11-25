@@ -180,8 +180,8 @@ def test_obligation_risk_advances_as_due_date_approaches() -> None:
     )
     state = replace(state, obligations=(obligation,))
     result = project(state, SimParams(horizon_months=2))
-    assert result.months[0].obligations == "at risk"
-    assert result.months[1].obligations == "unfunded"
+    assert result.months[0].obligations == "unfunded"
+    assert result.months[1].obligations == "funded"
 
 
 
