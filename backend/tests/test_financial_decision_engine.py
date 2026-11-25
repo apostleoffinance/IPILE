@@ -230,7 +230,7 @@ def test_simulation_uses_shared_spendable_cash_and_remaining_income(
     body = response.json()
     baseline = body["parameters"]["baseline_snapshot"]
     assert baseline["cash"] == "1050000.00"
-    assert baseline["cash_basis"] == "current_safe_to_spend"
+    assert body["parameters"]["cash_basis"] == "current_safe_to_spend"
     assert baseline["expected_income"] == "200000.00"
     assert baseline["first_month_income"] == "150000.00"
     assert body["months"][0]["income"] == "150000.00"
