@@ -6,6 +6,7 @@ from sqlalchemy.orm import Session
 
 from app.api.deps import HouseholdContext, get_db, get_household_context, require_roles
 from app.models.account import Account
+from app.models.business import Business
 from app.models.member import HouseholdMember
 from app.schemas.account import AccountCreate, AccountOut, AccountUpdate
 from app.services.balances import snapshot_balance
@@ -51,6 +52,18 @@ def create_account(
 ):
     if payload.type not in ACCOUNT_TYPES:
         raise HTTPException(status_code=400, detail="Invalid account type.")
+    if payload.business_id:
+        business = (
+            db.query(Business)
+            .filter(
+                Business.id == payload.business_id,
+                Business.household_id == ctx.household.id,
+                Business.deleted_at.is_(None),
+            )
+            .first()
+        )
+        if business is None:
+            raise HTTPException(status_code=404, detail="Business not found in this household.")
     if payload.access_scope == "personal":
         owner = db.query(HouseholdMember).filter(
             HouseholdMember.id == payload.owner_member_id,
