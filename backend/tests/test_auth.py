@@ -1,4 +1,5 @@
 from fastapi.testclient import TestClient
+
 from tests.conftest import TestingSessionLocal, set_current_migration_version
 
 
