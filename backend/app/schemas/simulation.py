@@ -61,6 +61,7 @@ class MonthOut(BaseModel):
     income: MoneySigned
     contributions: MoneySigned
     debt_payments: MoneySigned
+    debt_interest: MoneySigned
     surplus: MoneySigned
     cash: MoneySigned
     emergency: MoneySigned
