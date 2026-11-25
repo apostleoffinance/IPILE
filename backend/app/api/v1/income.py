@@ -4,6 +4,7 @@ from sqlalchemy.orm import Session
 from app.api.deps import HouseholdContext, get_db, require_roles
 from app.api.v1.transactions import create_transaction
 from app.models.income import IncomeSource
+from app.models.member import HouseholdMember
 from app.models.transaction import Transaction
 from app.schemas.income import IncomeCreate, IncomeSourceCreate, IncomeSourceOut
 from app.schemas.transaction import TransactionCreate, TransactionOut
@@ -30,6 +31,18 @@ def create_income_source(
     ctx: HouseholdContext = Depends(require_roles("owner", "partner")),
     db: Session = Depends(get_db),
 ):
+    if payload.member_id:
+        member = (
+            db.query(HouseholdMember)
+            .filter(
+                HouseholdMember.id == payload.member_id,
+                HouseholdMember.household_id == ctx.household.id,
+                HouseholdMember.deleted_at.is_(None),
+            )
+            .first()
+        )
+        if member is None:
+            raise HTTPException(status_code=404, detail="Member not found in this household.")
     source = IncomeSource(
         household_id=ctx.household.id,
         member_id=payload.member_id,
