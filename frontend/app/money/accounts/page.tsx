@@ -229,6 +229,12 @@ export default function AccountsPage() {
                     account.owner_member_id === currentMember.id));
               return (
                 <div key={account.id} className="space-y-3">
+                  <div className="mb-1 flex items-center justify-between text-xs text-muted">
+                    <span>{account.access_scope === "personal" ? "Personal account" : "Shared household account"}</span>
+                    {account.owner_member_id ? (
+                      <span>{members.find((member) => member.id === account.owner_member_id)?.display_name ?? "Personal owner"}</span>
+                    ) : null}
+                  </div>
                   <AccountSummary account={account} />
                   {canEdit ? (
                     <div className="flex justify-end">
