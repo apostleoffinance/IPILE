@@ -8,7 +8,7 @@ import { ErrorState } from "@/components/shared/ErrorState";
 import { LoadingState } from "@/components/shared/LoadingState";
 import { Button } from "@/components/ui/button";
 import { Select } from "@/components/ui/select";
-import { getAccounts, getBankConnections, getReconciliationSessions, getReconciliationSession, initiateBankConnection, syncBankConnection, disconnectBankConnection, reauthorizeBankConnection, previewReconciliationStatement, matchReconciliationItem, postReconciliationItem, ignoreReconciliationItem, completeReconciliationSession, type Account, type BankConnection, type ReconciliationSession } from "@/lib/api";
+import { getAccounts, getBankConnections, getReconciliationSessions, getReconciliationSession, initiateBankConnection, syncBankConnection, disconnectBankConnection, reauthorizeBankConnection, previewReconciliationStatement, matchReconciliationItem, postReconciliationItem, ignoreReconciliationItem, completeReconciliationSession, type Account, type BankConnection, type ReconciliationCandidate, type ReconciliationSession } from "@/lib/api";
 
 export default function ReconciliationPage() {
  const [accounts,setAccounts]=useState<Account[]|null>(null);
@@ -16,6 +16,7 @@ export default function ReconciliationPage() {
  const [banks,setBanks]=useState<BankConnection[]>([]);
  const [sessions,setSessions]=useState<ReconciliationSession[]>([]);
  const [active,setActive]=useState<ReconciliationSession|null>(null);
+ const [candidateRows,setCandidateRows]=useState<Record<string,ReconciliationCandidate[]>>({});
  const [file,setFile]=useState<File|null>(null);
  const [busy,setBusy]=useState(false);
  const [error,setError]=useState<string|null>(null);
@@ -71,7 +72,9 @@ export default function ReconciliationPage() {
      <p className="text-xs text-muted">{i.date} · {i.type} · {i.status} · {i.match_reason||""}</p>
      {i.suggested_transaction?<p className="text-xs">Suggested: {i.suggested_transaction.date} / {i.suggested_transaction.merchant||i.suggested_transaction.description}</p>:null}
      {active.status==="review"&&!["matched","posted","ignored"].includes(i.status)?<div className="flex flex-wrap gap-2">
-      {i.suggested_transaction?<Button size="sm" disabled={busy} onClick={()=>void act(()=>matchReconciliationItem(i.id,i.suggested_transaction!.id))}>Confirm match</Button>:null}
+      {i.suggested_transaction?<Button size="sm" disabled={busy} onClick={()=>void act(()=>matchReconciliationItem(i.id,i.suggested_transaction!.id))}>Confirm suggested match</Button>:null}
+      <Button size="sm" variant="outline" disabled={busy} onClick={()=>void act(async()=>setCandidateRows(current=>({...current,[i.id]:await getReconciliationCandidates(i.id)})))}>Find ledger matches</Button>
+      {(candidateRows[i.id]||[]).map(tx=><Button key={tx.id} size="sm" variant="outline" disabled={busy} onClick={()=>void act(()=>matchReconciliationItem(i.id,tx.id))}>Match {tx.date} · {tx.merchant||tx.description||tx.amount}</Button>)}
       {i.type!=="transfer"?<Button size="sm" variant="outline" disabled={busy} onClick={()=>void act(()=>postReconciliationItem(i.id))}>Post new transaction</Button>:null}
       <Button size="sm" variant="ghost" disabled={busy} onClick={()=>void act(()=>ignoreReconciliationItem(i.id))}>Ignore</Button>
      </div>:null}
