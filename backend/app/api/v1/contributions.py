@@ -1,3 +1,4 @@
+from collections import defaultdict
 from datetime import date, timedelta
 from uuid import UUID
 
@@ -22,6 +23,7 @@ from app.schemas.contribution import (
     ContributionRecordOut,
 )
 from app.services.audit import write_audit
+from app.services.contribution_schedule import build_contribution_schedule
 
 router = APIRouter(prefix="/contributions", tags=["household-governance"])
 
@@ -78,6 +80,51 @@ def list_agreements(
     elif ctx.role not in {"owner", "partner"}:
         raise HTTPException(status_code=403, detail="Insufficient permissions.")
     return query.order_by(ContributionAgreement.start_date.desc()).all()
+
+
+@router.get("/schedule")
+def contribution_schedule(
+    from_date: date | None = Query(default=None),
+    to_date: date | None = Query(default=None),
+    ctx: HouseholdContext = Depends(get_household_context),
+    db: Session = Depends(get_db),
+):
+    today = date.today()
+    start = from_date or today - timedelta(days=90)
+    end = to_date or today + timedelta(days=90)
+    if end < start:
+        raise HTTPException(status_code=400, detail="to_date must be on or after from_date.")
+    query = db.query(ContributionAgreement).filter(
+        ContributionAgreement.household_id == ctx.household.id
+    )
+    if ctx.role == "member":
+        query = query.filter(ContributionAgreement.member_id == ctx.member.id)
+    elif ctx.role not in {"owner", "partner"}:
+        raise HTTPException(status_code=403, detail="Insufficient permissions.")
+    agreements = query.order_by(ContributionAgreement.start_date).all()
+    if not agreements:
+        return []
+    agreement_ids = [agreement.id for agreement in agreements]
+    records = (
+        db.query(ContributionRecord)
+        .filter(
+            ContributionRecord.household_id == ctx.household.id,
+            ContributionRecord.agreement_id.in_(agreement_ids),
+            ContributionRecord.contributed_on <= end,
+        )
+        .order_by(ContributionRecord.contributed_on, ContributionRecord.created_at)
+        .all()
+    )
+    records_by_agreement = defaultdict(list)
+    for record in records:
+        records_by_agreement[record.agreement_id].append(record)
+    return build_contribution_schedule(
+        agreements,
+        records_by_agreement,
+        from_date=start,
+        to_date=end,
+        today=today,
+    )
 
 
 @router.post(
