@@ -74,10 +74,14 @@ export default function AccountsPage() {
       await api.updateAccount(editingId, {
         name: editName,
         institution: editInstitution || null,
-        is_protected: editProtected,
-        is_emergency: editEmergency,
-        include_in_safe_to_spend: editSafeToSpend,
-        include_in_net_worth: editNetWorth,
+        ...(currentMember && ["owner", "partner"].includes(currentMember.role)
+          ? {
+              is_protected: editProtected,
+              is_emergency: editEmergency,
+              include_in_safe_to_spend: editSafeToSpend,
+              include_in_net_worth: editNetWorth,
+            }
+          : {}),
       });
       setEditingId(null);
       await refresh();
