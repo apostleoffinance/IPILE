@@ -2,7 +2,7 @@
 
 ## Mono Connect setup
 
-Mono Connect requires a Mono business account that has completed KYB, an app secret key and a webhook configured in the Mono dashboard. IPÌLẸ̀ uses Mono's hosted link URL; it never collects bank passwords. The backend initiates linking at `POST /v2/accounts/initiate`, receives the account ID through `mono.events.account_connected`, waits for `mono.events.account_updated` to report transaction availability, and retrieves transactions from `GET /v2/{account_id}/transactions`.
+Mono Connect requires a Mono business account that has completed KYB, an app secret key and a webhook configured in the Mono dashboard. IPÌLẸ̀ uses Mono's hosted link URL; it never collects bank passwords. The backend initiates linking at `POST /v2/accounts/initiate`, receives the account ID through `mono.events.account_connected`, waits for `mono.events.account_updated` to report transaction availability, and retrieves transactions from `GET /v2/accounts/{account_id}/transactions`.
 
 Configure these server-only variables:
 
