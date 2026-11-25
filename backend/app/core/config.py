@@ -105,7 +105,8 @@ class Settings(BaseSettings):
                 Fernet(self.bank_data_encryption_key.encode("ascii"))
             except (ValueError, UnicodeEncodeError):
                 problems.append(
-                    "BANK_DATA_ENCRYPTION_KEY must be a valid URL-safe base64-encoded 32-byte Fernet key"
+                    "BANK_DATA_ENCRYPTION_KEY must be a valid URL-safe base64-encoded "
+                    "32-byte Fernet key"
                 )
 
         if problems:

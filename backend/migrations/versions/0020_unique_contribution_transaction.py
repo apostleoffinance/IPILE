@@ -1,6 +1,6 @@
 """Prevent one income transaction from verifying multiple contribution receipts.
 
-Revision ID: 0020_unique_contribution_transaction
+Revision ID: 0020_unique_contrib_txn
 Revises: 0019_member_permissions
 """
 from typing import Sequence, Union
@@ -8,7 +8,7 @@ from typing import Sequence, Union
 import sqlalchemy as sa
 from alembic import op
 
-revision: str = "0020_unique_contribution_transaction"
+revision: str = "0020_unique_contrib_txn"
 down_revision: Union[str, None] = "0019_member_permissions"
 branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None

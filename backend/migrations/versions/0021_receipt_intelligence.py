@@ -1,7 +1,7 @@
 """Add receipt OCR review records.
 
 Revision ID: 0021_receipt_intelligence
-Revises: 0020_unique_contribution_transaction
+Revises: 0020_unique_contrib_txn
 """
 from typing import Sequence, Union
 
@@ -9,7 +9,7 @@ import sqlalchemy as sa
 from alembic import op
 
 revision: str = "0021_receipt_intelligence"
-down_revision: Union[str, None] = "0020_unique_contribution_transaction"
+down_revision: Union[str, None] = "0020_unique_contrib_txn"
 branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
 

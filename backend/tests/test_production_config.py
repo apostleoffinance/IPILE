@@ -92,15 +92,13 @@ def test_production_configuration_rejects_non_https_mono_redirect() -> None:
         )
 
 
-@pytest.mark.parametrize("key", ["not-a-fernet-key", ""])
+@pytest.mark.parametrize("key", ["not-a-fernet-key", "also-invalid"])
 def test_production_configuration_rejects_invalid_mono_encryption_key(key: str) -> None:
-    from cryptography.fernet import Fernet
-
     values = {
         "mono_secret_key": "mono-test-secret",
         "mono_webhook_secret": "mono-test-webhook",
         "mono_redirect_url": "https://ipile.example/callback",
-        "bank_data_encryption_key": key or " ",
+        "bank_data_encryption_key": key,
     }
     with pytest.raises(ValidationError, match="BANK_DATA_ENCRYPTION_KEY"):
         production_settings(**values)
