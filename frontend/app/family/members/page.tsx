@@ -88,6 +88,8 @@ export default function MembersPage() {
           description="Who is in this household? Dependents can have their own budgets."
         />
         {error ? <ErrorState message={error} /> : null}
+        {currentMember?.role === "owner" ? (
+        <>
         <SectionHeader title="Add member" />
         <form onSubmit={onSubmit} className="grid gap-4 border border-line bg-surface p-5 md:grid-cols-2">
           <div>
@@ -145,6 +147,8 @@ export default function MembersPage() {
             <Button type="submit">Add member</Button>
           </div>
         </form>
+        </>
+        ) : null}
         <SectionHeader title="Household" />
         {members.length === 0 ? (
           <EmptyState title="No members" body="A household always has an owner after registration." />
