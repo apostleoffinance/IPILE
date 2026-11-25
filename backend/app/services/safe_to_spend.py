@@ -461,13 +461,17 @@ def run_purchase_check(
     if raids_protected:
         reasons.append("The selected account is protected or excluded from everyday spending.")
     if period_after < 0:
-        reasons.append("After this purchase, projected cash for the current period becomes negative.")
+        reasons.append(
+            "After this purchase, projected cash for the current period becomes negative."
+        )
     if forecast_after < minimum_buffer:
-        reasons.append("After this purchase, the forecast falls below the household minimum buffer.")
+        reasons.append(
+            "After this purchase, the forecast falls below the household minimum buffer."
+        )
     expected_contributions = Decimal(str(sts.components.expected_contributions))
     if expected_contributions > 0:
         reasons.append(
-            "Expected contributions are included in the forecast only; they are not counted as current cash."
+            "Expected contributions are forecast-only and are not counted as current cash."
         )
 
     affected: list[str] = []
