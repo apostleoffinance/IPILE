@@ -87,6 +87,16 @@ def test_members_only_see_their_own_contribution_agreements_records_and_schedule
         },
     )
     assert record.status_code == 201, record.text
+    record_b = client.post(
+        f"/api/v1/contributions/{agreement_b.json()['id']}/records",
+        headers=headers,
+        json={
+            "amount": "500.00",
+            "contributed_on": contribution_date.isoformat(),
+            "note": "Member B paid",
+        },
+    )
+    assert record_b.status_code == 201, record_b.text
     _logout(client)
 
     login(client, "contribution-scope-a@example.com")
@@ -120,3 +130,37 @@ def test_members_only_see_their_own_contribution_agreements_records_and_schedule
     assert Decimal(first_due["expected_amount"]) == Decimal("1000.00")
     assert Decimal(first_due["paid_amount"]) == Decimal("400.00")
     assert Decimal(first_due["outstanding_amount"]) == Decimal("600.00")
+    _logout(client)
+
+    login(client, "contribution-scope-owner@example.com")
+    grant = client.patch(
+        f"/api/v1/members/{member_a['id']}",
+        headers=headers,
+        json={"permissions": {"view_all_contributions": True}},
+    )
+    assert grant.status_code == 200, grant.text
+    assert grant.json()["permissions"]["view_all_contributions"] is True
+    _logout(client)
+
+    login(client, "contribution-scope-a@example.com")
+    authorized_agreements = client.get("/api/v1/contributions", headers=headers)
+    assert {row["id"] for row in authorized_agreements.json()} == {
+        agreement_a.json()["id"],
+        agreement_b.json()["id"],
+    }
+    authorized_records = client.get(
+        f"/api/v1/contributions/{agreement_b.json()['id']}/records",
+        headers=headers,
+    )
+    assert authorized_records.status_code == 200
+    assert len(authorized_records.json()) == 1
+    authorized_schedule = client.get("/api/v1/contributions/schedule", headers=headers)
+    assert {row["member_id"] for row in authorized_schedule.json()} == {
+        member_a["id"],
+        member_b["id"],
+    }
+    _logout(client)
+
+    login(client, "contribution-scope-b@example.com")
+    member_b_agreements = client.get("/api/v1/contributions", headers=headers)
+    assert [row["id"] for row in member_b_agreements.json()] == [agreement_b.json()["id"]]
