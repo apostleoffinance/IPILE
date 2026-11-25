@@ -543,6 +543,26 @@ async function parseResponse<T>(response: Response): Promise<T> {
   return data as T;
 }
 
+export type MemberFinancialSummary = {
+  currency: string;
+  period_start: string;
+  period_end: string;
+  accessible_accounts: number;
+  cash_total: string;
+  income: string;
+  expenses: string;
+  net_cash_flow: string;
+  transaction_count: number;
+};
+
+export function getMemberFinancialSummary(periodStart?: string, periodEnd?: string) {
+  const params = new URLSearchParams();
+  if (periodStart) params.set("period_start", periodStart);
+  if (periodEnd) params.set("period_end", periodEnd);
+  const query = params.toString() ? `?${params.toString()}` : "";
+  return request<MemberFinancialSummary>(`/api/v1/member/financial-summary${query}`);
+}
+
 export function getOverview() {
   return request<HouseholdOverview>("/api/v1/overview");
 }
@@ -1204,6 +1224,7 @@ export const api = {
   changePassword: (body: { current_password: string; new_password: string }) =>
     request<void>("/api/v1/auth/password/change", { method: "POST", body: JSON.stringify(body) }),
   getOverview,
+  getMemberFinancialSummary,
   getFinancialHealth,
   explainFinancialHealth,
   getInsights,
