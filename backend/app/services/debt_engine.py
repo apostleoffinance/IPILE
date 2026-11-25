@@ -38,6 +38,8 @@ class StrategyResult:
     months: int
     total_interest: Decimal
     total_paid: Decimal
+    paid_off: bool
+    remaining_balance: Decimal
     schedule: list[ScheduleMonth] = field(default_factory=list)
     schedule_summary: list[ScheduleMonth] = field(default_factory=list)
 
@@ -83,12 +85,15 @@ def _summarize_schedule(schedule: list[ScheduleMonth]) -> list[ScheduleMonth]:
 
 
 def _empty_result(strategy: str, ordered: list[DebtInput]) -> StrategyResult:
+    remaining = quantize_money(sum((_money(row.balance) for row in ordered), ZERO))
     return StrategyResult(
         strategy=strategy,
         order=_order_payload(ordered),
         months=0,
         total_interest=ZERO,
         total_paid=ZERO,
+        paid_off=remaining <= ZERO,
+        remaining_balance=remaining,
         schedule=[],
         schedule_summary=[],
     )
@@ -106,6 +111,11 @@ def amortize_strategy(
     extra_payment (plus any leftover from overpaying a paid-off debt) to the
     first open debt in strategy order.
     """
+    if strategy not in {"snowball", "avalanche"}:
+        raise ValueError("Strategy must be snowball or avalanche.")
+    extra = _money(extra_payment)
+    if extra < ZERO:
+        raise ValueError("Extra payment cannot be negative.")
     active = [
         DebtInput(
             id=d.id,
@@ -121,7 +131,11 @@ def amortize_strategy(
     if not active:
         return _empty_result(strategy, ordered)
 
-    extra = _money(extra_payment)
+    for debt in active:
+        if debt.interest_rate < ZERO or debt.interest_rate > Decimal("5"):
+            raise ValueError("Interest rate must be between 0 and 5 as an APR fraction.")
+        if debt.min_payment < ZERO:
+            raise ValueError("Minimum payment cannot be negative.")
     monthly_capacity = quantize_money(sum((d.min_payment for d in ordered), ZERO) + extra)
     if monthly_capacity <= ZERO:
         return _empty_result(strategy, ordered)
@@ -194,12 +208,15 @@ def amortize_strategy(
         if remaining <= ZERO:
             break
 
+    remaining_balance = quantize_money(sum((balances[i] for i in order_ids), ZERO))
     return StrategyResult(
         strategy=strategy,
         order=_order_payload(ordered),
         months=len(schedule),
         total_interest=total_interest,
         total_paid=total_paid,
+        paid_off=remaining_balance <= ZERO,
+        remaining_balance=remaining_balance,
         schedule=schedule,
         schedule_summary=_summarize_schedule(schedule),
     )
