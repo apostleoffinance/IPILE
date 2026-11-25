@@ -210,6 +210,7 @@ export type SafeToSpendSnapshot = {
   components: {
     liquid_cash: string;
     expected_income: string;
+    expected_contributions: string;
     committed_obligations: string;
     upcoming_bills: string;
     sinking_fund_requirements: string;
