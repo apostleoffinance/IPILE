@@ -198,7 +198,10 @@ export default function ContributionsPage() {
                 <p className="font-semibold tabular-nums">{agreement.currency} {agreement.amount}</p>
               </div>
               <p className="text-xs text-muted">Status: {agreement.status} · Starts {agreement.start_date}{agreement.end_date ? ` · Ends ${agreement.end_date}` : ""}</p>
-              {currentMember && ["owner", "partner", "member"].includes(currentMember.role) ? (
+              {currentMember && (
+                ["owner", "partner"].includes(currentMember.role) ||
+                (currentMember.role === "member" && agreement.member_id === currentMember.id)
+              ) ? (
               <form onSubmit={(event) => void onRecord(event, agreement.id)} className="grid gap-3 border-t border-line pt-3 md:grid-cols-3">
                 <div><Label htmlFor={`record-amount-${agreement.id}`}>Amount received</Label><Input id={`record-amount-${agreement.id}`} className="mt-1" type="number" min="0.01" step="0.01" value={recordAmounts[agreement.id] ?? ""} onChange={(e) => setRecordAmounts((current) => ({ ...current, [agreement.id]: e.target.value }))} required /></div>
                 <div><Label htmlFor={`record-date-${agreement.id}`}>Received on</Label><Input id={`record-date-${agreement.id}`} className="mt-1" type="date" value={recordDates[agreement.id] ?? ""} onChange={(e) => setRecordDates((current) => ({ ...current, [agreement.id]: e.target.value }))} required /></div>
