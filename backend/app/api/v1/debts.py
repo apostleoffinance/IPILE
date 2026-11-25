@@ -19,6 +19,8 @@ def _serialize_strategy(result) -> DebtStrategyOut:
         months=result.months,
         total_interest=format_money(result.total_interest),
         total_paid=format_money(result.total_paid),
+        paid_off=result.paid_off,
+        remaining_balance=format_money(result.remaining_balance),
         schedule_summary=[
             ScheduleMonthOut(
                 month=row.month,
