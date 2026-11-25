@@ -223,6 +223,16 @@ export type PurchaseCheckResult = {
   amount: string;
   affordable: boolean;
   severity: string;
+  decision: string;
+  reasons: string[];
+  impact: {
+    current_sts_before: string;
+    current_sts_after: string;
+    period_sts_after: string;
+    forecast_sts_after: string;
+    minimum_buffer: string;
+    expected_contributions_excluded_from_current: string;
+  };
   remaining_current_sts: string;
   obligations_affected: string[];
   buffer_breached: boolean;
@@ -616,6 +626,7 @@ export function getGivingReport(year?: number) {
 export type SimulationMonth = {
   month_index: number;
   income: string;
+  contributions: string;
   surplus: string;
   cash: string;
   emergency: string;
@@ -643,6 +654,7 @@ export function runSimulation(body: {
   name?: string;
   monthly_income?: string;
   income_change_rate?: string;
+  contribution_change_rate?: string;
   expense_category_deltas?: Record<string, string>;
   obligation_deltas?: Record<string, string>;
   investment_override?: string;
