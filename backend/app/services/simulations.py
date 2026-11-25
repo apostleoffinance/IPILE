@@ -9,8 +9,8 @@ from app.models.budget import Budget
 from app.models.category import Category
 from app.models.household import Household
 from app.models.obligation import Obligation, ObligationOccurrence
-from app.models.wealth import Liability
 from app.models.simulation import Simulation, SimulationRun
+from app.models.wealth import Liability
 from app.money import format_money, quantize_money
 from app.schemas.simulation import SimulationIn
 from app.services.allocations import active_rules, expected_income, period_bounds, to_spec
