@@ -153,6 +153,7 @@ export default function ContributionsPage() {
   return (
     <AppShell>
       <ContentContainer>
+        <div className="ipile-family-page ipile-family-contributions">
         <PageHeader
           eyebrow="Household governance"
           title="Contribution agreements"
@@ -338,6 +339,7 @@ export default function ContributionsPage() {
             </section>;
           })}
         </div>
+              </div>
       </ContentContainer>
     </AppShell>
   );
