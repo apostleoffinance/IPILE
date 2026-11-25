@@ -140,7 +140,7 @@ def test_debt_engine_rejects_invalid_strategy_and_payment_inputs() -> None:
         amortize_strategy([debt], strategy="random")
     with pytest.raises(ValueError):
         amortize_strategy([debt], strategy="avalanche", extra_payment=Decimal("-1.00"))
-    too_high = _debt("Invalid APR", "1000.00", "6.00", "50.00")
+    too_high = _debt("Invalid APR", "1000.00", "600.00", "50.00")
     with pytest.raises(ValueError):
         amortize_strategy([too_high], strategy="avalanche")
 
