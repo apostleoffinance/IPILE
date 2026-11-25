@@ -3,7 +3,7 @@ from uuid import UUID
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 
-from app.api.deps import HouseholdContext, get_db, get_household_context
+from app.api.deps import HouseholdContext, get_db, require_roles
 from app.models.alert import Alert
 from app.schemas.alert import AlertOut
 
@@ -12,7 +12,7 @@ router = APIRouter(prefix="/alerts", tags=["alerts"])
 
 @router.get("", response_model=list[AlertOut])
 def list_alerts(
-    ctx: HouseholdContext = Depends(get_household_context),
+    ctx: HouseholdContext = Depends(require_roles("owner", "partner")),
     db: Session = Depends(get_db),
 ):
     return (
