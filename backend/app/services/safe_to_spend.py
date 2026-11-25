@@ -2,6 +2,7 @@ from datetime import date, timedelta
 from decimal import Decimal
 from uuid import UUID
 
+from fastapi import HTTPException
 from sqlalchemy.orm import Session
 
 from app.models.account import Account
@@ -12,7 +13,12 @@ from app.models.obligation import Obligation, ObligationOccurrence
 from app.models.recurring import RecurringTransaction
 from app.models.transaction import Transaction
 from app.money import quantize_money
-from app.schemas.safe_to_spend import PurchaseCheckOut, SafeToSpendComponents, SafeToSpendOut
+from app.schemas.safe_to_spend import (
+    PurchaseCheckImpact,
+    PurchaseCheckOut,
+    SafeToSpendComponents,
+    SafeToSpendOut,
+)
 from app.services.allocations import (
     compute_allocation,
     expected_income,
@@ -299,7 +305,7 @@ def compute_safe_to_spend(
         db, household, recognized, remaining_expected, today
     )
     # Due-today and overdue obligations are already deducted from current STS.
-    # Period STS subtracts only obligations that fall after today.
+    # Period STS must subtract only obligations due after today.
     period_unfunded, period_rows = unfunded_occurrences(
         db,
         household.id,
@@ -436,6 +442,7 @@ def run_purchase_check(
     today = today or date.today()
     start, end = period_bounds(household, today)
     sts = compute_safe_to_spend(db, household, today=today)
+    minimum_buffer = quantize_money(Decimal(str(household.minimum_buffer_amount)))
     raids_protected = False
     if account_id is not None:
         account = (
@@ -447,27 +454,115 @@ def run_purchase_check(
             )
             .first()
         )
-        if account is not None and (account.is_protected or not account.include_in_safe_to_spend):
+        if account is None:
+            raise HTTPException(status_code=404, detail="Account not found.")
+        if account.access_scope != "shared":
+            raise HTTPException(
+                status_code=400,
+                detail="Purchase checks can only use shared household accounts.",
+            )
+        if account.is_protected or not account.include_in_safe_to_spend:
             raids_protected = True
     budget_exceeded = False
     if category_id is not None:
         budget_exceeded = category_would_exceed(db, household.id, category_id, amount, start, end)
+
     result = evaluate_purchase(
         amount,
         Decimal(str(sts.current)),
-        Decimal(str(household.minimum_buffer_amount)),
+        minimum_buffer,
         budget_exceeded=budget_exceeded,
         raids_protected=raids_protected,
     )
-    affected: list[str] = []
+    current_after = quantize_money(Decimal(str(sts.current)) - amount)
+    period_after = quantize_money(Decimal(str(sts.period)) - amount)
+    forecast_after = quantize_money(Decimal(str(sts.forecast)) - amount)
+
+    reasons: list[str] = []
+    if current_after < 0:
+        reasons.append("The purchase exceeds current Safe to Spend.")
+    elif not raids_protected:
+        reasons.append("The purchase fits within current Safe to Spend.")
+    if result.buffer_breached:
+        reasons.append("The purchase would reduce current Safe to Spend below the minimum buffer.")
+    if budget_exceeded:
+        reasons.append("The purchase exceeds the remaining budget for the selected category.")
     if raids_protected:
-        affected.append("protected_account")
+        reasons.append("The selected account is protected or excluded from everyday spending.")
+    if period_after < 0:
+        reasons.append(
+            "After this purchase, projected cash for the current period becomes negative."
+        )
+    if forecast_after < minimum_buffer:
+        reasons.append(
+            "After this purchase, the forecast falls below the household minimum buffer."
+        )
+    expected_contributions = Decimal(str(sts.components.expected_contributions))
+    if expected_contributions > 0:
+        reasons.append(
+            "Expected contributions are forecast-only and are not counted as current cash."
+        )
+
+    affected: list[str] = []
+    if period_after < 0 or forecast_after < minimum_buffer:
+        horizon_end = today + timedelta(days=sts.horizon_days)
+        rows = (
+            db.query(Obligation, ObligationOccurrence)
+            .join(ObligationOccurrence, ObligationOccurrence.obligation_id == Obligation.id)
+            .filter(
+                Obligation.household_id == household.id,
+                Obligation.deleted_at.is_(None),
+                Obligation.status == "active",
+                ObligationOccurrence.household_id == household.id,
+                ObligationOccurrence.status.in_(tuple(OPEN_OCCURRENCE)),
+                ObligationOccurrence.due_date >= today,
+                ObligationOccurrence.due_date <= horizon_end,
+            )
+            .order_by(ObligationOccurrence.due_date)
+            .all()
+        )
+        for obligation, occurrence in rows:
+            gap = quantize_money(
+                Decimal(str(occurrence.amount)) - Decimal(str(occurrence.funded_amount))
+            )
+            if gap > 0:
+                label = f"{obligation.name} ({occurrence.due_date.isoformat()})"
+                if label not in affected:
+                    affected.append(label)
+
+    if not result.affordable or raids_protected:
+        decision = "do_not_proceed"
+        severity = "critical"
+        recommended_action = "delay"
+    elif result.severity == "warning" or period_after < 0 or forecast_after < minimum_buffer:
+        decision = "review_or_delay"
+        severity = "warning"
+        recommended_action = (
+            result.recommended_action
+            if result.buffer_breached
+            else "review obligations / reduce purchase"
+        )
+    else:
+        decision = "proceed"
+        severity = "healthy"
+        recommended_action = "proceed"
+
     return PurchaseCheckOut(
         amount=result.amount,
         affordable=result.affordable,
-        severity=result.severity,
+        severity=severity,
+        decision=decision,
+        reasons=reasons,
+        impact=PurchaseCheckImpact(
+            current_sts_before=quantize_money(Decimal(str(sts.current))),
+            current_sts_after=current_after,
+            period_sts_after=period_after,
+            forecast_sts_after=forecast_after,
+            minimum_buffer=minimum_buffer,
+            expected_contributions_excluded_from_current=expected_contributions,
+        ),
         remaining_current_sts=result.remaining_current_sts,
         obligations_affected=affected,
         buffer_breached=result.buffer_breached,
-        recommended_action=result.recommended_action,
+        recommended_action=recommended_action,
     )
