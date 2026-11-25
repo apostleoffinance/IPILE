@@ -987,6 +987,8 @@ export type DebtStrategy = {
     position: number;
   }[];
   months: number;
+  paid_off: boolean;
+  remaining_balance: string;
   total_interest: string;
   total_paid: string;
   schedule_summary: {
