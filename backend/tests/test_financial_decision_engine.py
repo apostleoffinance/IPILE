@@ -96,6 +96,8 @@ def test_simulation_applies_contribution_stress_without_mutating_accounts(
     assert stressed.status_code == 201, stressed.text
     assert baseline.json()["months"][0]["contributions"] == "100000.00"
     assert stressed.json()["months"][0]["contributions"] == "50000.00"
+    assert baseline.json()["parameters"]["engine_version"] == "phase3-v1"
+    assert baseline.json()["parameters"]["baseline_snapshot"]["expected_contributions"] == "100000.00"
     assert Decimal(stressed.json()["months"][0]["income"]) == (
         Decimal(baseline.json()["months"][0]["income"]) - Decimal("50000.00")
     )
