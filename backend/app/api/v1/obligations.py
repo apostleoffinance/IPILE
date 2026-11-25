@@ -2,9 +2,10 @@ from datetime import UTC, datetime
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException, status
+from sqlalchemy import or_
 from sqlalchemy.orm import Session
 
-from app.api.deps import HouseholdContext, get_db, require_roles
+from app.api.deps import HouseholdContext, get_db, get_household_context, require_roles
 from app.api.v1.transactions import create_transaction
 from app.models.category import Category
 from app.models.fund import SinkingFund
@@ -12,6 +13,7 @@ from app.models.member import HouseholdMember
 from app.models.obligation import Obligation, ObligationOccurrence
 from app.schemas.obligation import ObligationCreate, ObligationOut, ObligationPay, ObligationUpdate
 from app.schemas.transaction import TransactionCreate
+from app.services.finance_access import has_member_permission
 from app.services.funds import apply_payment_from_fund, attach_fund, ensure_fund_account
 from app.services.obligation_engine import FREQUENCIES
 from app.services.obligations import (
@@ -40,12 +42,28 @@ def _get(db: Session, household_id: UUID, obligation_id: UUID) -> Obligation:
     return obligation
 
 
+def _visible_obligations(db: Session, ctx: HouseholdContext):
+    query = _active(db, ctx.household.id)
+    if ctx.role in {"owner", "partner"} or has_member_permission(ctx, "view_all_obligations"):
+        return query
+    if ctx.role == "member":
+        return query.filter(
+            or_(
+                Obligation.beneficiary_member_id.is_(None),
+                Obligation.beneficiary_member_id == ctx.member.id,
+            )
+        )
+    if ctx.role in {"viewer", "advisor"}:
+        return query.filter(Obligation.beneficiary_member_id.is_(None))
+    raise HTTPException(status_code=403, detail="Insufficient permissions.")
+
+
 @router.get("", response_model=list[ObligationOut])
 def list_obligations(
-    ctx: HouseholdContext = Depends(require_roles("owner", "partner")),
+    ctx: HouseholdContext = Depends(get_household_context),
     db: Session = Depends(get_db),
 ):
-    rows = _active(db, ctx.household.id).order_by(Obligation.next_due_date).all()
+    rows = _visible_obligations(db, ctx).order_by(Obligation.next_due_date).all()
     return [serialize_obligation(db, row) for row in rows]
 
 
@@ -118,10 +136,13 @@ def create_obligation(
 @router.get("/{obligation_id}", response_model=ObligationOut)
 def get_obligation(
     obligation_id: UUID,
-    ctx: HouseholdContext = Depends(require_roles("owner", "partner")),
+    ctx: HouseholdContext = Depends(get_household_context),
     db: Session = Depends(get_db),
 ):
-    return serialize_obligation(db, _get(db, ctx.household.id, obligation_id))
+    obligation = _visible_obligations(db, ctx).filter(Obligation.id == obligation_id).first()
+    if obligation is None:
+        raise HTTPException(status_code=404, detail="Obligation not found.")
+    return serialize_obligation(db, obligation)
 
 
 @router.patch("/{obligation_id}", response_model=ObligationOut)

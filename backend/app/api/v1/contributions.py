@@ -1,11 +1,14 @@
+from collections import defaultdict
+from datetime import date, timedelta
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy.orm import Session
 
 from app.api.deps import (
     HouseholdContext,
     get_db,
+    get_household_context,
     require_roles,
 )
 from app.models.contribution import ContributionAgreement, ContributionRecord
@@ -20,6 +23,8 @@ from app.schemas.contribution import (
     ContributionRecordOut,
 )
 from app.services.audit import write_audit
+from app.services.contribution_schedule import build_contribution_schedule
+from app.services.finance_access import has_member_permission
 
 router = APIRouter(prefix="/contributions", tags=["household-governance"])
 
@@ -45,16 +50,80 @@ def _agreement(
     return row
 
 
+def _visible_agreement(
+    db: Session,
+    ctx: HouseholdContext,
+    agreement_id: UUID,
+) -> ContributionAgreement:
+    query = db.query(ContributionAgreement).filter(
+        ContributionAgreement.id == agreement_id,
+        ContributionAgreement.household_id == ctx.household.id,
+    )
+    if ctx.role not in {"owner", "partner"}:
+        if not has_member_permission(ctx, "view_all_contributions"):
+            query = query.filter(ContributionAgreement.member_id == ctx.member.id)
+    agreement = query.first()
+    if agreement is None:
+        raise HTTPException(status_code=404, detail="Contribution agreement not found.")
+    return agreement
+
+
+
 @router.get("", response_model=list[ContributionAgreementOut])
 def list_agreements(
-    ctx: HouseholdContext = Depends(require_roles("owner", "partner")),
+    ctx: HouseholdContext = Depends(get_household_context),
     db: Session = Depends(get_db),
 ):
-    return (
-        db.query(ContributionAgreement)
-        .filter(ContributionAgreement.household_id == ctx.household.id)
-        .order_by(ContributionAgreement.start_date.desc())
+    query = db.query(ContributionAgreement).filter(
+        ContributionAgreement.household_id == ctx.household.id
+    )
+    if ctx.role not in {"owner", "partner"}:
+        if not has_member_permission(ctx, "view_all_contributions"):
+            query = query.filter(ContributionAgreement.member_id == ctx.member.id)
+    return query.order_by(ContributionAgreement.start_date.desc()).all()
+
+
+@router.get("/schedule")
+def contribution_schedule(
+    from_date: date | None = Query(default=None),
+    to_date: date | None = Query(default=None),
+    ctx: HouseholdContext = Depends(get_household_context),
+    db: Session = Depends(get_db),
+):
+    today = date.today()
+    start = from_date or today - timedelta(days=90)
+    end = to_date or today + timedelta(days=90)
+    if end < start:
+        raise HTTPException(status_code=400, detail="to_date must be on or after from_date.")
+    query = db.query(ContributionAgreement).filter(
+        ContributionAgreement.household_id == ctx.household.id
+    )
+    if ctx.role not in {"owner", "partner"}:
+        if not has_member_permission(ctx, "view_all_contributions"):
+            query = query.filter(ContributionAgreement.member_id == ctx.member.id)
+    agreements = query.order_by(ContributionAgreement.start_date).all()
+    if not agreements:
+        return []
+    agreement_ids = [agreement.id for agreement in agreements]
+    records = (
+        db.query(ContributionRecord)
+        .filter(
+            ContributionRecord.household_id == ctx.household.id,
+            ContributionRecord.agreement_id.in_(agreement_ids),
+            ContributionRecord.contributed_on <= end,
+        )
+        .order_by(ContributionRecord.contributed_on, ContributionRecord.created_at)
         .all()
+    )
+    records_by_agreement = defaultdict(list)
+    for record in records:
+        records_by_agreement[record.agreement_id].append(record)
+    return build_contribution_schedule(
+        agreements,
+        records_by_agreement,
+        from_date=start,
+        to_date=end,
+        today=today,
     )
 
 
@@ -173,10 +242,17 @@ def update_agreement(
 def record_contribution(
     agreement_id: UUID,
     payload: ContributionRecordCreate,
-    ctx: HouseholdContext = Depends(require_roles("owner", "partner")),
+    ctx: HouseholdContext = Depends(get_household_context),
     db: Session = Depends(get_db),
 ):
-    agreement = _agreement(db, ctx.household.id, agreement_id)
+    if ctx.role not in {"owner", "partner", "member"}:
+        raise HTTPException(status_code=403, detail="Insufficient permissions.")
+    agreement = _visible_agreement(db, ctx, agreement_id)
+    if ctx.role == "member" and agreement.member_id != ctx.member.id:
+        raise HTTPException(
+            status_code=403,
+            detail="Members may record contributions only for their own agreements.",
+        )
     if agreement.status != "active":
         raise HTTPException(
             status_code=400,
@@ -201,6 +277,29 @@ def record_contribution(
         )
         if transaction is None:
             raise HTTPException(status_code=404, detail="Linked transaction not found.")
+        existing_record = (
+            db.query(ContributionRecord)
+            .filter(
+                ContributionRecord.household_id == ctx.household.id,
+                ContributionRecord.transaction_id == transaction.id,
+            )
+            .first()
+        )
+        if existing_record is not None:
+            raise HTTPException(
+                status_code=409,
+                detail="Transaction is already linked to a contribution record.",
+            )
+        if transaction.type != "income":
+            raise HTTPException(
+                status_code=400,
+                detail="A contribution must link to an income transaction.",
+            )
+        if ctx.role == "member" and transaction.member_id != ctx.member.id:
+            raise HTTPException(
+                status_code=403,
+                detail="Members may link only their own income transactions.",
+            )
         if (
             transaction.amount != payload.amount
             or transaction.currency != agreement.currency
@@ -250,10 +349,10 @@ def record_contribution(
 )
 def list_records(
     agreement_id: UUID,
-    ctx: HouseholdContext = Depends(require_roles("owner", "partner")),
+    ctx: HouseholdContext = Depends(get_household_context),
     db: Session = Depends(get_db),
 ):
-    agreement = _agreement(db, ctx.household.id, agreement_id)
+    agreement = _visible_agreement(db, ctx, agreement_id)
     return (
         db.query(ContributionRecord)
         .filter(

@@ -41,6 +41,7 @@ export type Member = {
   relationship: string;
   member_type: string;
   is_financial_contributor: boolean;
+  permissions: { view_all_contributions: boolean; view_all_obligations: boolean };
 };
 
 export type Account = {
@@ -52,8 +53,12 @@ export type Account = {
   current_balance: string;
   available_balance: string;
   is_protected: boolean;
-  is_emergency?: boolean;
+  is_emergency: boolean;
+  include_in_safe_to_spend: boolean;
+  include_in_net_worth: boolean;
   status: string;
+  access_scope: "shared" | "personal";
+  owner_member_id: string | null;
 };
 
 export type Category = {
@@ -76,6 +81,7 @@ export type Transaction = {
   account_id: string;
   counterparty_account_id: string | null;
   member_id: string | null;
+  access_scope: "shared" | "personal";
   amount: string;
   currency: string;
   type: string;
@@ -537,6 +543,26 @@ async function parseResponse<T>(response: Response): Promise<T> {
     throw new Error("The server returned an unexpected response. Please try again shortly.");
   }
   return data as T;
+}
+
+export type MemberFinancialSummary = {
+  currency: string;
+  period_start: string;
+  period_end: string;
+  accessible_accounts: number;
+  cash_total: string;
+  income: string;
+  expenses: string;
+  net_cash_flow: string;
+  transaction_count: number;
+};
+
+export function getMemberFinancialSummary(periodStart?: string, periodEnd?: string) {
+  const params = new URLSearchParams();
+  if (periodStart) params.set("period_start", periodStart);
+  if (periodEnd) params.set("period_end", periodEnd);
+  const query = params.toString() ? `?${params.toString()}` : "";
+  return request<MemberFinancialSummary>(`/api/v1/member/financial-summary${query}`);
 }
 
 export function getOverview() {
@@ -1200,6 +1226,7 @@ export const api = {
   changePassword: (body: { current_password: string; new_password: string }) =>
     request<void>("/api/v1/auth/password/change", { method: "POST", body: JSON.stringify(body) }),
   getOverview,
+  getMemberFinancialSummary,
   getFinancialHealth,
   explainFinancialHealth,
   getInsights,
@@ -1247,7 +1274,13 @@ export const api = {
     relationship: string;
     member_type: string;
   }) => request<Member>("/api/v1/members", { method: "POST", body: JSON.stringify(body) }),
-  updateMember: (id: string, body: { display_name?: string; role?: string; relationship?: string; member_type?: string }) =>
+  updateMember: (id: string, body: {
+    display_name?: string;
+    role?: string;
+    relationship?: string;
+    member_type?: string;
+    permissions?: { view_all_contributions?: boolean; view_all_obligations?: boolean };
+  }) =>
     request<Member>(`/api/v1/members/${id}`, { method: "PATCH", body: JSON.stringify(body) }),
   deleteMember: (id: string) => request<void>(`/api/v1/members/${id}`, { method: "DELETE" }),
   transferOwnership: (member_id: string) =>
@@ -1262,7 +1295,19 @@ export const api = {
     institution?: string;
     current_balance?: string;
     is_protected?: boolean;
+    access_scope?: "shared" | "personal";
+    owner_member_id?: string;
   }) => request<Account>("/api/v1/accounts", { method: "POST", body: JSON.stringify(body) }),
+  currentMember: () => request<Member>("/api/v1/members/me"),
+  updateAccount: (id: string, body: {
+    name?: string;
+    institution?: string | null;
+    is_protected?: boolean;
+    is_emergency?: boolean;
+    include_in_safe_to_spend?: boolean;
+    include_in_net_worth?: boolean;
+    status?: string;
+  }) => request<Account>(`/api/v1/accounts/${id}`, { method: "PATCH", body: JSON.stringify(body) }),
   categories: () => request<Category[]>("/api/v1/categories"),
   incomeSources: () => request<IncomeSource[]>("/api/v1/income/sources"),
   createIncomeSource: (body: { name: string; expected_amount: string; type?: string }) =>
@@ -1279,9 +1324,14 @@ export const api = {
     counterparty_account_id?: string;
     category_id?: string;
     member_id?: string;
+    access_scope?: "shared" | "personal";
     description?: string;
     merchant?: string;
   }) => request<Transaction>("/api/v1/transactions", { method: "POST", body: JSON.stringify(body) }),
+  updateTransaction: (
+    id: string,
+    body: { merchant?: string | null; description?: string | null; category_id?: string | null; date?: string; member_id?: string | null },
+  ) => request<Transaction>(`/api/v1/transactions/${id}`, { method: "PATCH", body: JSON.stringify(body) }),
   voidTransaction: (id: string) =>
     request<Transaction>(`/api/v1/transactions/${id}/void`, { method: "POST" }),
   budgets: () => request<Budget[]>("/api/v1/budget"),
@@ -1395,8 +1445,45 @@ export type ContributionRecord = {
   note: string | null;
 };
 
+export type ContributionScheduleRow = {
+  agreement_id: string;
+  member_id: string;
+  name: string;
+  due_date: string;
+  currency: string;
+  expected_amount: string;
+  paid_amount: string;
+  outstanding_amount: string;
+  status: "paid" | "partial" | "overdue" | "upcoming";
+};
+
+export function listContributionSchedule(fromDate?: string, toDate?: string) {
+  const params = new URLSearchParams();
+  if (fromDate) params.set("from_date", fromDate);
+  if (toDate) params.set("to_date", toDate);
+  const query = params.toString() ? `?${params.toString()}` : "";
+  return request<ContributionScheduleRow[]>(`/api/v1/contributions/schedule${query}`);
+}
+
 export function listContributionAgreements() {
   return request<ContributionAgreement[]>("/api/v1/contributions");
+}
+
+export function updateContributionAgreement(
+  id: string,
+  body: {
+    amount?: string;
+    cadence?: string;
+    due_day?: number | null;
+    end_date?: string | null;
+    status?: string;
+    notes?: string | null;
+  },
+) {
+  return request<ContributionAgreement>(`/api/v1/contributions/${id}`, {
+    method: "PATCH",
+    body: JSON.stringify(body),
+  });
 }
 
 export function createContributionAgreement(body: {
@@ -1412,20 +1499,6 @@ export function createContributionAgreement(body: {
 }) {
   return request<ContributionAgreement>("/api/v1/contributions", {
     method: "POST",
-    body: JSON.stringify(body),
-  });
-}
-
-export function updateContributionAgreement(id: string, body: {
-  amount?: string;
-  cadence?: string;
-  due_day?: number;
-  end_date?: string;
-  status?: string;
-  notes?: string;
-}) {
-  return request<ContributionAgreement>(`/api/v1/contributions/${id}`, {
-    method: "PATCH",
     body: JSON.stringify(body),
   });
 }

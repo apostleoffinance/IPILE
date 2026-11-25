@@ -4,7 +4,7 @@ from uuid import UUID
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy.orm import Session
 
-from app.api.deps import HouseholdContext, get_db, get_household_context, require_roles
+from app.api.deps import HouseholdContext, get_db, get_household_context
 from app.models.account import Account
 from app.models.business import Business
 from app.models.member import HouseholdMember
@@ -47,9 +47,27 @@ def list_accounts(
 @router.post("", response_model=AccountOut, status_code=status.HTTP_201_CREATED)
 def create_account(
     payload: AccountCreate,
-    ctx: HouseholdContext = Depends(require_roles("owner", "partner")),
+    ctx: HouseholdContext = Depends(get_household_context),
     db: Session = Depends(get_db),
 ):
+    if ctx.role == "member":
+        if payload.access_scope != "personal" or payload.owner_member_id != ctx.member.id:
+            raise HTTPException(
+                status_code=403,
+                detail="Members may create only their own personal accounts.",
+            )
+        if (
+            payload.is_protected
+            or payload.is_emergency
+            or not payload.include_in_safe_to_spend
+            or not payload.include_in_net_worth
+        ):
+            raise HTTPException(
+                status_code=403,
+                detail="Only owners and partners can change household balance calculation flags.",
+            )
+    elif ctx.role not in {"owner", "partner"}:
+        raise HTTPException(status_code=403, detail="Insufficient permissions.")
     if payload.type not in ACCOUNT_TYPES:
         raise HTTPException(status_code=400, detail="Invalid account type.")
     if payload.business_id:
@@ -110,13 +128,29 @@ def get_account(
 def update_account(
     account_id: UUID,
     payload: AccountUpdate,
-    ctx: HouseholdContext = Depends(require_roles("owner", "partner")),
+    ctx: HouseholdContext = Depends(get_household_context),
     db: Session = Depends(get_db),
 ):
     account = _accounts(db, ctx.household.id).filter(Account.id == account_id).first()
     if account is None:
         raise HTTPException(status_code=404, detail="Account not found.")
-    for key, value in payload.model_dump(exclude_unset=True).items():
+    if ctx.role == "member":
+        if account.access_scope != "personal" or account.owner_member_id != ctx.member.id:
+            raise HTTPException(
+                status_code=403,
+                detail="Members may update only their own personal accounts.",
+            )
+        updates = payload.model_dump(exclude_unset=True)
+        if set(updates) - {"name", "institution"}:
+            raise HTTPException(
+                status_code=403,
+                detail="Only account name and institution can be changed by a member.",
+            )
+    elif ctx.role not in {"owner", "partner"}:
+        raise HTTPException(status_code=403, detail="Insufficient permissions.")
+    else:
+        updates = payload.model_dump(exclude_unset=True)
+    for key, value in updates.items():
         setattr(account, key, value)
     db.add(account)
     db.commit()

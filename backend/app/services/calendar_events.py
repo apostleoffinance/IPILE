@@ -7,6 +7,7 @@ from datetime import date, timedelta
 from decimal import Decimal
 from uuid import NAMESPACE_URL, UUID, uuid5
 
+from sqlalchemy import or_
 from sqlalchemy.orm import Session
 
 from app.models.fund import SinkingFund
@@ -54,6 +55,8 @@ def build_calendar_events(
     *,
     days: int = 30,
     today: date | None = None,
+    member_id: UUID | None = None,
+    include_all_obligations: bool = False,
 ) -> list[CalendarEventOut]:
     today = today or date.today()
     end = today + timedelta(days=days)
@@ -65,6 +68,14 @@ def build_calendar_events(
         .filter(
             ObligationOccurrence.household_id == household_id,
             Obligation.deleted_at.is_(None),
+            *(
+                [or_(
+                    Obligation.beneficiary_member_id.is_(None),
+                    Obligation.beneficiary_member_id == member_id,
+                )]
+                if member_id is not None and not include_all_obligations
+                else []
+            ),
             ObligationOccurrence.due_date >= today,
             ObligationOccurrence.due_date <= end,
         )
@@ -86,6 +97,10 @@ def build_calendar_events(
                 occurrence_id=occurrence.id,
             )
         )
+
+    if member_id is not None:
+        events.sort(key=lambda row: (row.date, row.kind, row.title))
+        return events
 
     recurring = (
         db.query(RecurringTransaction)

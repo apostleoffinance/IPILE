@@ -14,11 +14,12 @@ import { ErrorState } from "@/components/shared/ErrorState";
 import { LoadingState } from "@/components/shared/LoadingState";
 import { Button } from "@/components/ui/button";
 import { useHouseholdCurrency } from "@/hooks/useHouseholdCurrency";
-import { api, type Account, type CalendarEvent, type Obligation } from "@/lib/api";
+import { api, type Account, type CalendarEvent, type Member, type Obligation } from "@/lib/api";
 
 export default function ObligationsPage() {
   const currency = useHouseholdCurrency();
   const [items, setItems] = useState<Obligation[]>([]);
+  const [currentMember, setCurrentMember] = useState<Member | null>(null);
   const [events, setEvents] = useState<CalendarEvent[]>([]);
   const [accounts, setAccounts] = useState<Account[]>([]);
   const [accountId, setAccountId] = useState("");
@@ -27,14 +28,16 @@ export default function ObligationsPage() {
   const [pending, setPending] = useState(false);
 
   async function refresh() {
-    const [nextItems, nextEvents, nextAccounts] = await Promise.all([
+    const [nextItems, nextEvents, nextAccounts, me] = await Promise.all([
       api.obligations(),
       api.calendar(30),
       api.accounts(),
+      api.currentMember(),
     ]);
     setItems(nextItems);
     setEvents(nextEvents);
     setAccounts(nextAccounts);
+    setCurrentMember(me);
     if (!accountId && nextAccounts[0]) setAccountId(nextAccounts[0].id);
     setLoaded(true);
   }
@@ -84,6 +87,7 @@ export default function ObligationsPage() {
           )}
         </section>
 
+        {currentMember && ["owner", "partner"].includes(currentMember.role) ? (
         <section id="list">
           <SectionHeader title="Add obligation" />
           <ObligationForm
@@ -102,6 +106,7 @@ export default function ObligationsPage() {
             }}
           />
         </section>
+        ) : null}
 
         {loaded && items.length === 0 ? (
           <EmptyState title="No obligations" body="Add rent, fees, or support the household must fund." />
@@ -132,7 +137,8 @@ export default function ObligationsPage() {
                     <p className="text-muted">
                       {occurrence.due_date} · {occurrence.status} · {occurrence.coverage_label}
                     </p>
-                    {occurrence.status !== "paid" && occurrence.status !== "skipped" && accountId ? (
+                    {currentMember && ["owner", "partner"].includes(currentMember.role) &&
+                    occurrence.status !== "paid" && occurrence.status !== "skipped" && accountId ? (
                       <Button
                         type="button"
                         variant="link"

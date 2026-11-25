@@ -16,6 +16,8 @@ import { api, type Member } from "@/lib/api";
 
 export default function MembersPage() {
   const [members, setMembers] = useState<Member[]>([]);
+  const [currentMember, setCurrentMember] = useState<Member | null>(null);
+  const [savingPermission, setSavingPermission] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [displayName, setDisplayName] = useState("");
   const [role, setRole] = useState("member");
@@ -23,7 +25,38 @@ export default function MembersPage() {
   const [memberType, setMemberType] = useState("dependent");
 
   async function refresh() {
-    setMembers(await api.members());
+    const [rows, me] = await Promise.all([api.members(), api.currentMember()]);
+    setMembers(rows);
+    setCurrentMember(me);
+  }
+
+  async function updateMemberRole(member: Member, role: string) {
+    setError(null);
+    try {
+      await api.updateMember(member.id, { role });
+      await refresh();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Could not update member role.");
+    }
+  }
+
+  async function togglePermission(
+    member: Member,
+    permission: "view_all_contributions" | "view_all_obligations",
+    checked: boolean,
+  ) {
+    setSavingPermission(`${member.id}-${permission}`);
+    setError(null);
+    try {
+      await api.updateMember(member.id, {
+        permissions: { ...member.permissions, [permission]: checked },
+      });
+      await refresh();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Could not update member permissions.");
+    } finally {
+      setSavingPermission(null);
+    }
   }
 
   useEffect(() => {
@@ -55,6 +88,8 @@ export default function MembersPage() {
           description="Who is in this household? Dependents can have their own budgets."
         />
         {error ? <ErrorState message={error} /> : null}
+        {currentMember?.role === "owner" ? (
+        <>
         <SectionHeader title="Add member" />
         <form onSubmit={onSubmit} className="grid gap-4 border border-line bg-surface p-5 md:grid-cols-2">
           <div>
@@ -78,6 +113,7 @@ export default function MembersPage() {
               <option value="partner">Partner</option>
               <option value="member">Member</option>
               <option value="viewer">Viewer</option>
+              <option value="advisor">Advisor</option>
             </Select>
           </div>
           <div>
@@ -111,6 +147,8 @@ export default function MembersPage() {
             <Button type="submit">Add member</Button>
           </div>
         </form>
+        </>
+        ) : null}
         <SectionHeader title="Household" />
         {members.length === 0 ? (
           <EmptyState title="No members" body="A household always has an owner after registration." />
@@ -123,13 +161,32 @@ export default function MembersPage() {
                   <th className="px-4 py-3 font-medium">Role</th>
                   <th className="px-4 py-3 font-medium">Relationship</th>
                   <th className="px-4 py-3 font-medium">Type</th>
+                  {currentMember?.role === "owner" ? (
+                    <>
+                      <th className="px-4 py-3 font-medium">All contributions</th>
+                      <th className="px-4 py-3 font-medium">All obligations</th>
+                    </>
+                  ) : null}
                 </tr>
               </thead>
               <tbody>
                 {members.map((member) => (
                   <tr key={member.id} className="border-b border-line last:border-0">
                     <td className="px-4 py-3">{member.display_name}</td>
-                    <td className="px-4 py-3 capitalize">{member.role}</td>
+                    <td className="px-4 py-3 capitalize">
+                      {currentMember?.role === "owner" && member.role !== "owner" ? (
+                        <Select
+                          aria-label={`Role for ${member.display_name}`}
+                          value={member.role}
+                          onChange={(event) => void updateMemberRole(member, event.target.value)}
+                        >
+                          <option value="partner">Partner</option>
+                          <option value="member">Member</option>
+                          <option value="viewer">Viewer</option>
+                          <option value="advisor">Advisor</option>
+                        </Select>
+                      ) : member.role}
+                    </td>
                     <td className="px-4 py-3 capitalize">{member.relationship}</td>
                     <td className="px-4 py-3 capitalize">
                       {member.member_type}
@@ -142,6 +199,40 @@ export default function MembersPage() {
                         </Link>
                       ) : null}
                     </td>
+                    {currentMember?.role === "owner" ? (
+                      <>
+                        <td className="px-4 py-3">
+                          <input
+                            type="checkbox"
+                            aria-label={`Allow ${member.display_name} to view all contributions`}
+                            checked={member.permissions?.view_all_contributions ?? false}
+                            disabled={savingPermission === `${member.id}-view_all_contributions`}
+                            onChange={(event) =>
+                              void togglePermission(
+                                member,
+                                "view_all_contributions",
+                                event.target.checked,
+                              )
+                            }
+                          />
+                        </td>
+                        <td className="px-4 py-3">
+                          <input
+                            type="checkbox"
+                            aria-label={`Allow ${member.display_name} to view all obligations`}
+                            checked={member.permissions?.view_all_obligations ?? false}
+                            disabled={savingPermission === `${member.id}-view_all_obligations`}
+                            onChange={(event) =>
+                              void togglePermission(
+                                member,
+                                "view_all_obligations",
+                                event.target.checked,
+                              )
+                            }
+                          />
+                        </td>
+                      </>
+                    ) : null}
                   </tr>
                 ))}
               </tbody>

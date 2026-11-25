@@ -142,7 +142,7 @@ def test_readiness_checks_database_and_migrations(client: TestClient) -> None:
         db.execute(
             text(
                 "INSERT INTO alembic_version (version_num) "
-                "VALUES ('0018_personal_shared_finance')"
+                "VALUES ('0019_member_permissions')"
             )
         )
         db.commit()

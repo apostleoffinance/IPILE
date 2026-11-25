@@ -28,3 +28,11 @@ def transaction_visibility(query, model, ctx: HouseholdContext):
             )
         )
     return query.filter(model.access_scope == "shared")
+
+
+def has_member_permission(ctx: HouseholdContext, permission: str) -> bool:
+    if ctx.role in {"owner", "partner"}:
+        return True
+    if ctx.member is None:
+        return False
+    return bool((ctx.member.permissions or {}).get(permission, False))

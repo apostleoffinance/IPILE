@@ -24,6 +24,15 @@ def _active_members(db: Session, household_id: UUID):
     )
 
 
+@router.get("/me", response_model=MemberOut)
+def get_current_member(
+    ctx: HouseholdContext = Depends(get_household_context),
+):
+    if ctx.member is None:
+        raise HTTPException(status_code=404, detail="Household member not found.")
+    return ctx.member
+
+
 @router.get("", response_model=list[MemberOut])
 def list_members(
     ctx: HouseholdContext = Depends(get_household_context),
@@ -71,6 +80,7 @@ def create_member(
         member_type=payload.member_type,
         date_of_birth=payload.date_of_birth,
         is_financial_contributor=payload.is_financial_contributor,
+        permissions=payload.permissions.model_dump(),
     )
     db.add(member)
     db.flush()
@@ -99,10 +109,21 @@ def update_member(
     if member is None:
         raise HTTPException(status_code=404, detail="Member not found.")
     data = payload.model_dump(exclude_unset=True)
+    if "permissions" in data and data["permissions"] is None:
+        data["permissions"] = {}
     if data.get("role") == "owner" and member.role != "owner":
         raise HTTPException(status_code=400, detail="Cannot transfer ownership in this phase.")
+    if member.role == "owner" and data.get("role", "owner") != "owner":
+        raise HTTPException(
+            status_code=400,
+            detail="Household ownership cannot be removed in this phase.",
+        )
     if "role" in data and data["role"] not in ROLES:
         raise HTTPException(status_code=400, detail="Invalid role.")
+    if "relationship" in data and data["relationship"] not in RELATIONSHIPS:
+        raise HTTPException(status_code=400, detail="Invalid relationship.")
+    if "member_type" in data and data["member_type"] not in MEMBER_TYPES:
+        raise HTTPException(status_code=400, detail="Invalid member type.")
     for key, value in data.items():
         setattr(member, key, value)
     db.add(member)
