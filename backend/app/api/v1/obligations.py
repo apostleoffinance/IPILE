@@ -89,7 +89,7 @@ def create_obligation(
 @router.get("/{obligation_id}", response_model=ObligationOut)
 def get_obligation(
     obligation_id: UUID,
-    ctx: HouseholdContext = Depends(get_household_context),
+    ctx: HouseholdContext = Depends(require_roles("owner", "partner")),
     db: Session = Depends(get_db),
 ):
     return serialize_obligation(db, _get(db, ctx.household.id, obligation_id))
