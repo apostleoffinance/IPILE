@@ -317,6 +317,6 @@ def project(state: SimState, params: SimParams) -> SimulationResult:
             net_worth_delta=surplus,
         )
         months.append(month)
-        # Subsequent months have no one-time shock; live balances and obligation funding are untouched.
+        # Later months have no one-time shock; live state remains untouched.
     summary = months[-1]
     return SimulationResult(months=tuple(months), summary=summary)
