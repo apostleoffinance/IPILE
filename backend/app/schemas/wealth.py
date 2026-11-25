@@ -1,7 +1,6 @@
+from decimal import Decimal, InvalidOperation
 from datetime import date as Date
 from uuid import UUID
-
-from decimal import Decimal, InvalidOperation
 
 from pydantic import BaseModel, Field, field_validator
 
@@ -51,7 +50,9 @@ class LiabilityCreate(BaseModel):
         try:
             rate = Decimal(value)
         except (InvalidOperation, TypeError, ValueError) as exc:
-            raise ValueError("Interest rate must be a decimal APR fraction, e.g. 0.18 for 18%.") from exc
+            raise ValueError(
+                "Interest rate must be a decimal APR fraction, e.g. 0.18 for 18%."
+            ) from exc
         if not rate.is_finite() or rate < 0 or rate > Decimal("5"):
             raise ValueError("Interest rate must be between 0 and 5 as an APR fraction.")
         return format(rate, "f")
