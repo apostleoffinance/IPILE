@@ -58,6 +58,19 @@ def test_member_can_create_and_update_only_their_own_personal_accounts(
     assert own.status_code == 201, own.text
     own_id = own.json()["id"]
 
+    protected_create = client.post(
+        "/api/v1/accounts",
+        headers=headers,
+        json={
+            "name": "Member controlled Safe to Spend",
+            "type": "savings",
+            "access_scope": "personal",
+            "owner_member_id": member_a["id"],
+            "is_protected": True,
+        },
+    )
+    assert protected_create.status_code == 403
+
     shared = client.post(
         "/api/v1/accounts",
         headers=headers,
