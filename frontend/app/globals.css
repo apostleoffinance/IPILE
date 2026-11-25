@@ -434,3 +434,6 @@ button, a, input, select, textarea { transition-duration: 220ms; }
  .ipile-dashboard-section-heading { align-items:flex-start; }
  .ipile-section-caption { display:none; }
 }
+
+/* Money workspace — ledger-first hierarchy and operational surfaces */
+.ipile-money-workspace{max-width:1440px;gap:28px}.ipile-money-workspace>.ipile-page-header{padding-bottom:22px;border-bottom:1px solid var(--color-border)}.ipile-money-workspace>.ipile-page-header .eyebrow{color:var(--color-accent-primary);font-weight:600}.ipile-money-workspace section{scroll-margin-top:100px}.ipile-money-workspace .border.border-line.bg-surface,.ipile-money-workspace form.border.border-line,.ipile-money-workspace article.border.border-line{border-radius:14px;box-shadow:0 8px 26px rgba(5,8,7,.035)}.ipile-money-workspace table thead{background:var(--color-bg-subtle)}.ipile-money-workspace table th,.ipile-money-workspace table td{padding-top:13px;padding-bottom:13px}.ipile-money-workspace input[type=file]{max-width:100%;color:var(--color-text-secondary)}[data-theme=dark] .ipile-money-workspace .border.border-line.bg-surface,[data-theme=dark] .ipile-money-workspace form.border.border-line,[data-theme=dark] .ipile-money-workspace article.border.border-line{box-shadow:0 10px 28px rgba(0,0,0,.16)}@media(max-width:640px){.ipile-money-workspace{gap:22px}.ipile-money-workspace table{min-width:680px}}
