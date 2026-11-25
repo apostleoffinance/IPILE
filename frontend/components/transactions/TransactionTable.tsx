@@ -7,10 +7,14 @@ export function TransactionTable({
   transactions,
   accounts,
   onVoid,
+  onEdit,
+  canEdit,
 }: {
   transactions: Transaction[];
   accounts: Account[];
   onVoid?: (id: string) => void;
+  onEdit?: (transaction: Transaction) => void;
+  canEdit?: (transaction: Transaction) => boolean;
 }) {
   const names = Object.fromEntries(accounts.map((account) => [account.id, account.name]));
   return (
@@ -36,7 +40,7 @@ export function TransactionTable({
             <th scope="col" className="px-4 py-3 text-right font-medium">
               Amount
             </th>
-            {onVoid ? (
+            {onVoid || onEdit ? (
               <th scope="col" className="px-4 py-3">
                 <span className="sr-only">Actions</span>
               </th>
@@ -54,13 +58,20 @@ export function TransactionTable({
               <td className="px-4 py-3 text-right">
                 <MoneyAmount amount={row.amount} currency={row.currency} />
               </td>
-              {onVoid ? (
+              {onVoid || onEdit ? (
                 <td className="px-4 py-3 text-right">
-                  {row.status !== "voided" ? (
-                    <Button type="button" variant="link" className="h-auto p-0 text-xs" onClick={() => onVoid(row.id)}>
-                      Void
-                    </Button>
-                  ) : null}
+                  <div className="flex justify-end gap-3">
+                    {onEdit && (!canEdit || canEdit(row)) ? (
+                      <Button type="button" variant="link" className="h-auto p-0 text-xs" onClick={() => onEdit(row)}>
+                        Edit
+                      </Button>
+                    ) : null}
+                    {onVoid && row.status !== "voided" ? (
+                      <Button type="button" variant="link" className="h-auto p-0 text-xs" onClick={() => onVoid(row.id)}>
+                        Void
+                      </Button>
+                    ) : null}
+                  </div>
                 </td>
               ) : null}
             </tr>
