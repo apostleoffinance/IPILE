@@ -1,4 +1,4 @@
-from datetime import date
+from datetime import date, timedelta
 from decimal import Decimal
 
 from fastapi.testclient import TestClient
@@ -55,7 +55,7 @@ def test_edited_linked_income_no_longer_verifies_contribution_receipt(
 
     edited = client.patch(
         f"/api/v1/transactions/{transaction.json()['id']}",
-        json={"amount": "30000.00"},
+        json={"date": (today + timedelta(days=1)).isoformat()},
     )
     assert edited.status_code == 200, edited.text
 
