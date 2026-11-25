@@ -105,3 +105,36 @@ def test_member_obligations_calendar_and_overview_are_member_scoped(
     assert "Member A tuition" in upcoming_titles
     assert "Household electricity" in upcoming_titles
     assert "Member B tuition" not in upcoming_titles
+    _logout(client)
+
+    login(client, "obligation-scope-owner@example.com")
+    grant = client.patch(
+        f"/api/v1/members/{member_a['id']}",
+        headers=headers,
+        json={"permissions": {"view_all_obligations": True}},
+    )
+    assert grant.status_code == 200, grant.text
+    assert grant.json()["permissions"]["view_all_obligations"] is True
+    _logout(client)
+
+    login(client, "obligation-scope-a@example.com")
+    authorized_obligations = client.get("/api/v1/obligations", headers=headers)
+    assert {row["name"] for row in authorized_obligations.json()} == {
+        "Member A tuition",
+        "Member B tuition",
+        "Household electricity",
+    }
+    authorized_calendar = client.get("/api/v1/calendar", headers=headers)
+    assert "Member B tuition" in {row["title"] for row in authorized_calendar.json()}
+    authorized_overview = client.get("/api/v1/overview", headers=headers)
+    assert "Member B tuition" in {
+        row["title"] for row in authorized_overview.json()["upcoming_obligations"]
+    }
+    _logout(client)
+
+    login(client, "obligation-scope-b@example.com")
+    member_b_obligations = client.get("/api/v1/obligations", headers=headers)
+    assert {row["name"] for row in member_b_obligations.json()} == {
+        "Member B tuition",
+        "Household electricity",
+    }
