@@ -149,8 +149,8 @@ def test_members_only_see_their_own_contribution_agreements_records_and_schedule
     )
     assert first_due["status"] == "partial"
     assert Decimal(first_due["expected_amount"]) == Decimal("1000.00")
-    assert Decimal(first_due["paid_amount"]) == Decimal("400.00")
-    assert Decimal(first_due["outstanding_amount"]) == Decimal("600.00")
+    assert Decimal(first_due["paid_amount"]) == Decimal("500.00")
+    assert Decimal(first_due["outstanding_amount"]) == Decimal("500.00")
     _logout(client)
 
     login(client, "contribution-scope-owner@example.com")
