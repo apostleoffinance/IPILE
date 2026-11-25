@@ -1291,6 +1291,7 @@ export const api = {
     counterparty_account_id?: string;
     category_id?: string;
     member_id?: string;
+    access_scope?: "shared" | "personal";
     description?: string;
     merchant?: string;
   }) => request<Transaction>("/api/v1/transactions", { method: "POST", body: JSON.stringify(body) }),
