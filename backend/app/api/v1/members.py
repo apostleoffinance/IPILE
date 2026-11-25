@@ -100,6 +100,8 @@ def update_member(
     if member is None:
         raise HTTPException(status_code=404, detail="Member not found.")
     data = payload.model_dump(exclude_unset=True)
+    if "permissions" in data and data["permissions"] is None:
+        data["permissions"] = {}
     if data.get("role") == "owner" and member.role != "owner":
         raise HTTPException(status_code=400, detail="Cannot transfer ownership in this phase.")
     if "role" in data and data["role"] not in ROLES:
