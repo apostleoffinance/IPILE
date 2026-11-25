@@ -1,7 +1,8 @@
 from datetime import date as Date
+from decimal import Decimal, InvalidOperation
 from uuid import UUID
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
 
 from app.schemas.money import MoneyAmount, MoneySigned
 
@@ -40,6 +41,21 @@ class LiabilityCreate(BaseModel):
     due_day: int | None = None
     account_id: UUID | None = None
     include_in_net_worth: bool = True
+
+    @field_validator("interest_rate")
+    @classmethod
+    def validate_interest_rate(cls, value: str | None) -> str | None:
+        if value is None:
+            return None
+        try:
+            rate = Decimal(value)
+        except (InvalidOperation, TypeError, ValueError) as exc:
+            raise ValueError(
+                "Interest rate must be a decimal APR fraction, e.g. 0.18 for 18%."
+            ) from exc
+        if not rate.is_finite() or rate < 0 or rate > Decimal("5"):
+            raise ValueError("Interest rate must be between 0 and 5 as an APR fraction.")
+        return format(rate, "f")
 
 
 class LiabilityOut(BaseModel):
