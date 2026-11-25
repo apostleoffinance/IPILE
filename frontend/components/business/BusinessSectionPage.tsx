@@ -39,6 +39,7 @@ export function BusinessSectionPage({ section }: { section: BusinessSection }) {
   return (
     <AppShell>
       <ContentContainer>
+        <div className="ipile-business-page ipile-business-section">
         <PageHeader
           eyebrow="Business"
           title={copy.title}
@@ -49,6 +50,7 @@ export function BusinessSectionPage({ section }: { section: BusinessSection }) {
         {!loaded && !error ? <LoadingState /> : null}
         {!business && loaded ? <EmptyState title="No business yet" body="Add a business in the workspace first." actionLabel="Open business" actionHref="/business" /> : null}
         {business ? <BusinessSection business={business} section={section} currency={currency ?? "NGN"} /> : null}
+              </div>
       </ContentContainer>
     </AppShell>
   );
