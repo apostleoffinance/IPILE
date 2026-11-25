@@ -71,7 +71,10 @@ def create_obligation(
             .first()
         )
         if member is None:
-            raise HTTPException(status_code=404, detail="Beneficiary member not found in this household.")
+            raise HTTPException(
+                status_code=404,
+                detail="Beneficiary member not found in this household.",
+            )
     category_id = payload.category_id
     if category_id is None:
         category_id = obligation_category(db, ctx.household.id).id
@@ -134,7 +137,10 @@ def update_obligation(
             .first()
         )
         if member is None:
-            raise HTTPException(status_code=404, detail="Beneficiary member not found in this household.")
+            raise HTTPException(
+                status_code=404,
+                detail="Beneficiary member not found in this household.",
+            )
     for key, value in data.items():
         setattr(obligation, key, value)
     db.add(obligation)
