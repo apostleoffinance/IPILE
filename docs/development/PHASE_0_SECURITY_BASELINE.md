@@ -28,11 +28,12 @@ Viewer and advisor currently share the same read-only API permissions. A future 
 5. Transaction creation validates that referenced members, categories, income sources, obligations, funds, goals and businesses belong to the active household.
 6. Imports are owner/partner-only. Preview/stage does not post ledger entries; commit is explicit.
 7. Contribution records remain owner/partner-only until member-specific agreement and record visibility is implemented.
+8. Transactions cannot cross personal/shared account boundaries. Cross-scope transfers are intentionally rejected until they can be represented as paired ledger entries without leaking balances.
 
 ## Statement-import baseline
 
 - CSV and text statement import paths have existing parsing, duplicate detection and balance-effect tests.
-- PDF statements use selectable-text extraction through pdfplumber; a PDF preview/commit regression test is being added.
+- PDF statements use selectable-text extraction through pdfplumber; the PDF preview/commit regression test is included in the CI suite.
 - Unsupported, malformed or oversized uploads must fail without partial ledger posting.
 - Scanned/image-only PDFs are not OCR-enabled in this phase; they must fail safely rather than produce guessed transactions.
 
@@ -40,7 +41,7 @@ Viewer and advisor currently share the same read-only API permissions. A future 
 
 - Migration chain: 0016_import_mailboxes → 0017_contributions → 0018_personal_shared_finance.
 - The production and staging Neon branches were observed at 0016_import_mailboxes during the Phase 0 audit. Neither environment had the contribution tables or access_scope columns at that time.
-- The 0017/0018 DDL was exercised on a temporary Neon branch cloned from production and the temporary branch was discarded. Production and staging were not modified.
+- Equivalent 0017/0018 DDL was exercised against a temporary Neon branch cloned from production; constraints and indexes were inspected, then the temporary branch was discarded. Production and staging were not modified.
 - Production and staging migrations must be applied only with the matching application release and a verified backup/rollback plan.
 
 ## Phase 0 release gate
