@@ -117,7 +117,7 @@ def test_purchase_check_names_obligations_put_at_risk(
         json={
             "name": "School fees",
             "amount": "400000.00",
-            "frequency": "one_time",
+            "frequency": "monthly",
             "next_due_date": (date.today()).isoformat(),
             "priority": "critical",
         },
