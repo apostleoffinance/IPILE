@@ -6,6 +6,7 @@ on:
       - "frontend/**"
       - ".github/workflows/cloudflare-preview.yml"
       - ".github/workflows/cloudflare-preview-deploy.yml"
+      - ".github/workflows/cloudflare-staging-deploy.yml"
 
 permissions:
   contents: read
