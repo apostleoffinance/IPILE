@@ -42,7 +42,7 @@ def params_from_payload(payload: SimulationIn) -> SimParams:
         income_change_rate=Decimal(str(payload.income_change_rate)),
         contribution_change_rate=Decimal(str(payload.contribution_change_rate)),
         debt_strategy=payload.debt_strategy,
-        debt_extra_payment=payload.debt_extra_payment,
+        debt_extra_payment=Decimal(str(payload.debt_extra_payment)),
         expense_category_deltas=_decimal_map(payload.expense_category_deltas),
         obligation_deltas=_decimal_map(payload.obligation_deltas),
         investment_override=payload.investment_override,
