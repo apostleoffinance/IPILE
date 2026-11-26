@@ -104,6 +104,7 @@ def parse_universal_csv(content: str) -> list[ImportRow]:
                     raise ValueError("Both debit and credit columns contain amounts.")
                 if not debit and not credit:
                     raise ValueError("A transaction row must contain a debit or credit amount; neither column is populated.")
+                cash_direction = "credit" if credit else "debit"
                 amount = credit if credit else -debit
                 tx_type = "income" if credit else "expense"
             else:
@@ -179,6 +180,7 @@ def parse_universal_csv(content: str) -> list[ImportRow]:
                     value_date=value_date,
                     transaction_datetime=transaction_datetime,
                     running_balance=running_balance,
+                    cash_direction=cash_direction,
                     cash_direction=(cash_direction if tx_type == "transfer" else cash_direction),
                 )
             )
