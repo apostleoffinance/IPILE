@@ -57,24 +57,6 @@ class Settings(BaseSettings):
         ]
 
     @property
-    def gmail_connect_configured(self) -> bool:
-        return all(value.strip() for value in (
-            self.gmail_oauth_client_id,
-            self.gmail_oauth_client_secret,
-            self.gmail_oauth_redirect_uri,
-            self.gmail_sync_secret,
-            self.bank_data_encryption_key,
-        ))
-
-    @property
-    def gmail_sender_domain_list(self) -> list[str]:
-        return [
-            part.strip().lower().lstrip("@")
-            for part in self.gmail_allowed_sender_domains.split(",")
-            if part.strip()
-        ]
-
-    @property
     def mono_connect_configured(self) -> bool:
         return all(value.strip() for value in (
             self.mono_secret_key, self.mono_webhook_secret,
