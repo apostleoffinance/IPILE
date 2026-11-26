@@ -28,6 +28,7 @@ from app.services.gmail import (
     gmail_get,
     list_recent_messages,
     refresh_access_token,
+    revoke_refresh_token,
 )
 
 router = APIRouter(prefix="/imports", tags=["imports"])
@@ -154,7 +155,7 @@ def _sync_connection(db: Session, row: GmailConnection) -> dict[str, int]:
         return {"scanned": 0, "queued": 0, "rejected": 0, "ignored": 0}
     token = refresh_access_token(decrypt_refresh_token(row.refresh_token_encrypted))
     counts = {"scanned": 0, "queued": 0, "auto_posted": 0, "rejected": 0, "ignored": 0}
-    latest = row.last_message_internal_date or 0
+    latest = row.last_message_internal_date or int(datetime.now(UTC).timestamp() * 1000)
     for item in list_recent_messages(token, row.last_message_internal_date):
         message = extract_message(fetch_message(token, str(item["id"])))
         counts["scanned"] += 1
@@ -262,6 +263,12 @@ def gmail_disconnect(
         GmailConnection.household_id == ctx.household.id
     ).first()
     if row:
+        if row.refresh_token_encrypted:
+            try:
+                revoke_refresh_token(decrypt_refresh_token(row.refresh_token_encrypted))
+            except Exception:
+                # Local disconnect must still immediately stop all future reads.
+                pass
         row.enabled = False
         row.refresh_token_encrypted = None
         row.state_hash = None
