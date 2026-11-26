@@ -109,23 +109,34 @@ def cash_as_of(
     """Cash pool balance at end of ``as_of`` (undo later activity)."""
     accounts = accounts if accounts is not None else _cash_accounts(db, household.id)
     later = _period_transactions(db, household.id, start=as_of + timedelta(days=1))
+    # Reconstruct every account in its native currency, then value that
+    # historical balance on the requested date. Future transactions must be
+    # reversed using the exact native side that changed each account.
     total = ZERO
+    account_map = {account.id: account for account in accounts}
+    native_balances = {
+        account.id: Decimal(str(account.current_balance))
+        for account in accounts
+    }
+    for tx in later:
+        source = account_map.get(tx.account_id)
+        if source is not None:
+            native_balances[source.id] -= account_delta(
+                tx.type, Decimal(str(tx.amount))
+            )
+        destination = account_map.get(tx.counterparty_account_id)
+        if destination is not None:
+            counterparty_native = (
+                Decimal(str(tx.counterparty_amount))
+                if tx.counterparty_amount is not None
+                else Decimal(str(tx.amount))
+            )
+            counterparty_change = counterparty_delta(tx.type, counterparty_native)
+            if counterparty_change is not None:
+                native_balances[destination.id] -= counterparty_change
     for account in accounts:
-        native_balance = Decimal(str(account.current_balance))
-        for tx in later:
-            if tx.account_id == account.id:
-                native_balance -= account_delta(tx.type, Decimal(str(tx.amount)))
-            if tx.counterparty_account_id == account.id:
-                counterparty_native = (
-                    Decimal(str(tx.counterparty_amount))
-                    if tx.counterparty_amount is not None
-                    else Decimal(str(tx.amount))
-                )
-                counterparty_change = counterparty_delta(tx.type, counterparty_native)
-                if counterparty_change is not None:
-                    native_balance -= counterparty_change
         total += amount_in_base_currency(
-            db, household, native_balance, account.currency, as_of
+            db, household, native_balances[account.id], account.currency, as_of
         )
     return quantize_money(total)
 
