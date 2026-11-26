@@ -6,16 +6,15 @@ from collections import defaultdict
 
 from app.services.import_adapters import CsvImportAdapter, ImportRow, StatementImportAdapter
 from app.services.pdf_imports import parse_statement_image
-from app.services.statement_ocr import extract_pdf_ocr_text, parse_ocr_statement
 from app.services.statement_extraction.document_intelligence import (
     PDFContentKind,
     inspect_pdf_document,
 )
 from app.services.statement_extraction.models import (
+    ExtractedTransaction,
     ExtractionMethod,
     ExtractionResult,
     ExtractionStatus,
-    ExtractedTransaction,
     StatementAccountSection,
     StatementMetadata,
     TransactionDirection,
@@ -23,6 +22,7 @@ from app.services.statement_extraction.models import (
 )
 from app.services.statement_extraction.pdf_layout import extract_pdf_layout_transactions
 from app.services.statement_extraction.validation import validate_extraction
+from app.services.statement_ocr import extract_pdf_ocr_text, parse_ocr_statement
 
 
 def _candidate_from_import_row(row: ImportRow, *, source_row: int) -> ExtractedTransaction:
