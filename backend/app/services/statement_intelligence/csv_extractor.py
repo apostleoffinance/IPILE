@@ -96,7 +96,7 @@ def parse_universal_csv(content: str) -> list[ImportRow]:
                 if debit and credit:
                     raise ValueError("Both debit and credit columns contain amounts.")
                 if not debit and not credit:
-                    raise ValueError("Neither debit nor credit amount is populated.")
+                    raise ValueError("A transaction row must contain a debit or credit amount; neither column is populated.")
                 amount = credit if credit else -debit
                 tx_type = "income" if credit else "expense"
             else:
@@ -105,29 +105,38 @@ def parse_universal_csv(content: str) -> list[ImportRow]:
                 direction = cell(direction_index).lower()
                 declared_type = cell(transaction_type_index).lower()
                 marker = raw_amount.upper()
-                is_debit = amount < 0 or "DR" in marker or direction in {
-                    "debit", "dr", "out", "outgoing", "expense",
-                    "withdrawal", "withdraw", "payment",
-                }
-                is_credit = "CR" in marker or direction in {
-                    "credit", "cr", "in", "incoming", "income", "refund", "deposit",
-                }
-                is_debit = is_debit or declared_type in {
-                    "debit", "dr", "withdrawal", "withdraw", "payment",
-                }
-                is_credit = is_credit or declared_type in {
-                    "credit", "cr", "deposit",
-                }
-                if is_debit == is_credit:
-                    if declared_type == "expense":
-                        is_debit = True
-                    elif declared_type in {"income", "refund"}:
-                        is_credit = True
-                    else:
-                        raise ValueError(
-                            "Transaction direction is unclear; this amount was not guessed."
-                        )
-                tx_type = declared_type or ("expense" if is_debit else "income")
+                row_cash_direction = None
+                if declared_type == "transfer":
+                    # A transfer is explicitly typed but its cash direction depends
+                    # on the source/destination account. Preserve it without guessing;
+                    # the ledger importer will require a counterparty account.
+                    is_debit = is_credit = False
+                    row_cash_direction = "unknown"
+                    tx_type = "transfer"
+                else:
+                    is_debit = amount < 0 or "DR" in marker or direction in {
+                        "debit", "dr", "out", "outgoing", "expense",
+                        "withdrawal", "withdraw", "payment",
+                    }
+                    is_credit = "CR" in marker or direction in {
+                        "credit", "cr", "in", "incoming", "income", "refund", "deposit",
+                    }
+                    is_debit = is_debit or declared_type in {
+                        "debit", "dr", "withdrawal", "withdraw", "payment",
+                    }
+                    is_credit = is_credit or declared_type in {
+                        "credit", "cr", "deposit",
+                    }
+                    if is_debit == is_credit:
+                        if declared_type == "expense":
+                            is_debit = True
+                        elif declared_type in {"income", "refund"}:
+                            is_credit = True
+                        else:
+                            raise ValueError(
+                                "Transaction direction is unclear; this amount was not guessed."
+                            )
+                    tx_type = declared_type or ("expense" if is_debit else "income")
                 if tx_type in {"debit", "dr", "withdrawal", "withdraw", "payment"}:
                     tx_type = "expense"
                 elif tx_type in {"credit", "cr", "deposit"}:
@@ -137,7 +146,8 @@ def parse_universal_csv(content: str) -> list[ImportRow]:
                     "debt_payment", "giving",
                 }:
                     tx_type = "expense" if is_debit else "income"
-                amount = -abs(amount) if is_debit else abs(amount)
+                if tx_type != "transfer":
+                    amount = -abs(amount) if is_debit else abs(amount)
 
             description = cell(description_index) or None
             merchant = cell(merchant_index) or description
@@ -166,6 +176,7 @@ def parse_universal_csv(content: str) -> list[ImportRow]:
                 transaction_datetime=transaction_datetime,
                 running_balance=running_balance,
                 extraction_confidence=mapping.confidence,
+                cash_direction=row_cash_direction,
             ))
         except (ValueError, IndexError) as exc:
             raise ValueError(f"CSV row {row_number}: {exc}") from exc
