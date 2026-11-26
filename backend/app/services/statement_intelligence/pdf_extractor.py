@@ -317,6 +317,7 @@ def extract_pdf_statement(content: bytes) -> ExtractionResult:
                 credit_text = cells.get(CanonicalField.CREDIT, "")
                 amount_text = cells.get(CanonicalField.AMOUNT, "")
                 direction_text = cells.get(CanonicalField.DIRECTION, "").strip().lower()
+                declared_type = cells.get(CanonicalField.TRANSACTION_TYPE, "").strip().lower()
                 try:
                     if CanonicalField.DEBIT in positions or CanonicalField.CREDIT in positions:
                         debit = abs(_amount_or_zero(debit_text))
@@ -333,18 +334,27 @@ def extract_pdf_statement(content: bytes) -> ExtractionResult:
                             raise ValueError("Transaction amount is missing.")
                         marker = amount_text.upper()
                         is_debit = (
-                            amount < 0
-                            or "DR" in marker
-                            or direction_text in {"debit", "dr", "out", "outgoing"}
+                            "DR" in marker
+                            or direction_text in {
+                                "debit", "dr", "out", "outgoing", "withdrawal", "expense",
+                            }
+                            or declared_type in {"debit", "dr", "withdrawal", "expense"}
                         )
                         is_credit = (
                             "CR" in marker
-                            or direction_text in {"credit", "cr", "in", "incoming"}
+                            or direction_text in {
+                                "credit", "cr", "in", "incoming", "deposit", "income", "refund",
+                            }
+                            or declared_type in {"credit", "cr", "deposit", "income", "refund"}
                         )
                         if is_debit:
-                            amount, tx_type = -abs(amount), "expense"
+                            amount = -abs(amount)
+                            tx_type = declared_type if declared_type in {
+                                "expense", "investment", "debt_payment", "giving", "transfer",
+                            } else "expense"
                         elif is_credit:
-                            amount, tx_type = abs(amount), "income"
+                            amount = abs(amount)
+                            tx_type = declared_type if declared_type in {"income", "refund", "transfer"} else "income"
                         else:
                             raise ValueError(
                                 "Transaction direction is unclear; this amount was not guessed."
@@ -367,7 +377,7 @@ def extract_pdf_statement(content: bytes) -> ExtractionResult:
                     reference = cells.get(CanonicalField.REFERENCE, "").strip()
                     balance_text = cells.get(CanonicalField.BALANCE, "")
                     running_balance = (
-                        abs(_amount_or_zero(balance_text))
+                        _amount_or_zero(balance_text)
                         if balance_text and balance_text not in {"-", "--", "—"}
                         else None
                     )
