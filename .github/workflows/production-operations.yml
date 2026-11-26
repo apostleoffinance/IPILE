@@ -1,6 +1,7 @@
 name: IPÌLẸ̀ runtime health
 
 on:
+  pull_request:
   schedule:
     - cron: "*/15 * * * *"
   workflow_dispatch:
