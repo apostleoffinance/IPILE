@@ -282,9 +282,9 @@ def test_identical_transactions_without_references_keep_distinct_ids(client: Tes
         json={
             "account_id": account["id"],
             "content": (
-                "date,description,amount\n"
-                "2026-09-01,POS purchase,500.00\n"
-                "2026-09-01,POS purchase,500.00\n"
+                "date,description,amount,type\n"
+                "2026-09-01,POS purchase,500.00,expense\n"
+                "2026-09-01,POS purchase,500.00,expense\n"
             ),
         },
     )
