@@ -75,12 +75,6 @@ def _reject_inbound_email(
             "errors": [reason],
         },
     )
-    household = db.query(Household).filter(Household.id == mailbox.household_id).first()
-    if household is not None:
-        apply_alert_automation(db, household, job, row, suggested_account)
-    household = db.query(Household).filter(Household.id == mailbox.household_id).first()
-    if household is not None:
-        apply_alert_automation(db, household, job, row, suggested_account)
     mailbox.last_received_at = datetime.now(UTC)
     db.add(job)
     db.add(mailbox)
@@ -454,6 +448,9 @@ def receive_inbound_email(
             }],
         },
     )
+    household = db.query(Household).filter(Household.id == mailbox.household_id).first()
+    if household is not None:
+        apply_alert_automation(db, household, job, row, suggested_account)
     mailbox.last_received_at = datetime.now(UTC)
     db.add(job)
     db.add(mailbox)
