@@ -9,5 +9,14 @@ BACKEND_URL = "https://ipile-staging-api-v2.onrender.com"
 MAX_EMAIL_BYTES = "10485760"
 MAX_ATTACHMENT_BYTES = "10485760"
 
-# Configure the inbound domain and route in Cloudflare Email Routing after
-# confirming the domain is owned by IPÌLẸ̀ and onboarded to Cloudflare.
+[env.production]
+name = "ipile-inbound-email-production"
+
+[env.production.vars]
+BACKEND_URL = "https://ipile-bmfz.onrender.com"
+MAX_EMAIL_BYTES = "10485760"
+MAX_ATTACHMENT_BYTES = "10485760"
+
+# Configure Email Routing rules in Cloudflare after verifying ownership of
+# the dedicated inbound subdomain. Route bank-alert@<subdomain> to the
+# matching Worker and verify plus-addressing preserves the household token.
