@@ -569,7 +569,7 @@ async function parseResponse<T>(response: Response): Promise<T> {
     const safeDetail = typeof detail === "string" && detail.length <= 240 ? detail : undefined;
     let message =
       response.status === 401
-        ? "Your email or password doesn't look right. Check your details and try again."
+        ? "Your session may have expired. Please sign in again."
         : response.status === 403
           ? "You don't have permission to complete this action. Please refresh and try again."
           : response.status === 404
