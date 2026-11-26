@@ -8,7 +8,11 @@ from io import BytesIO
 import pdfplumber
 
 from app.services.import_adapters import ImportRow, StatementImportAdapter, _make_row, _parse_amount
-from app.services.statement_ocr import extract_pdf_ocr_text, extract_image_ocr_text, parse_ocr_statement
+from app.services.statement_ocr import (
+    extract_image_ocr_text,
+    extract_pdf_ocr_text,
+    parse_ocr_statement,
+)
 
 DATE_HEADERS = {"date", "transaction date", "txn date", "value date", "posting date"}
 AMOUNT_HEADERS = {"amount", "transaction amount"}
