@@ -202,3 +202,74 @@ def test_statement_currency_must_match_selected_account_before_commit(
         committed.json()["detail"]
     )
     assert client.get("/api/v1/transactions").json() == []
+
+
+
+def test_statement_discrepancies_require_explicit_acknowledgement_before_commit(
+    client: TestClient, monkeypatch
+) -> None:
+    register(client, "statement-review-ack@example.com")
+    account = client.post(
+        "/api/v1/accounts",
+        json={"name": "Current", "type": "bank", "currency": "NGN", "current_balance": "5000.00"},
+    ).json()
+
+    def fake_extract(_content: bytes, suffix: str):
+        assert suffix == "pdf"
+        rows = [
+            ImportRow(
+                date=date(2026, 1, 1),
+                amount=Decimal("100.00"),
+                type="expense",
+                description="Reviewed purchase",
+                external_id="review-ack-1",
+                currency="NGN",
+            )
+        ]
+        summary = StatementSummary(total_debits=Decimal("200.00"), debit_count=2, currency="NGN")
+        validation = validate_statement(rows, summary)
+        return ExtractionResult(
+            rows=rows,
+            summary=summary,
+            extraction_method="pdf_text_layout",
+            issues=list(validation.issues),
+            validation=validation,
+            confidence=0.9,
+        )
+
+    monkeypatch.setattr("app.api.v1.imports.extract_statement_document", fake_extract)
+    preview = client.post(
+        "/api/v1/imports/preview-upload",
+        data={"account_id": account["id"]},
+        files={"file": ("statement.pdf", b"statement", "application/pdf")},
+    )
+    assert preview.status_code == 201, preview.text
+    job_id = preview.json()["id"]
+
+    unacknowledged = client.post(
+        f"/api/v1/imports/jobs/{job_id}/review-confirmation",
+        json={"acknowledge_discrepancies": False, "reason": "I have reviewed the statement."},
+    )
+    assert unacknowledged.status_code == 400
+    assert client.get("/api/v1/transactions").json() == []
+
+    acknowledged = client.post(
+        f"/api/v1/imports/jobs/{job_id}/review-confirmation",
+        json={
+            "acknowledge_discrepancies": True,
+            "reason": "I compared the extracted row against the source statement.",
+        },
+    )
+    assert acknowledged.status_code == 200, acknowledged.text
+    extraction = acknowledged.json()["result"]["extraction"]
+    assert extraction["status"] == "manually_accepted"
+    assert extraction["requires_manual_review"] is False
+    assert extraction["manual_review"]["acknowledged"] is True
+
+    committed = client.post(
+        f"/api/v1/imports/jobs/{job_id}/commit",
+        json={"account_id": account["id"]},
+    )
+    assert committed.status_code == 200, committed.text
+    assert committed.json()["created_count"] == 1
+    assert len(client.get("/api/v1/transactions").json()) == 1
