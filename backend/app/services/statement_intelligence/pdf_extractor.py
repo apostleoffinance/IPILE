@@ -34,6 +34,12 @@ DATE_TIME_FORMATS = (
     "%d/%m/%Y %H:%M:%S",
     "%m/%d/%Y %H:%M:%S",
     "%d-%m-%Y %H:%M:%S",
+    "%d %b %Y %H:%M",
+    "%d %B %Y %H:%M",
+    "%Y-%m-%d %H:%M",
+    "%d/%m/%Y %H:%M",
+    "%m/%d/%Y %H:%M",
+    "%d-%m-%Y %H:%M",
 )
 DATE_FORMATS = (
     "%d %b %Y",
@@ -399,7 +405,7 @@ def extract_pdf_statement(content: bytes) -> ExtractionResult:
                             raw_date=transaction_datetime.date().isoformat(),
                             amount=amount,
                             tx_type=tx_type,
-                            description=description or "Statement transaction",
+                            description=description or None,
                             external_id=reference or None,
                             merchant=description or None,
                             row_index=(page_number * 100000) + row_index,
