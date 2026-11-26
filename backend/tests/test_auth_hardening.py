@@ -140,6 +140,7 @@ def test_readiness_checks_database_and_migrations(client: TestClient) -> None:
         "service": "ipile",
         "database": "connected",
         "migrations": "current",
+        "release": "unknown",
     }
 
     live = client.get("/api/v1/health/live")
