@@ -192,13 +192,39 @@ def test_postmark_basic_auth_inbound_webhook(client: TestClient, monkeypatch) ->
             "Subject": "Debit Alert",
             "TextBody": "Your account was debited NGN 5,000.00 on 15/11/2026. Ref: PM123456",
             "Date": "Sun, 15 Nov 2026 10:00:00 +0100",
-            "MessageID": "postmark-message-0001",
+            "MessageID": "different-provider-delivery-id",
         },
     )
     assert duplicate.status_code == 200
     assert duplicate.json()["id"] == first_job_id
+    assert duplicate.json()["status"] == "duplicate"
     queue = client.get("/api/v1/imports/review")
     assert len(queue.json()) == 1
+
+    account = client.post(
+        "/api/v1/accounts",
+        json={"name": "Current", "type": "bank", "current_balance": "50000.00"},
+    ).json()
+    approved = client.post(
+        f"/api/v1/imports/{first_job_id}/approve",
+        json={"account_id": account["id"]},
+    )
+    assert approved.status_code == 200, approved.text
+    replay_after_posting = client.post(
+        "/api/v1/imports/inbound-email",
+        auth=("ipile", "test-secret"),
+        json={
+            "To": mailbox.json()["address"],
+            "From": "alerts@bank.example",
+            "Subject": "Debit Alert",
+            "TextBody": "Your account was debited NGN 5,000.00 on 15/11/2026. Ref: PM123456",
+            "Date": "Sun, 15 Nov 2026 10:00:00 +0100",
+            "MessageID": "third-provider-delivery-id",
+        },
+    )
+    assert replay_after_posting.status_code == 200
+    assert replay_after_posting.json()["status"] == "duplicate"
+    assert len(client.get("/api/v1/transactions").json()) == 1
 
 
 def test_email_parser_rejects_ambiguous_amount_and_missing_date() -> None:
@@ -505,3 +531,18 @@ def test_staged_import_commit_is_idempotent_and_household_scoped(client: TestCli
         json={"account_id": account_b["id"]},
     )
     assert foreign.status_code == 404
+
+
+
+def test_email_alert_without_bank_reference_uses_stable_fingerprint() -> None:
+    from app.services.email_imports import parse_bank_alert
+
+    values = {
+        "sender": "alerts@bank.example",
+        "subject": "Debit Alert",
+        "body": "Your account was debited NGN 5,000.00 on 15/11/2026 for POS purchase.",
+    }
+    first = parse_bank_alert(**values, message_id="delivery-one")
+    replay = parse_bank_alert(**values, message_id="delivery-two")
+    assert first.external_id == replay.external_id
+    assert first.external_id.startswith("alert:")
