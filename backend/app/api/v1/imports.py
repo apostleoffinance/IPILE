@@ -28,8 +28,6 @@ from app.services.imports import (
     stage_import,
     stage_import_rows,
 )
-from app.services.statement_intelligence.schema import ExtractionResult
-from app.services.statement_intelligence.validation import validate_statement
 from app.services.statement_jobs import enqueue_statement_extraction
 from app.services.transaction_intelligence import enrich_bank_alert
 
@@ -95,69 +93,6 @@ def _reject_inbound_email(
         "status": job.status,
         "message": "Alert rejected and not posted.",
     }
-
-def _extraction_payload(extraction: ExtractionResult) -> dict:
-    validation = extraction.validation or validate_statement(extraction.rows)
-    summary = extraction.summary
-    has_errors = any(issue.severity == "error" for issue in extraction.issues)
-    if extraction.is_importable:
-        extraction_status = validation.status
-    else:
-        extraction_status = "incomplete" if has_errors else "needs_review"
-    return {
-        "extraction_method": extraction.extraction_method,
-        "status": extraction_status,
-        "confidence": extraction.confidence,
-        "requires_manual_review": extraction_status != "verified",
-        "row_count": len(extraction.rows),
-        "summary": {
-            "opening_balance": (
-                str(summary.opening_balance) if summary.opening_balance is not None else None
-            ),
-            "closing_balance": (
-                str(summary.closing_balance) if summary.closing_balance is not None else None
-            ),
-            "total_debits": (
-                str(summary.total_debits) if summary.total_debits is not None else None
-            ),
-            "total_credits": (
-                str(summary.total_credits) if summary.total_credits is not None else None
-            ),
-            "debit_count": summary.debit_count,
-            "credit_count": summary.credit_count,
-            "currency": summary.currency or extraction.metadata.currency,
-            "period_start": (
-                summary.period_start.isoformat() if summary.period_start else None
-            ),
-            "period_end": summary.period_end.isoformat() if summary.period_end else None,
-        },
-        "validation": {
-            "status": validation.status,
-            "debit_total": str(validation.debit_total),
-            "credit_total": str(validation.credit_total),
-            "debit_count": validation.debit_count,
-            "credit_count": validation.credit_count,
-            "balance_check_count": validation.balance_check_count,
-        },
-        "issues": [
-            {
-                "code": issue.code,
-                "message": issue.message,
-                "severity": issue.severity,
-                "page": issue.page,
-                "row": issue.row,
-                "field": issue.field,
-            }
-            for issue in extraction.issues or list(validation.issues)
-        ],
-        "metadata": {
-            "institution": extraction.metadata.institution,
-            "currency": extraction.metadata.currency,
-            "page_count": extraction.metadata.page_count,
-            "transaction_pages": list(extraction.metadata.transaction_pages),
-        },
-    }
-
 
 def _scoped_account(db: Session, household_id: UUID, account_id: UUID) -> Account:
     account = (
