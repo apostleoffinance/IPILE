@@ -29,6 +29,7 @@ from app.models import (  # noqa: F401
     ContributionAgreement,
     ContributionRecord,
     ExchangeRate,
+    GmailConnection,
     FundContribution,
     Household,
     HouseholdMember,
