@@ -37,11 +37,6 @@ class Settings(BaseSettings):
     gmail_oauth_redirect_uri: str = ""
     gmail_sync_secret: str = ""
     gmail_allowed_sender_domains: str = ""
-    gmail_oauth_client_id: str = ""
-    gmail_oauth_client_secret: str = ""
-    gmail_oauth_redirect_uri: str = ""
-    gmail_sync_secret: str = ""
-    gmail_allowed_sender_domains: str = ""
 
     @property
     def gmail_connect_configured(self) -> bool:
