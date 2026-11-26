@@ -112,7 +112,13 @@ def apply_import_rows(
         if created_income:
             from app.services.automation import run_tick
 
-            run_tick(db, household, tick_type="income_recognized")
+            _, skipped = run_tick(db, household, tick_type="income_recognized")
+            if skipped:
+                from app.services.financial_intelligence import run_financial_intelligence
+                from app.services.notifications import sync_notifications_from_alerts
+
+                run_financial_intelligence(db, household)
+                sync_notifications_from_alerts(db, household.id)
         else:
             from app.services.financial_intelligence import run_financial_intelligence
             from app.services.notifications import sync_notifications_from_alerts
