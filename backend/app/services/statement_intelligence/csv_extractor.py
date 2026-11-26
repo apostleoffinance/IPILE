@@ -149,6 +149,7 @@ def parse_universal_csv(content: str) -> list[ImportRow]:
                 value_date=value_date,
                 transaction_datetime=transaction_datetime,
                 running_balance=running_balance,
+                extraction_confidence=mapping.confidence,
             ))
         except (ValueError, IndexError) as exc:
             raise ValueError(f"CSV row {row_number}: {exc}") from exc
