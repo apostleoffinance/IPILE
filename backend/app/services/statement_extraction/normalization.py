@@ -7,7 +7,10 @@ from decimal import Decimal
 
 from app.services.import_adapters import ImportRow
 from app.services.statement_extraction.models import (
-    ExtractionResult, ExtractionStatus, StatementAccountSection, TransactionDirection,
+    ExtractionResult,
+    ExtractionStatus,
+    StatementAccountSection,
+    TransactionDirection,
 )
 
 
