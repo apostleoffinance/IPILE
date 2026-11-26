@@ -4,8 +4,6 @@ import pytest
 
 from __future__ import annotations
 
-from collections import defaultdict
-
 from app.services.statement_intelligence.pdf_extractor import extract_pdf_statement
 
 
