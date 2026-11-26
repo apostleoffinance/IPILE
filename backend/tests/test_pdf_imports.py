@@ -1,7 +1,6 @@
 from decimal import Decimal
 
 from fastapi.testclient import TestClient
-
 from tests.conftest import register
 
 
@@ -27,8 +26,8 @@ def _fake_extraction(rows):
 
 
 def _queue_worker(monkeypatch):
-    from tests.conftest import TestingSessionLocal
     import app.services.statement_jobs as statement_jobs
+    from tests.conftest import TestingSessionLocal
 
     monkeypatch.setattr(statement_jobs, "SessionLocal", TestingSessionLocal)
     return statement_jobs
