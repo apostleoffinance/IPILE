@@ -173,3 +173,54 @@ def test_cash_flow_historical_native_balance_uses_account_currency_snapshot(
     # Future expense is reversed in native USD before valuing the reconstructed
     # $100 historical balance at the historical rate of 0.75.
     assert body["closing_cash"] == "75.00"
+
+
+def test_cash_flow_reverses_foreign_transfer_using_destination_native_amount(
+    client: TestClient, monkeypatch
+) -> None:
+    from decimal import Decimal
+    from app.services import cash_flow
+
+    register(client, "cashflow-cross-transfer@example.com")
+    usd = client.post(
+        "/api/v1/accounts",
+        json={"name": "USD", "type": "bank", "currency": "USD", "current_balance": "200.00"},
+    )
+    eur = client.post(
+        "/api/v1/accounts",
+        json={"name": "EUR", "type": "bank", "currency": "EUR", "current_balance": "0.00"},
+    )
+    assert usd.status_code == 201, usd.text
+    assert eur.status_code == 201, eur.text
+    today = date.today()
+    past = today - timedelta(days=1)
+    transfer = client.post(
+        "/api/v1/transactions",
+        json={
+            "account_id": usd.json()["id"],
+            "counterparty_account_id": eur.json()["id"],
+            "amount": "100.00",
+            "type": "transfer",
+            "date": today.isoformat(),
+        },
+    )
+    assert transfer.status_code == 201, transfer.text
+    transfer_body = transfer.json()
+    assert Decimal(transfer_body["counterparty_amount"]) > Decimal("0")
+
+    def convert(db, household, amount, currency, on_date):
+        assert on_date == past
+        rates = {"USD": Decimal("0.80"), "EUR": Decimal("0.90")}
+        return (Decimal(str(amount)) * rates[currency]).quantize(Decimal("0.01"))
+
+    monkeypatch.setattr(cash_flow, "amount_in_base_currency", convert)
+    response = client.get(
+        f"/api/v1/cash-flow?period_start={past.isoformat()}&period_end={past.isoformat()}"
+    )
+    assert response.status_code == 200, response.text
+    body = response.json()
+    expected = (
+        Decimal("200.00") * Decimal("0.80")
+        + Decimal("0.00") * Decimal("0.90")
+    )
+    assert Decimal(body["closing_cash"]) == expected
