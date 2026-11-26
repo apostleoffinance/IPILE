@@ -84,7 +84,7 @@ def _fund_from_allocation_lines(
         )
         if fund is None:
             continue
-        already = (
+        already_rows = (
             db.query(Transaction)
             .filter(
                 Transaction.household_id == household.id,
@@ -93,15 +93,25 @@ def _fund_from_allocation_lines(
                 Transaction.description == period_tag,
                 Transaction.deleted_at.is_(None),
             )
-            .first()
+            .all()
         )
-        if already is not None:
+        already_amount = quantize_money(
+            sum(
+                (
+                    quantize_money(Decimal(str(row.base_amount or row.amount)))
+                    for row in already_rows
+                ),
+                Decimal("0.00"),
+            )
+        )
+        remaining_amount = quantize_money(amount - already_amount)
+        if remaining_amount <= 0:
             continue
         source_currency = source.currency or household.base_currency
         rate, rate_date, rate_source = get_rate(
             db, household.id, source_currency, household.base_currency, today
         )
-        source_amount = (amount / rate).quantize(Decimal("0.01"))
+        source_amount = (remaining_amount / rate).quantize(Decimal("0.01"))
         if Decimal(str(source.current_balance)) < source_amount:
             continue
         dest = ensure_fund_account(db, fund)
@@ -111,14 +121,14 @@ def _fund_from_allocation_lines(
             counterparty_account_id=dest.id if dest else None,
             amount=source_amount,
             currency=source_currency,
-            base_amount=amount,
+            base_amount=remaining_amount,
             base_currency=household.base_currency,
             exchange_rate=rate,
             exchange_rate_date=rate_date,
             exchange_rate_source=rate_source,
-            counterparty_amount=amount,
+            counterparty_amount=remaining_amount,
             counterparty_currency=dest.currency if dest else household.base_currency,
-            counterparty_base_amount=amount,
+            counterparty_base_amount=remaining_amount,
             counterparty_exchange_rate=(Decimal("1") / rate),
             counterparty_exchange_rate_date=rate_date,
             counterparty_exchange_rate_source=rate_source,
@@ -144,12 +154,12 @@ def _fund_from_allocation_lines(
             db,
             fund,
             account_id=source.id,
-            amount=amount,
+            amount=remaining_amount,
             contribution_date=today,
             transaction_id=tx.id,
         )
         funded += 1
-        total += amount
+        total += remaining_amount
         db.refresh(source)
     return {"funded_lines": funded, "total": format_money(total)}
 
