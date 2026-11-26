@@ -160,6 +160,31 @@ def _cell_currency(headers: list[str]) -> str | None:
     return None
 
 
+
+
+def _detect_account_section(text: str) -> str | None:
+    """Read explicit account-section headings without assuming an institution."""
+    for line in text.splitlines():
+        candidate = " ".join(line.split()).strip(" :-")
+        if not candidate or len(candidate) > 90:
+            continue
+        normalized = normalize_header(candidate)
+        if normalized in {"account statement", "account name account number"}:
+            continue
+        if "account" not in normalized:
+            continue
+        period_index = normalized.find(" period ")
+        if period_index >= 0:
+            original_period = re.search(r"\bperiod\s*:", candidate, re.IGNORECASE)
+            if original_period:
+                label = candidate[:original_period.start()].strip(" :-")
+                if label and normalize_header(label) not in {"account name", "account number"}:
+                    return label
+        if re.fullmatch(r"[a-z][a-z /&-]{1,55} account", normalized):
+            return candidate
+    return None
+
+
 def extract_pdf_layout_transactions(content: bytes) -> tuple[ExtractedTransaction, ...]:
     """Extract transactions using detected column geometry and row anchors.
 
@@ -170,8 +195,13 @@ def extract_pdf_layout_transactions(content: bytes) -> tuple[ExtractedTransactio
     transactions: list[ExtractedTransaction] = []
     carried_layout: tuple[float, dict[ColumnField, tuple[float, float]]] | None = None
     carried_currency: str | None = None
+    account_section: str | None = None
     with pdfplumber.open(BytesIO(content)) as document:
         for page_number, page in enumerate(document.pages, start=1):
+            page_text = page.extract_text() or ""
+            detected_section = _detect_account_section(page_text)
+            if detected_section:
+                account_section = detected_section
             words = page.extract_words(x_tolerance=1, y_tolerance=2) or []
             if not words:
                 continue
@@ -269,6 +299,7 @@ def extract_pdf_layout_transactions(content: bytes) -> tuple[ExtractedTransactio
                     currency=carried_currency,
                     source_page=page_number,
                     source_row=row_index + 1,
+                    account_section=account_section,
                     original_text=raw_date,
                 ))
     return tuple(transactions)
