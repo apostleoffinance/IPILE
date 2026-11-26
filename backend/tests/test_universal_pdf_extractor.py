@@ -123,3 +123,21 @@ def test_universal_pdf_extractor_does_not_guess_amount_direction(monkeypatch) ->
     )
     with pytest.raises(ValueError, match="couldn't identify transaction rows"):
         extract_pdf_statement(b"ambiguous statement")
+
+def test_opay_style_summary_headers_are_mapped_to_the_following_value_row() -> None:
+    from app.services.statement_intelligence.pdf_extractor import _parse_summary
+
+    summary = _parse_summary(
+        "Wallet Account Period: 01 Jan 2026 - 25 Nov 2026\\n"
+        "Opening Balance Total Debit Debit Count\\n"
+        "₦6,492.35 ₦62,455,727.93 1776\\n"
+        "Closing Balance Total Credit Credit Count\\n"
+        "₦0.00 ₦62,449,235.58 1313"
+    )
+    assert summary.opening_balance == Decimal("6492.35")
+    assert summary.closing_balance == Decimal("0.00")
+    assert summary.total_debits == Decimal("62455727.93")
+    assert summary.total_credits == Decimal("62449235.58")
+    assert summary.debit_count == 1776
+    assert summary.credit_count == 1313
+    assert summary.currency == "NGN"
