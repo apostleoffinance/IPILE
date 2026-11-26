@@ -93,13 +93,10 @@ def detect_recurring_payments(
             max(abs(value - typical_amount) for value in amounts) / typical_amount
         ) <= Decimal("0.25")
         candidates.append({
-            "code": "recurring_payment_upcoming",
-            "severity": "info",
-            "title": "Expected recurring transaction",
-            "detail": (
-                f"{payee.title()} is likely to repeat {frequency}; the next occurrence "
-                f"is expected on {expected.isoformat()}."
-            ),
+            "code": signal_code,
+            "severity": severity,
+            "title": title,
+            "detail": detail,
             "evidence": {
                 "payee": payee,
                 "transaction_type": tx_type,
