@@ -69,6 +69,7 @@ def parse_universal_csv(content: str) -> list[ImportRow]:
     balance_index = mapping.index_for(CanonicalField.BALANCE)
     currency_index = mapping.index_for(CanonicalField.CURRENCY)
     direction_index = mapping.index_for(CanonicalField.DIRECTION)
+    transaction_type_index = mapping.index_for(CanonicalField.TRANSACTION_TYPE)
     merchant_index = mapping.index_for(CanonicalField.MERCHANT)
     category_index = mapping.index_for(CanonicalField.CATEGORY)
     time_index = mapping.index_for(CanonicalField.TRANSACTION_TIME)
@@ -102,24 +103,28 @@ def parse_universal_csv(content: str) -> list[ImportRow]:
                 raw_amount = cell(amount_index)
                 amount = _parse_amount(raw_amount)
                 direction = cell(direction_index).lower()
+                declared_type = cell(transaction_type_index).lower()
                 marker = raw_amount.upper()
-                known_types = {
-                    "income", "expense", "transfer", "refund", "investment",
-                    "debt_payment", "giving",
+                is_debit = "DR" in marker or direction in {
+                    "debit", "dr", "out", "outgoing", "expense",
                 }
-                if direction in known_types:
-                    tx_type = direction
-                else:
-                    is_debit = "DR" in marker or direction in {
-                        "debit", "dr", "out", "outgoing",
-                    }
-                    is_credit = "CR" in marker or direction in {
-                        "credit", "cr", "in", "incoming",
-                    }
-                    if is_debit == is_credit:
+                is_credit = "CR" in marker or direction in {
+                    "credit", "cr", "in", "incoming", "income", "refund",
+                }
+                if is_debit == is_credit:
+                    if declared_type == "expense":
+                        is_debit = True
+                    elif declared_type in {"income", "refund"}:
+                        is_credit = True
+                    else:
                         raise ValueError(
                             "Transaction direction is unclear; this amount was not guessed."
                         )
+                tx_type = declared_type or ("expense" if is_debit else "income")
+                if tx_type not in {
+                    "income", "expense", "transfer", "refund", "investment",
+                    "debt_payment", "giving",
+                }:
                     tx_type = "expense" if is_debit else "income"
                 amount = abs(amount)
 
