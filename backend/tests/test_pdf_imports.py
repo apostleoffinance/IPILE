@@ -8,6 +8,7 @@ from app.services.statement_extraction.models import (
     ExtractionStatus,
     ExtractedTransaction,
     StatementAccountSection,
+    StatementMetadata,
     TransactionDirection,
 )
 
