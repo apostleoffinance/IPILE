@@ -25,6 +25,7 @@ from app.services.balances import apply_transaction_effect
 from app.services.budgets import evaluate_budget_alerts
 from app.services.currencies import get_rate
 from app.services.funds import ensure_fund_account, record_contribution
+from app.services.financial_intelligence import run_financial_intelligence
 from app.services.notifications import sync_notifications_from_alerts
 from app.services.obligations import generate_occurrences
 from app.services.safe_to_spend import compute_safe_to_spend
@@ -200,6 +201,7 @@ def run_income_recognized_chain(
     evaluate_budget_alerts(db, household.id)
     due = run_due_date_checks(db, household, today=today)
     sts = compute_safe_to_spend(db, household, today=today)
+    intelligence = run_financial_intelligence(db, household, today=today)
     notes = sync_notifications_from_alerts(db, household.id)
     return {
         "allocation_run_id": str(run.id),
@@ -207,6 +209,7 @@ def run_income_recognized_chain(
         "total_allocated": format_money(run.total_allocated),
         "funds": fund_result,
         "due": due,
+        "financial_intelligence": intelligence,
         "safe_to_spend": format_money(sts.current),
         "notifications_created": len(notes),
     }
@@ -217,9 +220,11 @@ def run_daily_chain(db: Session, household: Household, today: date | None = None
     evaluate_budget_alerts(db, household.id)
     due = run_due_date_checks(db, household, today=today)
     compute_safe_to_spend(db, household, today=today)
+    intelligence = run_financial_intelligence(db, household, today=today)
     notes = sync_notifications_from_alerts(db, household.id)
     return {
         "due": due,
+        "financial_intelligence": intelligence,
         "notifications_created": len(notes),
         "horizon": (today + timedelta(days=30)).isoformat(),
     }
