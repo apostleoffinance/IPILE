@@ -104,6 +104,14 @@ def parse_ocr_statement(text: str) -> list[ImportRow]:
     """Conservative line parser: rows without a clear date and amount are never guessed."""
     rows: list[ImportRow] = []
     rejected = 0
+    upper_text = text.upper()
+    currency = (
+        "NGN" if "₦" in text or "NGN" in upper_text
+        else "USD" if "USD" in upper_text or "US$" in upper_text
+        else "EUR" if "€" in text or "EUR" in upper_text
+        else "GBP" if "£" in text or "GBP" in upper_text
+        else None
+    )
     for index, line in enumerate(text.splitlines(), start=1):
         match = DATE_PATTERN.match(line)
         if not match:
@@ -152,6 +160,7 @@ def parse_ocr_statement(text: str) -> list[ImportRow]:
                     external_id=None,
                     merchant=description,
                     row_index=index,
+                    currency=currency,
                 )
             )
         except ValueError:
