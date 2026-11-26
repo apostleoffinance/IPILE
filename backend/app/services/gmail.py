@@ -162,3 +162,15 @@ def list_recent_messages(access_token: str, after_internal_ms: int | None) -> li
 
 def fetch_message(access_token: str, message_id: str) -> dict[str, Any]:
     return gmail_get(access_token, f"messages/{message_id}", {"format": "full"})
+
+
+
+def revoke_refresh_token(refresh_token: str) -> None:
+    response = httpx.post(
+        "https://oauth2.googleapis.com/revoke",
+        data={"token": refresh_token},
+        headers={"content-type": "application/x-www-form-urlencoded"},
+        timeout=10,
+    )
+    if response.status_code not in {200, 400}:
+        response.raise_for_status()
