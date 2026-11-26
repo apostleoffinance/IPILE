@@ -141,3 +141,11 @@ def test_ocr_page_timeout_returns_actionable_message(monkeypatch) -> None:
             statement_ocr._ocr_image(image)
     finally:
         image.close()
+
+
+
+def test_ocr_parser_preserves_explicit_statement_currency() -> None:
+    rows = parse_ocr_statement(
+        "26/11/2026 BANK DEPOSIT 5,000.00 CR 55,000.00 NGN"
+    )
+    assert rows[0].currency == "NGN"
