@@ -90,3 +90,37 @@ def test_statement_validation_blocks_total_or_count_mismatches() -> None:
         "credit_count_mismatch",
         "closing_balance_mismatch",
     }
+
+def test_statement_reconciliation_counts_transfer_cash_direction() -> None:
+    rows = [
+        ImportRow(
+            date=date(2026, 1, 1),
+            amount=Decimal("100.00"),
+            type="transfer",
+            description="Transfer out",
+            external_id="transfer-out",
+            cash_direction="debit",
+        ),
+        ImportRow(
+            date=date(2026, 1, 2),
+            amount=Decimal("50.00"),
+            type="transfer",
+            description="Transfer in",
+            external_id="transfer-in",
+            cash_direction="credit",
+        ),
+    ]
+    report = validate_statement(
+        rows,
+        StatementSummary(
+            opening_balance=Decimal("100.00"),
+            closing_balance=Decimal("50.00"),
+            total_debits=Decimal("100.00"),
+            total_credits=Decimal("50.00"),
+            debit_count=1,
+            credit_count=1,
+        ),
+    )
+    assert report.status == "verified"
+    assert report.debit_count == 1
+    assert report.credit_count == 1
