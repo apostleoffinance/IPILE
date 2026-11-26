@@ -15,9 +15,9 @@ _CURRENCY_CODES = (
     "MXN|MYR|NOK|NZD|PHP|PLN|RON|RWF|SAR|SEK|SGD|THB|TRY|TWD|UAH|USD|VND|ZAR|NGN"
 )
 _AMOUNT = re.compile(
-    rf"(?:(?P<code>\\b(?:{_CURRENCY_CODES})\\b)\\s*|"
-    r"(?P<symbol>₦|£|€|₹|₵|د.إ|R\\$)\\s*|(?P<dollar>\\$)\\s*)"
-    r"(?P<amount>[0-9][0-9,]*(?:\\.\\d{1,2})?)",
+    rf"(?:(?P<code>\b(?:{_CURRENCY_CODES})\b)\s*|"
+    r"(?P<symbol>₦|£|€|₹|₵|د.إ|R\$)\s*|(?P<dollar>\$)\s*)"
+    r"(?P<amount>[0-9][0-9,]*(?:\.\d{1,2})?)",
     re.IGNORECASE,
 )
 _SYMBOL_CURRENCIES = {"₦": "NGN", "£": "GBP", "€": "EUR", "₹": "INR", "₵": "GHS", "R$": "BRL"}
