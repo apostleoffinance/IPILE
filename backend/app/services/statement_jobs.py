@@ -112,6 +112,30 @@ def process_next_statement_task() -> bool:
     with SessionLocal() as db:
         now = datetime.now(UTC)
         stale_before = now - timedelta(minutes=15)
+        exhausted = db.scalar(
+            select(StatementExtractionTask)
+            .where(
+                StatementExtractionTask.status == "processing",
+                StatementExtractionTask.claimed_at < stale_before,
+                StatementExtractionTask.attempts >= 3,
+            )
+            .with_for_update(skip_locked=True)
+            .limit(1)
+        )
+        if exhausted is not None:
+            exhausted.status = "failed"
+            exhausted.content = b""
+            job = db.get(ImportJob, exhausted.import_job_id)
+            if job is not None:
+                job.status = "failed"
+                job.error_count = 1
+                job.result = {
+                    **(job.result or {}),
+                    "processing_stage": "failed",
+                    "error": "Statement processing could not complete after several worker attempts.",
+                }
+            db.commit()
+            return True
         task = db.scalar(
             select(StatementExtractionTask)
             .where(
@@ -120,6 +144,7 @@ def process_next_statement_task() -> bool:
                     (
                         (StatementExtractionTask.status == "processing")
                         & (StatementExtractionTask.claimed_at < stale_before)
+                        & (StatementExtractionTask.attempts < 3)
                     ),
                 )
             )
