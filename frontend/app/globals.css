@@ -818,6 +818,7 @@ button, a, input, select, textarea { transition-duration: 220ms; }
 .ipile-marketing-actions{margin-top:30px;display:flex;justify-content:center;gap:12px;align-items:center}
 .ipile-marketing-actions>a:last-child{font-size:11px;color:#505750;padding:12px 16px}
 .ipile-marketing-note{font-size:9px;color:#90958e;letter-spacing:.08em;margin-top:22px;text-transform:uppercase}
+.ipile-marketing-hero-proof{display:inline-block;max-width:680px;margin:28px auto 0;padding:10px 18px;border:1px solid rgba(0,61,53,.12);border-radius:999px;background:rgba(247,246,242,.9);backdrop-filter:blur(14px);color:#003d35;font-size:12px;font-weight:600;line-height:1.7;letter-spacing:.01em}
 .ipile-marketing-orbit{position:absolute;left:0;right:0;bottom:-205px;height:460px;pointer-events:none;z-index:1}
 .ipile-marketing-orbit span{position:absolute;left:50%;transform:translateX(-50%);border-radius:50%;filter:blur(1px)}
 .ipile-marketing-orbit .orbit-a{width:min(850px,85vw);height:510px;top:-270px;background:radial-gradient(ellipse at 50% 100%,rgba(201,164,92,.62) 0%,rgba(0,61,53,.78) 22%,rgba(0,61,53,.24) 45%,transparent 70%);box-shadow:0 0 70px rgba(0,61,53,.14);animation:ipile-marketing-breath 8s ease-in-out infinite alternate}
@@ -888,6 +889,9 @@ button, a, input, select, textarea { transition-duration: 220ms; }
 .ipile-marketing-cta h2{font-size:clamp(38px,5.5vw,68px);font-weight:400;line-height:1.06;letter-spacing:-.07em;max-width:800px;margin:20px auto;color:var(--m-cream)}
 .ipile-marketing-cta>p:not(.ipile-marketing-kicker){font-size:13px;color:#a3aaa2;line-height:1.8;max-width:450px;margin:0 auto}
 .ipile-marketing-cta .ipile-marketing-pill{margin-top:28px;background:var(--m-gold);color:var(--m-ink)!important}
+.ipile-marketing-cta .ipile-marketing-cta-secondary{color:#fff!important;font-weight:500;text-decoration-color:rgba(255,255,255,.7)}
+.ipile-marketing-cta .ipile-marketing-cta-secondary:hover{color:var(--m-gold)!important}
+.ipile-marketing-cta .ipile-marketing-cta-brandline{color:#fff!important;font-weight:500;opacity:1}
 .ipile-marketing-footer{padding:45px 7vw;background:#030605;color:#c9cec8;display:flex;justify-content:space-between;align-items:center;gap:30px}
 .ipile-marketing-footer>div{display:grid;gap:6px}
 .ipile-marketing-footer>div a{color:var(--m-cream)}
