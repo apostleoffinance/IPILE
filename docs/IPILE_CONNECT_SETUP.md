@@ -94,3 +94,84 @@ The default Worker environment targets the IPÌLẸ̀ staging API. The named `pr
 - Attachments are metadata only and are not parsed or executed. Statement attachments must be uploaded separately through the authenticated statement-import flow.
 - The parser currently supports NGN-denominated alert formats. Add and test bank-specific formats before enabling other currencies.
 - Avoid forwarding unrelated sensitive email to a household's import address.
+
+
+## 7. Gmail read-only connection (Phase 1)
+
+Gmail is the preferred connection experience. IPÌLẸ̀ requests only the
+`https://www.googleapis.com/auth/gmail.readonly` scope. It does not request
+permission to send, modify, or delete messages. Refresh tokens are encrypted
+at rest with a dedicated Fernet key and are household-scoped.
+
+Create a Google OAuth 2.0 Web application client and register the exact callback:
+
+`https://<API-HOST>/api/v1/imports/gmail/callback`
+
+Configure these backend environment variables separately for staging and production:
+
+- `GMAIL_OAUTH_CLIENT_ID`
+- `GMAIL_OAUTH_CLIENT_SECRET`
+- `GMAIL_OAUTH_REDIRECT_URI` (must exactly match the Google OAuth client)
+- `GMAIL_TOKEN_ENCRYPTION_KEY` (Fernet key; generate with Python's `Fernet.generate_key()`)
+- `GMAIL_SYNC_SECRET` (long random secret shared only with the scheduled Worker)
+- `GMAIL_ALLOWED_SENDER_DOMAINS` (comma-separated trusted bank root domains)
+
+The sender-domain list should contain only domains verified from original bank
+alerts. The existing Nigerian-bank reference list is in section 2. Do not
+configure a broad wildcard or accept all senders.
+
+The Worker runs a scheduled sync every five minutes. Set the matching
+`GMAIL_SYNC_CRON_SECRET` Worker secret for each environment; its value must
+match that environment's backend `GMAIL_SYNC_SECRET`. The scheduled event calls
+the backend's authenticated Gmail sync endpoint. The first sync scans the
+previous seven days; subsequent syncs use the last processed Gmail message
+timestamp and deduplicate by Gmail message ID and bank transaction identity.
+
+The user can also request a one-time sync from **Money → Import transactions**.
+Disconnecting removes the encrypted refresh token from IPÌLẸ̀. Users can also
+revoke IPÌLẸ̀ from their Google Account security settings.
+
+Google OAuth consent-screen verification and publishing status are controlled
+in the Google Cloud project. Do not enable the connection for general users
+until the consent screen, production callback, privacy disclosures and required
+Google verification are complete.
+
+## 8. Automation and currency behavior
+
+Household owners/partners can select:
+
+- `review_everything`: every supported alert waits for approval (default).
+- `auto_trusted`: automatically posts only when sender verification, a unique
+  exact institution-to-account match and an explicit matching currency are all
+  present.
+- `full_automation`: uses the same non-negotiable safety gate for supported
+  alert formats; ambiguous sender, account, amount, date or currency still
+  goes to review or is rejected. It never guesses an account or exchange rate.
+
+The bank-alert parser recognizes supported ISO 4217 currency codes and
+unambiguous symbols. A bare dollar sign is ambiguous and is not assigned a
+currency automatically. The selected account currency must match a detected
+alert currency before approval. This does not convert currencies or rewrite
+historical ledger amounts; cross-currency conversion remains the responsibility
+of the existing exchange-rate and reporting workflows.
+
+Automatic forwarding remains an alternative: users generate the private
+household address and configure a provider-side forwarding/filter rule once.
+The Worker accepts only authenticated bank sender domains; do not forward
+unrelated personal mail. Some email providers require a forwarding-address
+verification step, so users should complete that provider-specific verification
+before relying on the rule.
+
+## 9. Phase 1 environment checklist
+
+- [ ] Configure Google OAuth Web client, consent screen and exact callback URI.
+- [ ] Set the five Gmail backend secrets/settings above on staging.
+- [ ] Set `GMAIL_SYNC_CRON_SECRET` on the staging Worker.
+- [ ] Confirm the Worker secret equals the staging backend `GMAIL_SYNC_SECRET`.
+- [ ] Configure trusted sender domains on the staging backend.
+- [ ] Deploy and verify the staging Worker scheduled trigger.
+- [ ] Connect a disposable Gmail account and verify that only bank-alert senders
+      with DMARC pass are imported.
+- [ ] Verify five-minute scheduled sync, duplicate handling, disconnect and
+      reauthorization.
+- [ ] Repeat configuration independently for production only after approval.
