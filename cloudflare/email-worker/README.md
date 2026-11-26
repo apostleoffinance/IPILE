@@ -13,7 +13,7 @@ npx wrangler secret put INBOUND_WEBHOOK_SECRET --env production
 npx wrangler secret put ALLOWED_BANK_SENDER_DOMAINS --env production
 ```
 
-`INBOUND_WEBHOOK_SECRET` must match the corresponding backend `INBOUND_EMAIL_WEBHOOK_SECRET`. `ALLOWED_BANK_SENDER_DOMAINS` is a comma-separated list of exact bank-owned sender domains verified from real bank alert samples. Avoid broad or wildcard allowlists.
+`INBOUND_WEBHOOK_SECRET` must match the corresponding backend `INBOUND_EMAIL_WEBHOOK_SECRET`. `ALLOWED_BANK_SENDER_DOMAINS` is a comma-separated list of exact bank-owned sender domains verified from real bank alert samples. The current OPay list includes `opayweb.com`, `opay-inc.com`, and `opay-nigeria.com` (the latter reported from an original alert by the operator). Avoid broad or wildcard allowlists.
 
 ## Environments and deployment
 
