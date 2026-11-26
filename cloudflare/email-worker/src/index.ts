@@ -115,7 +115,9 @@ export default {
     const attachments = (parsed.attachments ?? []).map((attachment) => ({
       filename: (attachment.filename || "attachment").slice(0, 180),
       content_type: (attachment.mimeType || "application/octet-stream").slice(0, 120),
-      size: typeof attachment.content === "string"\n        ? new TextEncoder().encode(attachment.content).byteLength\n        : attachment.content?.byteLength ?? 0,
+      size: typeof attachment.content === "string"
+        ? new TextEncoder().encode(attachment.content).byteLength
+        : attachment.content?.byteLength ?? 0,
     }));
     if (attachments.some((attachment) => attachment.size > maxAttachmentBytes)) {
       message.setReject("An email attachment exceeds IPÌLẸ̀'s file-size limit.");
