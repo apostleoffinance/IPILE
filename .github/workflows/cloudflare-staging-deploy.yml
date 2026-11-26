@@ -106,9 +106,20 @@ jobs:
             exit 1
           fi
 
+          # Use a unique query string and bypass intermediary caches so this checks the newly deployed Worker.
           curl --fail --silent --show-error --retry 5 --retry-connrefused --retry-delay 5 --max-time 20 \
-            "$STAGING_FRONTEND_URL/" -o /tmp/ipile-staging-home.html
+            -H "Cache-Control: no-cache" \
+            "$STAGING_FRONTEND_URL/?deploy_sha=$GITHUB_SHA" -o /tmp/ipile-staging-home.html
           grep -qi "<html" /tmp/ipile-staging-home.html
+          grep -Fq "Your money. In harmony." /tmp/ipile-staging-home.html
+          if grep -Fqi "IPÌLẸ̀ brings your money, accounts, spending" /tmp/ipile-staging-home.html; then
+            echo "Staging homepage still contains the removed long hero paragraph."
+            exit 1
+          fi
+          if grep -Fqi "Know what you have. Know what it is committed to." /tmp/ipile-staging-home.html; then
+            echo "Staging homepage still contains the removed hero proof statement."
+            exit 1
+          fi
 
           curl --fail --silent --show-error --retry 5 --retry-connrefused --retry-delay 5 --max-time 20 \
             "$STAGING_FRONTEND_URL/api/v1/health" -o /tmp/ipile-staging-api-health.json
