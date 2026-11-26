@@ -27,13 +27,18 @@ function emailMessage(options: {
     "Content-Type: text/plain; charset=utf-8",
     "",
     options.body ?? "Your account was debited NGN 5,000.00 on 15/11/2026. Ref: ABC12345",
-  ].join("\r\n");
+  ].join("\\r\\n");
   const bytes = new TextEncoder().encode(raw);
   const rejects: string[] = [];
   const message = {
     from: options.from ?? "alerts@bank.example",
     to: options.to ?? "bank-alert+abcdefghijklmnopqrstuvwxyz0123456789@inbox.example.test",
-    headers: new Headers({\n      "Authentication-Results": options.cloudflareAuthentication ?? "mx.cloudflare.net; spf=pass; dkim=pass; dmarc=pass",\n      "Date": "Sun, 15 Nov 2026 10:00:00 +0100",\n      "Message-ID": "<alert-001@bank.example>",\n    }),\n    raw: new ReadableStream<Uint8Array>({
+    headers: new Headers({
+      "Authentication-Results": options.cloudflareAuthentication ?? "mx.cloudflare.net; spf=pass; dkim=pass; dmarc=pass",
+      Date: "Sun, 15 Nov 2026 10:00:00 +0100",
+      "Message-ID": "<alert-001@bank.example>",
+    }),
+    raw: new ReadableStream<Uint8Array>({
       start(controller) {
         controller.enqueue(bytes);
         controller.close();
@@ -79,10 +84,13 @@ describe("Cloudflare inbound bank-alert Worker", () => {
     expect(rejects).toHaveLength(1);
   });
 
-  it("rejects messages without passing sender authentication", async () => {
+  it("rejects a forged raw MIME authentication header when Cloudflare does not pass DMARC", async () => {
     const fetchMock = vi.fn();
     vi.stubGlobal("fetch", fetchMock);
-    const { message, rejects } = emailMessage({ cloudflareAuthentication: "mx.cloudflare.net; dmarc=fail; dkim=fail; spf=pass" });
+    const { message, rejects } = emailMessage({
+      authentication: "mx.cloudflare.net; dmarc=pass",
+      cloudflareAuthentication: "mx.cloudflare.net; dmarc=fail; dkim=fail; spf=pass",
+    });
 
     await worker.email(message, env as never);
 
