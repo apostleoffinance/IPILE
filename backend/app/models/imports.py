@@ -48,7 +48,7 @@ class StatementExtractionTask(Base):
 
     id: Mapped[uuid.UUID] = mapped_column(Uuid, primary_key=True, default=uuid.uuid4)
     import_job_id: Mapped[uuid.UUID] = mapped_column(
-        Uuid, ForeignKey("import_jobs.id", ondelete="CASCADE"), unique=True, index=True
+        Uuid, ForeignKey("import_jobs.id", ondelete="CASCADE"), unique=True
     )
     household_id: Mapped[uuid.UUID] = mapped_column(
         Uuid, ForeignKey("households.id", ondelete="CASCADE"), index=True
