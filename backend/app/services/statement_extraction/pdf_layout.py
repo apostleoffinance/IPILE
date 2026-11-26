@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import re
-from collections import defaultdict
 from datetime import datetime
 from decimal import Decimal, InvalidOperation
 from io import BytesIO
@@ -11,10 +10,13 @@ from io import BytesIO
 import pdfplumber
 
 from app.services.statement_extraction.field_mapping import (
-    ColumnField, map_statement_columns, normalize_header,
+    ColumnField,
+    map_statement_columns,
+    normalize_header,
 )
 from app.services.statement_extraction.models import (
-    ExtractedTransaction, TransactionDirection,
+    ExtractedTransaction,
+    TransactionDirection,
 )
 
 DATE_TIME_RE = re.compile(
@@ -52,7 +54,9 @@ def _header_cells(words: list[dict]) -> list[tuple[str, float, float]]:
     ]
 
 
-def _find_header(page_words: list[dict]) -> tuple[float, dict[ColumnField, tuple[float, float]]] | None:
+def _find_header(
+    page_words: list[dict],
+) -> tuple[float, dict[ColumnField, tuple[float, float]]] | None:
     for line in _group_words(page_words):
         cells = _header_cells(line)
         labels = [cell[0] for cell in cells]
@@ -133,7 +137,8 @@ def _parse_cell_amount(value: str) -> Decimal | None:
     text = value.strip()
     if not text or text in {"-", "--", "—", "–"}:
         return None
-    match = AMOUNT_RE.search(text.replace("₦", "").replace("$", "").replace("£", "").replace("€", ""))
+    cleaned = text.replace("₦", "").replace("$", "").replace("£", "").replace("€", "")
+    match = AMOUNT_RE.search(cleaned)
     if not match:
         return None
     number = match.group(0).replace(",", "")
@@ -217,9 +222,13 @@ def extract_pdf_layout_transactions(content: bytes) -> tuple[ExtractedTransactio
                     (anchor_y + date_lines[index + 1][0]) / 2
                     if index + 1 < len(date_lines) else float(page.height)
                 )
-                row_bounds.append((upper, lower, anchor_y, parsed_date, parsed_datetime, raw_date))
+                row_bounds.append(
+                    (upper, lower, anchor_y, parsed_date, parsed_datetime, raw_date)
+                )
 
-            for row_index, (upper, lower, anchor_y, parsed_date, parsed_datetime, raw_date) in enumerate(row_bounds):
+            for row_index, (
+                upper, lower, anchor_y, parsed_date, parsed_datetime, raw_date,
+            ) in enumerate(row_bounds):
                 def value(field: ColumnField) -> str:
                     bounds = columns.get(field)
                     return _column_text(words, bounds, upper, lower) if bounds else ""
