@@ -6,7 +6,9 @@ from dataclasses import dataclass
 from typing import Protocol, runtime_checkable
 
 from app.services.statement_extraction.models import (
-    ExtractionMethod, ExtractionResult, StatementMetadata,
+    ExtractionMethod,
+    ExtractionResult,
+    StatementMetadata,
 )
 
 
