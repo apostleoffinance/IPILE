@@ -11,6 +11,7 @@ from fastapi import APIRouter, Depends, File, Form, Header, HTTPException, Uploa
 from fastapi.security import HTTPBasic, HTTPBasicCredentials
 from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
+from starlette.concurrency import run_in_threadpool
 
 from app.api.deps import HouseholdContext, get_db, require_roles
 from app.core.config import get_settings
@@ -207,7 +208,7 @@ async def upload_statement(
         )
     try:
         if suffix in {"pdf", "png", "jpg", "jpeg", "webp"}:
-            rows, extraction_method = parse_statement_document(raw, suffix)
+            rows, extraction_method = await run_in_threadpool(parse_statement_document, raw, suffix)
             source = "statement"
             account = _scoped_account(db, ctx.household.id, account_id)
             job = apply_import_rows(
