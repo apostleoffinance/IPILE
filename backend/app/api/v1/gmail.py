@@ -14,9 +14,10 @@ from app.api.deps import HouseholdContext, get_db, require_roles
 from app.core.config import get_settings
 from app.models.account import Account
 from app.models.gmail import GmailConnection
+from app.models.household import Household
 from app.models.imports import ImportJob
 from app.models.transaction import Transaction
-from app.services.email_imports import parse_bank_alert
+from app.services.email_imports import apply_alert_automation, parse_bank_alert
 from app.services.gmail import (
     authorization_url,
     decrypt_refresh_token,
@@ -118,7 +119,7 @@ def _save_alert(db: Session, connection: GmailConnection, message: dict[str, str
         if (account.institution or "").strip().lower().replace(" ", "").replace("-", "") == root
     ]
     suggested = matches[0] if len(matches) == 1 else None
-    db.add(ImportJob(
+    job = ImportJob(
         household_id=connection.household_id,
         source="email",
         filename=message["subject"][:200],
@@ -139,7 +140,11 @@ def _save_alert(db: Session, connection: GmailConnection, message: dict[str, str
                 "merchant": row.merchant,
             }],
         },
-    ))
+    )
+    household = db.query(Household).filter(Household.id == connection.household_id).first()
+    if household is not None:
+        apply_alert_automation(db, household, job, row, suggested)
+    db.add(job)
     return "queued"
 
 
