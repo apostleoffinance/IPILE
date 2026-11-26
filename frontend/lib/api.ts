@@ -1365,7 +1365,7 @@ export const api = {
     // Resolve the current household member using endpoints already supported
     // by those deployments, while preserving household scoping.
     const [user, members] = await Promise.all([
-      request<User>("/api/v1/auth/me"),
+      getCurrentUser(),
       request<Member[]>("/api/v1/members"),
     ]);
     const member = members.find((row) => row.user_id === user.id);
