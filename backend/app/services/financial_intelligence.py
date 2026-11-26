@@ -2,12 +2,13 @@
 from __future__ import annotations
 
 import hashlib
-from datetime import date, timedelta
+from datetime import UTC, date, datetime, timedelta
 from uuid import UUID
 
 from sqlalchemy.orm import Session
 
 from app.models.alert import Alert
+from app.models.automation import Notification
 from app.models.household import Household
 from app.models.transaction import Transaction
 from app.services.transaction_patterns import detect_transaction_patterns
@@ -64,6 +65,24 @@ def _upsert_open_alert(
         )
     )
     return True
+
+
+def _resolve_alert_and_notification(db: Session, alert: Alert) -> None:
+    alert.status = "resolved"
+    db.add(alert)
+    notifications = (
+        db.query(Notification)
+        .filter(
+            Notification.alert_id == alert.id,
+            Notification.household_id == alert.household_id,
+            Notification.status == "unread",
+        )
+        .all()
+    )
+    for notification in notifications:
+        notification.status = "read"
+        notification.read_at = datetime.now(UTC)
+        db.add(notification)
 
 
 def run_financial_intelligence(
@@ -151,8 +170,7 @@ def run_financial_intelligence(
     for alert in recurring_alerts:
         key = (alert.type, alert.related_entity_id, alert.period_key)
         if key not in active_recurring:
-            alert.status = "resolved"
-            db.add(alert)
+            _resolve_alert_and_notification(db, alert)
             resolved_recurring += 1
 
     # Anomaly alerts remain visible until read while the transaction is recent.
@@ -169,8 +187,7 @@ def run_financial_intelligence(
     resolved_anomalies = 0
     for alert in anomaly_alerts:
         if alert.related_entity_id not in active_anomalies:
-            alert.status = "resolved"
-            db.add(alert)
+            _resolve_alert_and_notification(db, alert)
             resolved_anomalies += 1
 
     db.flush()
