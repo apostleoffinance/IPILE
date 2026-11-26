@@ -171,7 +171,8 @@ def _sync_connection(db: Session, row: GmailConnection) -> dict[str, int]:
     token = refresh_access_token(decrypt_refresh_token(row.refresh_token_encrypted))
     counts = {"scanned": 0, "queued": 0, "auto_posted": 0, "rejected": 0, "ignored": 0}
     latest = row.last_message_internal_date or int(datetime.now(UTC).timestamp() * 1000)
-    for item in list_recent_messages(token, row.last_message_internal_date, get_settings().gmail_sender_domain_list):
+    sender_domains = get_settings().gmail_sender_domain_list
+    for item in list_recent_messages(token, row.last_message_internal_date, sender_domains):
         message = extract_message(fetch_message(token, str(item["id"])))
         counts["scanned"] += 1
         latest = max(latest, int(message.get("internal_date") or 0))
@@ -233,7 +234,12 @@ def gmail_callback(
     if error or not code or not state:
         return _frontend_redirect("error")
     digest = hashlib.sha256(state.encode()).hexdigest()
-    row = db.query(GmailConnection).filter(GmailConnection.state_hash == digest).with_for_update().first()
+    row = (
+        db.query(GmailConnection)
+        .filter(GmailConnection.state_hash == digest)
+        .with_for_update()
+        .first()
+    )
     if row is None or row.state_expires_at is None:
         return _frontend_redirect("expired")
     expiry = row.state_expires_at
@@ -321,7 +327,11 @@ def gmail_sync_cron(
     db: Session = Depends(get_db),
 ):
     secret = get_settings().gmail_sync_secret
-    if not secret or not x_gmail_sync_secret or not hmac.compare_digest(secret, x_gmail_sync_secret):
+    if (
+        not secret
+        or not x_gmail_sync_secret
+        or not hmac.compare_digest(secret, x_gmail_sync_secret)
+    ):
         raise HTTPException(status_code=401, detail="Invalid Gmail sync credentials.")
     rows = db.query(GmailConnection).filter(GmailConnection.enabled.is_(True)).all()
     total = {
