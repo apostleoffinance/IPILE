@@ -17,7 +17,7 @@ function emailMessage(options: {
   body?: string;
 } = {}) {
   const raw = [
-    "From: alerts@bank.example",
+    `From: ${options.from ?? "alerts@bank.example"}`,
     "To: bank-alert+abcdefghijklmnopqrstuvwxyz0123456789@inbox.example.test",
     "Subject: Debit Alert",
     "Date: Sun, 15 Nov 2026 10:00:00 +0100",
