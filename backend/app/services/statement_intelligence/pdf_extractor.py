@@ -245,6 +245,7 @@ def extract_pdf_statement(content: bytes) -> ExtractionResult:
                 debit_text = cells.get(CanonicalField.DEBIT, "")
                 credit_text = cells.get(CanonicalField.CREDIT, "")
                 amount_text = cells.get(CanonicalField.AMOUNT, "")
+                direction_text = cells.get(CanonicalField.DIRECTION, "").strip().lower()
                 try:
                     if CanonicalField.DEBIT in positions or CanonicalField.CREDIT in positions:
                         debit = abs(_amount_or_zero(debit_text))
@@ -259,9 +260,15 @@ def extract_pdf_statement(content: bytes) -> ExtractionResult:
                         amount = _amount_or_zero(amount_text)
                         if amount == 0:
                             raise ValueError("Transaction amount is missing.")
-                        tx_type = "income" if amount > 0 and "CR" in amount_text.upper() else (
-                            "expense" if amount < 0 or "DR" in amount_text.upper() else "expense"
-                        )
+                        marker = amount_text.upper()
+                        if amount < 0 or "DR" in marker or direction_text in {"debit", "dr", "out", "outgoing"}:
+                            amount, tx_type = -abs(amount), "expense"
+                        elif "CR" in marker or direction_text in {"credit", "cr", "in", "incoming"}:
+                            amount, tx_type = abs(amount), "income"
+                        else:
+                            raise ValueError(
+                                "Transaction direction is unclear; this amount was not guessed."
+                            )
 
                     description_lines: list[tuple[float, str]] = []
                     for line_top, line_words in lines.items():
@@ -288,6 +295,8 @@ def extract_pdf_statement(content: bytes) -> ExtractionResult:
                         cells.get(CanonicalField.CURRENCY)
                         or ("NGN" if "₦" in page_text else None)
                     )
+                    value_date_text = cells.get(CanonicalField.VALUE_DATE, "")
+                    value_date_datetime = _parse_datetime(value_date_text) if value_date_text else None
                     rows.append(
                         _make_row(
                             raw_date=transaction_datetime.date().isoformat(),
@@ -301,8 +310,12 @@ def extract_pdf_statement(content: bytes) -> ExtractionResult:
                     )
                     rows[-1].running_balance = running_balance
                     rows[-1].transaction_datetime = transaction_datetime
+                    rows[-1].value_date = (
+                        value_date_datetime.date() if value_date_datetime else None
+                    )
                     rows[-1].source_page = page_number
                     rows[-1].currency = currency
+                    rows[-1].extraction_confidence = mapping.confidence if mapping else None
                 except ValueError as exc:
                     issues.append(
                         ExtractionIssue(
