@@ -1,4 +1,4 @@
-from datetime import date
+from datetime import date, datetime
 from decimal import Decimal
 from uuid import UUID
 
@@ -59,6 +59,12 @@ def apply_import_rows(
         if _existing(db, household.id, row.external_id):
             skipped += 1
             continue
+        if row.currency and account.currency and row.currency.upper() != account.currency.upper():
+            errors.append(
+                f"{row.external_id}: Statement currency {row.currency.upper()} does not match "
+                f"the selected account currency {account.currency.upper()}."
+            )
+            continue
         if row.type == "transfer":
             errors.append(
                 f"{row.external_id}: "
@@ -67,7 +73,7 @@ def apply_import_rows(
             continue
         try:
             with db.begin_nested():
-                source_currency = account.currency or household.base_currency
+                source_currency = row.currency or account.currency or household.base_currency
                 rate, rate_date, rate_source = get_rate(
                     db, household.id, source_currency, household.base_currency, row.date
                 )
@@ -217,6 +223,16 @@ def stage_import_rows(
             "external_id": row.external_id,
             "merchant": row.merchant,
             "category_name": row.category_name,
+            "currency": row.currency,
+            "transaction_datetime": row.transaction_datetime.isoformat() if row.transaction_datetime else None,
+            "value_date": row.value_date.isoformat() if row.value_date else None,
+            "running_balance": str(row.running_balance) if row.running_balance is not None else None,
+            "channel": row.channel,
+            "source_page": row.source_page,
+            "source_row": row.source_row,
+            "account_section": row.account_section,
+            "confidence": str(row.confidence) if row.confidence is not None else None,
+            "warnings": list(row.warnings),
         }
         for row in rows
     ]
@@ -274,6 +290,19 @@ def commit_staged_import(
             external_id=item["external_id"],
             merchant=item.get("merchant"),
             category_name=item.get("category_name"),
+            currency=item.get("currency"),
+            transaction_datetime=(
+                datetime.fromisoformat(item["transaction_datetime"])
+                if item.get("transaction_datetime") else None
+            ),
+            value_date=date.fromisoformat(item["value_date"]) if item.get("value_date") else None,
+            running_balance=Decimal(item["running_balance"]) if item.get("running_balance") else None,
+            channel=item.get("channel"),
+            source_page=item.get("source_page"),
+            source_row=item.get("source_row"),
+            account_section=item.get("account_section"),
+            confidence=Decimal(item["confidence"]) if item.get("confidence") else None,
+            warnings=tuple(item.get("warnings") or ()),
         )
         for item in job.result.get("rows", [])
     ]
