@@ -409,9 +409,9 @@ export default function ImportPage() {
                   <p className="text-sm text-muted">{source === "csv" ? CSV_HINT : STATEMENT_HINT}</p>
                   <label className="block text-sm">
                     <span className="text-muted">Upload a CSV, PDF or text file (max 10 MB)</span>
-                    <input className="mt-1 block w-full text-sm" type="file" accept=".csv,.pdf,.txt,application/pdf,text/csv,text/plain" onChange={(event) => { setFile(event.target.files?.[0] ?? null); if (event.target.files?.[0]) setContent(""); }} />
+                    <input className="mt-1 block w-full text-sm" type="file" accept=".csv,.pdf,.txt,.png,.jpg,.jpeg,.webp,application/pdf,text/csv,text/plain,image/png,image/jpeg,image/webp" onChange={(event) => { setFile(event.target.files?.[0] ?? null); if (event.target.files?.[0]) setContent(""); }} />
                   </label>
-                  <p className="text-xs text-muted">PDFs must contain selectable text. Scanned statements and receipt photos are not supported yet.</p>
+                  <p className="text-xs text-muted">Supports bank-exported CSVs, text PDFs, scanned PDFs, and clear PNG, JPEG or WebP statement images. Scanned documents are processed privately with OCR. Maximum file size: 10 MB; scanned PDFs: up to 20 pages.</p>
                   <div className="text-center text-xs text-muted">or paste statement text</div>
                   <label className="block text-sm">
                     <span className="text-muted">Filename (optional)</span>
@@ -421,11 +421,12 @@ export default function ImportPage() {
                     <span className="text-muted">Paste statement text</span>
                     <textarea className="mt-1 min-h-40 w-full border border-line bg-surface px-3 py-2 font-mono text-xs" value={content} onChange={(event) => { setContent(event.target.value); if (event.target.value) setFile(null); }} />
                   </label>
-                  <Button type="submit" disabled={pending || (!file && !content.trim())}>{pending ? "Preparing..." : "Preview import"}</Button>
+                  <Button type="submit" disabled={pending || (!file && !content.trim())}>{pending ? "Reading statement..." : "Preview import"}</Button>
                 </form>
                 {result ? (
                   <div className="space-y-3 border border-line px-4 py-3 text-sm">
                     <p className="font-medium">{result.source} · {result.status.replaceAll("_", " ")}</p>
+                    {result.result?.extraction_method ? <p className="text-xs text-muted">{result.result.extraction_method === "pdf_ocr" || result.result.extraction_method === "image_ocr" ? "Scanned document · OCR extraction" : result.result.extraction_method === "pdf_text" ? "PDF text extraction" : "Structured file extraction"}</p> : null}
                     {result.status === "pending_review" ? (
                       <>
                         <p>{result.result?.row_count ?? result.result?.rows?.length ?? 0} transactions parsed · {result.result?.duplicate_count_at_preview ?? 0} possible duplicates already found</p>
