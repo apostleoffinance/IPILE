@@ -21,7 +21,7 @@ from app.models.imports import ImportJob, ImportMailbox
 from app.models.transaction import Transaction
 from app.schemas.imports import ImportBody, ImportCommitBody, ImportJobOut, ImportPreviewBody
 from app.services.email_imports import apply_alert_automation, parse_bank_alert
-from app.services.import_adapters import ImportRow, get_adapter
+from app.services.import_adapters import ImportRow
 from app.services.imports import (
     apply_import_rows,
     commit_staged_import,
@@ -29,9 +29,7 @@ from app.services.imports import (
     stage_import,
     stage_import_rows,
 )
-from app.services.pdf_imports import extract_statement_document
-from app.services.statement_intelligence.schema import ExtractionResult
-from app.services.statement_intelligence.validation import validate_statement
+from app.services.statement_intelligence.engine import extract_statement
 from app.services.transaction_intelligence import enrich_bank_alert
 
 router = APIRouter(prefix="/imports", tags=["imports"])
@@ -349,19 +347,8 @@ async def preview_statement_upload(
         )
     account = _scoped_account(db, ctx.household.id, account_id)
     try:
-        if suffix in {"pdf", "png", "jpg", "jpeg", "webp"}:
-            extraction = await run_in_threadpool(extract_statement_document, raw, suffix)
-            source = "statement"
-        else:
-            content = raw.decode("utf-8-sig")
-            source = "csv" if suffix == "csv" else "statement"
-            rows = get_adapter(source).parse(content)
-            extraction = ExtractionResult(
-                rows=rows,
-                extraction_method="csv" if suffix == "csv" else "text",
-                validation=validate_statement(rows),
-                confidence=1.0,
-            )
+        source = "csv" if suffix == "csv" else "statement"
+        extraction = await run_in_threadpool(extract_statement, raw, suffix)
         extraction_payload = _extraction_payload(extraction)
         job = stage_import_rows(
             db,
