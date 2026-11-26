@@ -36,6 +36,7 @@ def upgrade() -> None:
         ),
         sa.Column("filename", sa.String(200), nullable=False),
         sa.Column("suffix", sa.String(10), nullable=False),
+        sa.Column("account_section", sa.String(120), nullable=True),
         sa.Column("content", sa.LargeBinary(), nullable=False),
         sa.Column("status", sa.String(20), nullable=False, server_default="pending"),
         sa.Column("attempts", sa.Integer(), nullable=False, server_default="0"),
