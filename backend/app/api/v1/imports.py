@@ -16,6 +16,7 @@ from app.api.deps import HouseholdContext, get_db, require_roles
 from app.core.config import get_settings
 from app.models.account import Account
 from app.models.imports import ImportJob, ImportMailbox
+from app.models.household import Household
 from app.models.transaction import Transaction
 from app.schemas.imports import ImportBody, ImportCommitBody, ImportJobOut, ImportPreviewBody
 from app.services.email_imports import apply_alert_automation, parse_bank_alert
@@ -459,7 +460,7 @@ def receive_inbound_email(
     return {
         "id": str(job.id),
         "status": job.status,
-        "message": "Alert received for household review.",
+        "message": "Alert received and processed according to household preferences.",
     }
 
 
