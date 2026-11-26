@@ -72,7 +72,7 @@ def _cluster_words(
     for word in sorted(words, key=lambda item: (float(item["top"]), float(item["x0"]))):
         top = float(word["top"])
         key = next((candidate for candidate in lines if abs(candidate - top) <= tolerance), None)
-        lines[key if key is not None else top].append(word)
+        lines.setdefault(key if key is not None else top, []).append(word)
     return lines
 
 
