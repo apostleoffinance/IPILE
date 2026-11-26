@@ -27,7 +27,7 @@ If any are missing, bank-link and sync endpoints remain disabled. Generate an en
 
 ## Statement support
 
-CSV and selectable-text PDF statements are supported through the existing import adapters. Scanned statement PDFs are not OCR'd in this phase. Uploads are size-limited by `MAX_IMPORT_UPLOAD_BYTES`. Opening/closing balance arithmetic is reported where statement rows contain only credits and debits.
+CSV, selectable-text PDFs, scanned PDFs, and PNG/JPEG/WebP statement images are supported. PDFs use embedded text and table extraction first; scanned pages and statement images fall back to private Tesseract OCR in the backend container. OCR output is parsed conservatively and remains staged for user review; uncertain rows are not guessed or posted. Scanned PDFs are limited to 20 pages per upload and all uploads are size-limited by `MAX_IMPORT_UPLOAD_BYTES` (10 MB by default). The backend image includes `tesseract-ocr`; Python dependencies include `pytesseract`, `Pillow`, and `pypdfium2`. OCR is local to the backend and statement bytes are not sent to a third-party OCR API. Opening/closing balance arithmetic is reported where statement rows contain only credits and debits.
 
 ## Currency
 
