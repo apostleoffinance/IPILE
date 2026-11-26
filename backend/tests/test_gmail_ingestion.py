@@ -48,7 +48,7 @@ def test_auto_trusted_posts_only_exact_bank_and_currency_match(
     from app.core.config import Settings
 
     register(client, "automatic-alert@example.com")
-    account = client.post(
+    client.post(
         "/api/v1/accounts",
         json={
             "name": "GTBank Current",
