@@ -97,7 +97,6 @@ def run_financial_intelligence(
     active_recurring: set[tuple[str, UUID, str]] = set()
     active_anomalies: set[UUID] = set()
     created = 0
-    updated = 0
 
     for pattern in patterns:
         code = pattern["code"]
