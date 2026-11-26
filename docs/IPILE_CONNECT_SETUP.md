@@ -89,7 +89,7 @@ The default Worker environment targets the IPÌLẸ̀ staging API. The named `pr
 - The Worker rejects senders outside the configured trusted root-domain allowlist and messages without a passing sender-authentication result.
 - The backend webhook requires the shared secret. Keep the Worker secret and backend secret identical within the same environment.
 - The backend deduplicates provider message IDs per household.
-- Incoming alerts are pending review. No transaction or balance is changed until an authorized household owner/partner approves the alert.
+- The default mode sends alerts to review. If an owner/partner opts into automation, only alerts with a verified sender, unique exact account match and explicit matching currency may be posted automatically; ambiguous alerts remain in review.
 - Ambiguous amounts, multiple currency amounts, unclear debit/credit direction or missing usable dates are rejected into the review queue rather than guessed.
 - Attachments are metadata only and are not parsed or executed. Statement attachments must be uploaded separately through the authenticated statement-import flow.
 - The parser recognizes a defined set of ISO 4217 codes and unambiguous currency symbols. Ambiguous dollar symbols remain unassigned until the user confirms the destination account currency.
