@@ -256,7 +256,11 @@ def process_next_statement_task() -> bool:
                 job.result = {
                     **(job.result or {}),
                     "processing_stage": "failed",
-                    "error": str(exc)[:500],
+                    "error": (
+                        str(exc)[:500]
+                        if isinstance(exc, ValueError)
+                        else "Statement processing failed unexpectedly. Please try again."
+                    ),
                 }
             task.status = "failed"
             task.content = b""
