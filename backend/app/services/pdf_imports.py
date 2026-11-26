@@ -171,7 +171,21 @@ def parse_statement_image(content: bytes) -> list[ImportRow]:
 def extract_statement_document(content: bytes, suffix: str) -> ExtractionResult:
     """Use one universal PDF extractor; ambiguous documents fail closed."""
     if suffix == "pdf":
-        return extract_pdf_statement(content)
+        try:
+            return extract_pdf_statement(content)
+        except ValueError as text_error:
+            # OCR is a bounded fallback for scanned or otherwise image-based PDFs.
+            try:
+                rows = parse_ocr_statement(extract_pdf_ocr_text(content))
+            except ValueError as ocr_error:
+                raise ValueError(str(ocr_error)) from text_error
+            return ExtractionResult(
+                rows=rows,
+                extraction_method="pdf_ocr",
+                validation=validate_statement(rows),
+                confidence=0.65,
+                diagnostics={"status": "needs_review"},
+            )
     if suffix in {"png", "jpg", "jpeg", "webp"}:
         rows = parse_statement_image(content)
         return ExtractionResult(
