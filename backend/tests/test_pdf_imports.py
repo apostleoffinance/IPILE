@@ -146,3 +146,29 @@ def test_background_worker_requires_explicit_selection_for_multi_account_stateme
     assert preview["result"]["row_count"] == 1
     assert preview["result"]["rows"][0]["external_id"] == "wallet-ref"
     assert client.get("/api/v1/transactions").json() == []
+
+
+def test_statement_queue_applies_household_backpressure(
+    client: TestClient,
+) -> None:
+    register(client, "queue-limit@example.com")
+    account = client.post(
+        "/api/v1/accounts",
+        json={"name": "Current", "type": "bank", "current_balance": "1000.00"},
+    ).json()
+
+    for _ in range(2):
+        response = client.post(
+            "/api/v1/imports/preview-upload",
+            data={"account_id": account["id"]},
+            files={"file": ("statement.csv", b"date,description,debit,credit\\n", "text/csv")},
+        )
+        assert response.status_code == 202, response.text
+
+    rejected = client.post(
+        "/api/v1/imports/preview-upload",
+        data={"account_id": account["id"]},
+        files={"file": ("statement.csv", b"date,description,debit,credit\\n", "text/csv")},
+    )
+    assert rejected.status_code == 429
+    assert "processing is busy" in rejected.json()["detail"].lower()
