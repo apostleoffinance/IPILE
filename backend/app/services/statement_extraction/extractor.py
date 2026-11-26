@@ -5,7 +5,7 @@ from __future__ import annotations
 from collections import defaultdict
 
 from app.services.import_adapters import CsvImportAdapter, ImportRow, StatementImportAdapter
-from app.services.pdf_imports import parse_statement_image
+from app.services.pdf_imports import parse_statement_document, parse_statement_image
 from app.services.statement_extraction.document_intelligence import (
     PDFContentKind,
     inspect_pdf_document,
@@ -119,9 +119,20 @@ def extract_statement_document(
             )
             return _result(ExtractionMethod.PDF_OCR, transactions, metadata)
         transactions = extract_pdf_layout_transactions(content)
+        method = ExtractionMethod.PDF_TABLE
         if not transactions:
-            # No recognized table is not proof that the document has no transactions.
-            # Fail closed rather than forcing a generic line parser to guess columns.
+            # Use the existing generic text/table adapter as a secondary strategy.
+            # It shares the canonical output contract and is not bank-specific.
+            legacy_rows, legacy_method = parse_statement_document(content, "pdf")
+            transactions = tuple(
+                _candidate_from_import_row(row, source_row=index)
+                for index, row in enumerate(legacy_rows, start=1)
+            )
+            method = (
+                ExtractionMethod.PDF_OCR if legacy_method == "pdf_ocr"
+                else ExtractionMethod.PDF_TEXT
+            )
+        if not transactions:
             return _result(
                 ExtractionMethod.PDF_TEXT,
                 (),
@@ -145,7 +156,7 @@ def extract_statement_document(
                 ),
                 severity="error",
             ),)
-        return _result(ExtractionMethod.PDF_TABLE, transactions, metadata, extra_issues=issues)
+        return _result(method, transactions, metadata, extra_issues=issues)
 
     if extension in {"png", "jpg", "jpeg", "webp"}:
         rows = parse_statement_image(content)
