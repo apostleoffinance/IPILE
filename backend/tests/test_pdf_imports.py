@@ -273,3 +273,35 @@ def test_statement_discrepancies_require_explicit_acknowledgement_before_commit(
     assert committed.status_code == 200, committed.text
     assert committed.json()["created_count"] == 1
     assert len(client.get("/api/v1/transactions").json()) == 1
+
+def test_opay_style_csv_upload_is_staged_by_the_universal_engine(client: TestClient) -> None:
+    register(client, "opay-csv-stage@example.com")
+    account = client.post(
+        "/api/v1/accounts",
+        json={
+            "name": "Current",
+            "type": "bank",
+            "currency": "NGN",
+            "current_balance": "100000.00",
+        },
+    ).json()
+    statement = (
+        "Trans. Time,Value Date,Description,Debit(₦),Credit(₦),"
+        "Balance After(₦),Channel,Transaction Reference\\n"
+        "01 Jan 2026 20:35:26,01 Jan 2026,Transfer to Merchant,5000.00,--,"
+        "95000.00,Mobile,opay-csv-1\\n"
+    )
+    preview = client.post(
+        "/api/v1/imports/preview-upload",
+        data={"account_id": account["id"]},
+        files={"file": ("opay-statement.csv", statement.encode(), "text/csv")},
+    )
+    assert preview.status_code == 201, preview.text
+    assert preview.json()["status"] == "pending_review"
+    assert preview.json()["result"]["extraction"]["extraction_method"] == "csv_structured"
+    assert preview.json()["result"]["rows"][0]["external_id"] == "opay-csv-1"
+    assert preview.json()["result"]["rows"][0]["running_balance"] == "95000.00"
+    assert client.get("/api/v1/transactions").json() == []
+    assert Decimal(client.get("/api/v1/accounts").json()[0]["current_balance"]) == Decimal(
+        "100000.00"
+    )
