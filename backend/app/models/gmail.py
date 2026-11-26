@@ -12,7 +12,7 @@ class GmailConnection(Base):
 
     id: Mapped[uuid.UUID] = mapped_column(Uuid, primary_key=True, default=uuid.uuid4)
     household_id: Mapped[uuid.UUID] = mapped_column(
-        Uuid, ForeignKey("households.id", ondelete="CASCADE"), unique=True, index=True
+        Uuid, ForeignKey("households.id", ondelete="CASCADE"), unique=True
     )
     state_hash: Mapped[str | None] = mapped_column(String(64), nullable=True, index=True)
     state_expires_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
