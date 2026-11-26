@@ -162,7 +162,9 @@ def confirm_statement_review(
     issues = extraction.get("issues") or []
     hard_errors = [
         issue for issue in issues
-        if issue.get("code") in {"unparsed_transaction_row", "no_transactions"}
+        if issue.get("code") in {
+            "unparsed_transaction_row", "no_transactions", "mixed_text_and_scanned_pages"
+        }
     ]
     if hard_errors:
         raise HTTPException(
