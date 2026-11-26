@@ -228,6 +228,7 @@ def stage_import_rows(
             ),
             "source_page": row.source_page,
             "extraction_confidence": row.extraction_confidence,
+            "cash_direction": row.cash_direction,
         }
         for row in rows
     ]
@@ -312,6 +313,7 @@ def commit_staged_import(
             ),
             source_page=item.get("source_page"),
             extraction_confidence=item.get("extraction_confidence"),
+            cash_direction=item.get("cash_direction"),
         )
         for item in job.result.get("rows", [])
     ]
