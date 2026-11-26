@@ -44,7 +44,7 @@ def test_scanned_pdf_falls_back_to_local_ocr(monkeypatch) -> None:
 
     monkeypatch.setattr(
         pdf_imports,
-        "_parse_selectable_pdf",
+        "extract_pdf_statement",
         lambda _content: (_ for _ in ()).throw(ValueError("No selectable text")),
     )
     monkeypatch.setattr(
