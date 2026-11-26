@@ -2,8 +2,14 @@ from datetime import date
 from decimal import Decimal
 
 from app.services.statement_extraction import (
-    ColumnField, ExtractionStatus, ExtractedTransaction, StatementSummary, TransactionDirection,
-    map_statement_columns, normalize_header, validate_extraction,
+    ColumnField,
+    ExtractedTransaction,
+    ExtractionStatus,
+    StatementSummary,
+    TransactionDirection,
+    map_statement_columns,
+    normalize_header,
+    validate_extraction,
 )
 
 
