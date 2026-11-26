@@ -1,8 +1,8 @@
 """Persist proactive, explainable financial signals as household alerts."""
 from __future__ import annotations
 
-import hashlib
 from datetime import UTC, date, datetime, timedelta
+from hashlib import sha256
 from uuid import UUID
 
 from sqlalchemy.orm import Session
@@ -122,7 +122,7 @@ def run_financial_intelligence(
         evidence = pattern["evidence"]
         if code in _RECURRING_ALERT_TYPES:
             account_id = UUID(evidence["account_id"])
-            payee_hash = hashlib.sha256(evidence["payee"].encode("utf-8")).hexdigest()[:12]
+            payee_hash = sha256(evidence["payee"].encode("utf-8")).hexdigest()[:12]
             period_key = f"{evidence['expected_next_date']}:{payee_hash}"
             active_recurring.add((code, account_id, period_key))
             created += int(
