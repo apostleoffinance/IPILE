@@ -39,7 +39,10 @@ class ImportAdapter(Protocol):
 
 def _parse_date(raw: str) -> date:
     text = raw.strip()
-    for fmt in ("%Y-%m-%d", "%d/%m/%Y", "%m/%d/%Y", "%Y/%m/%d", "%d-%m-%Y"):
+    for fmt in (
+        "%Y-%m-%d", "%d/%m/%Y", "%m/%d/%Y", "%Y/%m/%d",
+        "%d-%m-%Y", "%d %b %Y", "%d %B %Y", "%d-%b-%Y",
+    ):
         try:
             return datetime.strptime(text, fmt).date()
         except ValueError:

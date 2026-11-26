@@ -500,10 +500,14 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
       credentials: "include",
       headers,
     });
-  } catch {
-    throw new Error(
-      `IPÌLẸ̀ is temporarily unavailable. Please try again in a moment.`,
-    );
+  } catch (error) {
+    if (error instanceof DOMException && error.name === "TimeoutError") {
+      throw new Error("Statement processing took too long. Try a smaller file or a CSV export.");
+    }
+    if (error instanceof DOMException && error.name === "AbortError") {
+      throw new Error("Statement upload was cancelled.");
+    }
+    throw new Error("IPÌLẸ̀ is temporarily unavailable. Please try again in a moment.");
   }
 
   if (response.status === 403 && ["POST", "PUT", "PATCH", "DELETE"].includes(method)) {
@@ -801,6 +805,7 @@ export type ImportJob = {
       };
     };
     errors?: string[];
+    extraction_method?: string;
     account_id?: string;
     row_count?: number;
     duplicate_count_at_preview?: number;
@@ -819,7 +824,7 @@ export function previewStatementUpload(accountId: string, file: File) {
   const body = new FormData();
   body.append("account_id", accountId);
   body.append("file", file);
-  return request<ImportJob>("/api/v1/imports/preview-upload", { method: "POST", body });
+  return request<ImportJob>("/api/v1/imports/preview-upload", { method: "POST", body, signal: AbortSignal.timeout(120_000) });
 }
 
 export function commitStagedImport(jobId: string, accountId: string) {
