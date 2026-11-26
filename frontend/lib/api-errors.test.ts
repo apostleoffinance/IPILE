@@ -10,6 +10,13 @@ async function main() {
       const url = String(input);
       requests.push({ url, init });
       if (url.endsWith("/api/v1/auth/login")) {
+        const body = JSON.parse(String(init?.body ?? "{}")) as { password?: string };
+        if (body.password === "wrong-password") {
+          return new Response(JSON.stringify({ detail: "Invalid credentials." }), {
+            status: 401,
+            headers: { "content-type": "application/json" },
+          });
+        }
         return new Response(JSON.stringify({
           id: "user-1",
           email: "owner@example.com",
@@ -34,6 +41,12 @@ async function main() {
       undefined,
       "login is exempt from CSRF and should not require a token",
     );
+
+    await assert.rejects(
+      api.login({ email: "owner@example.com", password: "wrong-password" }),
+      /Your email or password doesn't look right/,
+    );
+    assert.equal(requests.length, 2, "failed login must not trigger a CSRF bootstrap or retry");
 
     await assert.rejects(
       api.health(),
