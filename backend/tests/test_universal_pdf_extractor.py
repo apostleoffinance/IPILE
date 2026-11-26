@@ -75,9 +75,18 @@ def test_universal_pdf_extractor_maps_columns_and_reconstructs_wrapped_rows(monk
         "open",
         lambda _buffer: FakePdf([_opay_layout_page()]),
     )
-    mapping, positions, _header_top = pdf_extractor.detect_column_mapping(_opay_layout_page())
+    page = _opay_layout_page()
+    mapping, positions, _header_top = pdf_extractor.detect_column_mapping(page)
     assert positions[CanonicalField.TRANSACTION_DATE] == 56
     assert positions[CanonicalField.VALUE_DATE] == 123
+    lines = pdf_extractor._cluster_words(page.extract_words())
+    date_cells = next(
+        pdf_extractor._cell_values(words, positions)
+        for top, words in lines.items()
+        if top == 280
+    )
+    assert date_cells[CanonicalField.TRANSACTION_DATE] == "01 Jan 2026 10:00:00"
+    assert date_cells[CanonicalField.DEBIT] == "100.00"
     result = extract_pdf_statement(b"synthetic statement")
     assert len(result.rows) == 2
     assert result.rows[0].description == "Coffee Shop"
