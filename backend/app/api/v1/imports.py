@@ -15,6 +15,7 @@ from app.api.deps import HouseholdContext, get_db, require_roles
 from app.core.config import get_settings
 from app.models.account import Account
 from app.models.imports import ImportJob, ImportMailbox
+from app.models.transaction import Transaction
 from app.schemas.imports import ImportBody, ImportCommitBody, ImportJobOut, ImportPreviewBody
 from app.services.email_imports import parse_bank_alert
 from app.services.import_adapters import ImportRow
@@ -362,6 +363,61 @@ def receive_inbound_email(
             db, mailbox, sender=sender, subject=subject,
             message_id=message_id, reason=str(exc),
         )
+    # A bank reference/fingerprint is more reliable than the provider Message-ID:
+    # the same alert can be forwarded more than once with different Message-IDs.
+    existing_transaction = (
+        db.query(Transaction)
+        .filter(
+            Transaction.household_id == mailbox.household_id,
+            Transaction.external_id == row.external_id,
+            Transaction.deleted_at.is_(None),
+        )
+        .first()
+    )
+    if existing_transaction is not None:
+        return {
+            "id": str(existing_transaction.id),
+            "status": "duplicate",
+            "message": "This bank transaction is already in the household ledger.",
+        }
+
+    pending_jobs = (
+        db.query(ImportJob)
+        .filter(
+            ImportJob.household_id == mailbox.household_id,
+            ImportJob.source == "email",
+            ImportJob.status == "pending_review",
+        )
+        .all()
+    )
+    for pending_job in pending_jobs:
+        pending_rows = pending_job.result.get("rows", [])
+        if any(item.get("external_id") == row.external_id for item in pending_rows):
+            return {
+                "id": str(pending_job.id),
+                "status": "duplicate",
+                "message": "This bank alert is already waiting for household review.",
+            }
+
+    # Suggest an account only on an exact institution match. Ambiguous or
+    # unknown matches remain unassigned and require an explicit user choice.
+    sender_domain = sender.rsplit("@", 1)[-1].strip().lower()
+    sender_root = sender_domain.split(".", 1)[0]
+    account_candidates = (
+        db.query(Account)
+        .filter(
+            Account.household_id == mailbox.household_id,
+            Account.deleted_at.is_(None),
+        )
+        .all()
+    )
+    exact_matches = [
+        account for account in account_candidates
+        if (account.institution or "").strip().lower().replace(" ", "").replace("-", "")
+        == sender_root.replace("-", "")
+    ]
+    suggested_account = exact_matches[0] if len(exact_matches) == 1 else None
+
     job = ImportJob(
         household_id=mailbox.household_id,
         source="email",
@@ -370,6 +426,8 @@ def receive_inbound_email(
         result={
             "sender": sender[:200],
             "message_id": message_id or None,
+            "suggested_account_id": str(suggested_account.id) if suggested_account else None,
+            "account_match": "exact_institution" if suggested_account else "needs_selection",
             "rows": [{
                 "date": row.date.isoformat(),
                 "amount": str(row.amount),
