@@ -512,7 +512,7 @@ def test_staged_import_commit_is_idempotent_and_household_scoped(client: TestCli
         json={
             "account_id": account_a["id"],
             "source": "csv",
-            "content": "date,amount,external_id\n2026-09-01,500.00,stage-scope-1\n",
+            "content": "date,amount,type,external_id\n2026-09-01,500.00,expense,stage-scope-1\n",
         },
     )
     assert preview.status_code == 201, preview.text
