@@ -128,10 +128,10 @@ def test_opay_style_summary_headers_are_mapped_to_the_following_value_row() -> N
     from app.services.statement_intelligence.pdf_extractor import _parse_summary
 
     summary = _parse_summary(
-        "Wallet Account Period: 01 Jan 2026 - 25 Nov 2026\\n"
-        "Opening Balance Total Debit Debit Count\\n"
-        "₦6,492.35 ₦62,455,727.93 1776\\n"
-        "Closing Balance Total Credit Credit Count\\n"
+        "Wallet Account Period: 01 Jan 2026 - 25 Nov 2026\n"
+        "Opening Balance Total Debit Debit Count\n"
+        "₦6,492.35 ₦62,455,727.93 1776\n"
+        "Closing Balance Total Credit Credit Count\n"
         "₦0.00 ₦62,449,235.58 1313"
     )
     assert summary.opening_balance == Decimal("6492.35")
