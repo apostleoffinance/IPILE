@@ -68,12 +68,16 @@ def _opay_layout_page() -> FakePage:
 
 def test_universal_pdf_extractor_maps_columns_and_reconstructs_wrapped_rows(monkeypatch) -> None:
     from app.services.statement_intelligence import pdf_extractor
+    from app.services.statement_intelligence.schema import CanonicalField
 
     monkeypatch.setattr(
         pdf_extractor.pdfplumber,
         "open",
         lambda _buffer: FakePdf([_opay_layout_page()]),
     )
+    mapping, positions, _header_top = pdf_extractor.detect_column_mapping(_opay_layout_page())
+    assert positions[CanonicalField.TRANSACTION_DATE] == 56
+    assert positions[CanonicalField.VALUE_DATE] == 123
     result = extract_pdf_statement(b"synthetic statement")
     assert len(result.rows) == 2
     assert result.rows[0].description == "Coffee Shop"
