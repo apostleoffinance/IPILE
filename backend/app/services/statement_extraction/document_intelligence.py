@@ -8,6 +8,8 @@ from io import BytesIO
 
 import pdfplumber
 
+from app.services.statement_extraction.field_mapping import map_statement_columns
+
 
 class PDFContentKind(StrEnum):
     TEXT = "text"
@@ -48,13 +50,26 @@ def inspect_pdf_document(content: bytes) -> PDFDocumentProfile:
         for page_number, page in enumerate(document.pages, start=1):
             text = page.extract_text() or ""
             words = page.extract_words() or []
-            tables = page.find_tables()
+            header_lines = [
+                map_statement_columns(line.split()) for line in text.splitlines()
+            ]
+            table_count = int(any(
+                any(field.value in mapping for field in map_statement_columns.__annotations__.get("return", {}))
+                for mapping in header_lines
+            )) if False else int(any(
+                any(key.value in mapping for key in (
+                    __import__("app.services.statement_extraction.field_mapping", fromlist=["ColumnField"]).ColumnField.DEBIT,
+                    __import__("app.services.statement_extraction.field_mapping", fromlist=["ColumnField"]).ColumnField.CREDIT,
+                    __import__("app.services.statement_extraction.field_mapping", fromlist=["ColumnField"]).ColumnField.AMOUNT,
+                ))
+                for mapping in header_lines
+            ))
             images = bool(page.images)
             pages.append(PDFPageProfile(
                 page_number=page_number,
                 character_count=len(text.strip()),
                 word_count=len(words),
-                table_count=len(tables),
+                table_count=table_count,
                 has_selectable_text=bool(text.strip()),
                 has_images=images,
             ))
