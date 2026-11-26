@@ -1,0 +1,86 @@
+name: IPÌLẸ̀ runtime health
+
+on:
+  pull_request:
+  schedule:
+    - cron: "*/15 * * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ipile-runtime-health
+  cancel-in-progress: true
+
+jobs:
+  health:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Check staging and production API liveness and readiness
+        id: api
+        shell: bash
+        run: |
+          set -euo pipefail
+          check_api() {
+            local label="$1"
+            local base="$2"
+            local body
+            local headers
+            local release
+            body="$(mktemp)"
+            headers="$(mktemp)"
+
+            curl --fail --silent --show-error --retry 3 --retry-connrefused --retry-delay 5 --max-time 25 \
+              -D "$headers" "$base/api/v1/health/live" -o "$body"
+            jq -e '.status == "ok" and .service == "ipile"' "$body" >/dev/null
+
+            curl --fail --silent --show-error --retry 3 --retry-connrefused --retry-delay 5 --max-time 25 \
+              -D "$headers" "$base/api/v1/health" -o "$body"
+            jq -e '.status == "ok" and .database == "connected" and .migrations == "current"' "$body" >/dev/null
+            grep -qi '^x-request-id:' "$headers"
+
+            release="$(jq -r '.release // "unknown"' "$body")"
+            if [[ "$label" == "Staging" ]]; then echo "staging_release=$release" >> "$GITHUB_OUTPUT"; else echo "production_release=$release" >> "$GITHUB_OUTPUT"; fi
+            if [[ "$release" == "unknown" || -z "$release" ]]; then
+              echo "NOTICE: $label has not deployed the release-SHA readiness field yet; health checks passed, parity will be enforced after rollout."
+            fi
+
+            echo "PASS: $label liveness, database readiness, migration head, request correlation, release=$release"
+            {
+              echo "- **$label API:** liveness, database, migrations and request ID passed"
+            } >> "$GITHUB_STEP_SUMMARY"
+            rm -f "$body" "$headers"
+          }
+
+          check_api "Staging" "https://ipile-staging-api-v2.onrender.com"
+          check_api "Production" "https://ipile-bmfz.onrender.com"
+      - name: Compare staging and production release commits
+        shell: bash
+        run: |
+          set -euo pipefail
+          staging_release="${{ steps.api.outputs.staging_release }}"
+          production_release="${{ steps.api.outputs.production_release }}"
+          if [[ "$staging_release" == "unknown" || "$production_release" == "unknown" ]]; then
+            echo "NOTICE: release parity is pending deployment of the release-SHA health response."
+            echo "- **Release parity:** pending backend rollout (API health checks passed)" >> "$GITHUB_STEP_SUMMARY"
+            exit 0
+          fi
+          [[ "$staging_release" == "$production_release" ]] || {
+            echo "Staging and production are running different backend commits."
+            exit 1
+          }
+          echo "- **Release parity:** staging and production run commit `$production_release`" >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Check production web Worker
+        shell: bash
+        run: |
+          set -euo pipefail
+          curl --fail --silent --show-error --retry 3 --retry-connrefused --retry-delay 5 --max-time 25 \
+            -H "Cache-Control: no-cache" \
+            "https://ipile-web.ipile-71a.workers.dev/?health_check=$GITHUB_RUN_ID" \
+            -o /tmp/ipile-home.html
+          grep -qi '<html' /tmp/ipile-home.html
+          echo "PASS: production Cloudflare Worker serves HTML"
+          echo "- **Production web Worker:** HTTP response and HTML shell passed" >> "$GITHUB_STEP_SUMMARY"

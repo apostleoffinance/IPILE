@@ -1,3 +1,4 @@
+import os
 from pathlib import Path
 
 from alembic.config import Config
@@ -48,4 +49,5 @@ def readiness(db: Session = Depends(get_db)) -> dict[str, str]:
         "service": "ipile",
         "database": "connected",
         "migrations": "current",
+        "release": os.getenv("RENDER_GIT_COMMIT", "unknown"),
     }

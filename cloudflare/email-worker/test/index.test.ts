@@ -162,3 +162,38 @@ describe("Cloudflare inbound bank-alert Worker", () => {
     expect(rejects).toHaveLength(1);
   });
 });
+
+
+describe("Cloudflare scheduled operations", () => {
+  it("runs Gmail ingestion and daily automation independently and records aggregate counts", async () => {
+    const fetchMock = vi.fn()
+      .mockResolvedValueOnce(new Response(JSON.stringify({
+        connections: 1, scanned: 3, queued: 2, auto_posted: 0, rejected: 1, failed: 0,
+      }), { status: 200 }))
+      .mockResolvedValueOnce(new Response(JSON.stringify({
+        households: 2, processed: 2, skipped: 0, failed: 0,
+      }), { status: 200 }));
+    vi.stubGlobal("fetch", fetchMock);
+    const waits: Promise<unknown>[] = [];
+    const context = {
+      waitUntil(promise: Promise<unknown>) {
+        waits.push(promise);
+      },
+    } as unknown as ExecutionContext;
+
+    await worker.scheduled(
+      {} as ScheduledController,
+      {
+        ...env,
+        GMAIL_SYNC_CRON_SECRET: "gmail-cron-secret",
+        AUTOMATION_CRON_SECRET: "automation-cron-secret",
+      } as never,
+      context,
+    );
+    await Promise.all(waits);
+
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+    expect(String(fetchMock.mock.calls[0][0])).toContain("/api/v1/imports/gmail/sync/cron");
+    expect(String(fetchMock.mock.calls[1][0])).toContain("/api/v1/automation/cron/daily");
+  });
+});
