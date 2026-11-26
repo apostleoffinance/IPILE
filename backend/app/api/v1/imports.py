@@ -29,7 +29,10 @@ from app.services.imports import (
     stage_import,
     stage_import_rows,
 )
-from app.services.pdf_imports import parse_statement_document
+from app.services.import_adapters import get_adapter
+from app.services.pdf_imports import extract_statement_document
+from app.services.statement_intelligence.schema import ExtractionResult
+from app.services.statement_intelligence.validation import validate_statement
 from app.services.transaction_intelligence import enrich_bank_alert
 
 router = APIRouter(prefix="/imports", tags=["imports"])
@@ -89,6 +92,64 @@ def _reject_inbound_email(
         "status": job.status,
         "message": "Alert rejected and not posted.",
     }
+
+def _extraction_payload(extraction: ExtractionResult) -> dict:
+    validation = extraction.validation or validate_statement(extraction.rows)
+    summary = extraction.summary
+    return {
+        "extraction_method": extraction.extraction_method,
+        "status": validation.status,
+        "confidence": extraction.confidence,
+        "requires_manual_review": not extraction.is_importable,
+        "row_count": len(extraction.rows),
+        "summary": {
+            "opening_balance": (
+                str(summary.opening_balance) if summary.opening_balance is not None else None
+            ),
+            "closing_balance": (
+                str(summary.closing_balance) if summary.closing_balance is not None else None
+            ),
+            "total_debits": (
+                str(summary.total_debits) if summary.total_debits is not None else None
+            ),
+            "total_credits": (
+                str(summary.total_credits) if summary.total_credits is not None else None
+            ),
+            "debit_count": summary.debit_count,
+            "credit_count": summary.credit_count,
+            "currency": summary.currency or extraction.metadata.currency,
+            "period_start": (
+                summary.period_start.isoformat() if summary.period_start else None
+            ),
+            "period_end": summary.period_end.isoformat() if summary.period_end else None,
+        },
+        "validation": {
+            "status": validation.status,
+            "debit_total": str(validation.debit_total),
+            "credit_total": str(validation.credit_total),
+            "debit_count": validation.debit_count,
+            "credit_count": validation.credit_count,
+            "balance_check_count": validation.balance_check_count,
+        },
+        "issues": [
+            {
+                "code": issue.code,
+                "message": issue.message,
+                "severity": issue.severity,
+                "page": issue.page,
+                "row": issue.row,
+                "field": issue.field,
+            }
+            for issue in extraction.issues or list(validation.issues)
+        ],
+        "metadata": {
+            "institution": extraction.metadata.institution,
+            "currency": extraction.metadata.currency,
+            "page_count": extraction.metadata.page_count,
+            "transaction_pages": list(extraction.metadata.transaction_pages),
+        },
+    }
+
 
 def _scoped_account(db: Session, household_id: UUID, account_id: UUID) -> Account:
     account = (
@@ -260,20 +321,29 @@ async def preview_statement_upload(
         )
     account = _scoped_account(db, ctx.household.id, account_id)
     try:
-        extraction_method = "csv" if suffix == "csv" else "text"
         if suffix in {"pdf", "png", "jpg", "jpeg", "webp"}:
-            rows, extraction_method = await run_in_threadpool(parse_statement_document, raw, suffix)
+            extraction = await run_in_threadpool(extract_statement_document, raw, suffix)
             source = "statement"
         else:
             content = raw.decode("utf-8-sig")
             source = "csv" if suffix == "csv" else "statement"
-            from app.services.import_adapters import get_adapter
-
             rows = get_adapter(source).parse(content)
+            extraction = ExtractionResult(
+                rows=rows,
+                extraction_method="csv" if suffix == "csv" else "text",
+                validation=validate_statement(rows),
+                confidence=1.0,
+            )
+        extraction_payload = _extraction_payload(extraction)
         job = stage_import_rows(
-            db, ctx.household, account, rows, source=source, filename=filename
+            db,
+            ctx.household,
+            account,
+            extraction.rows,
+            source=source,
+            filename=filename,
+            extraction=extraction_payload,
         )
-        job.result = {**(job.result or {}), "extraction_method": extraction_method}
     except (ValueError, UnicodeDecodeError) as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
     except Exception as exc:
