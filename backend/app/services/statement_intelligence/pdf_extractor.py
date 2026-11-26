@@ -27,6 +27,31 @@ from app.services.statement_intelligence.schema import (
 )
 from app.services.statement_intelligence.validation import validate_statement
 
+MAX_PDF_PAGES = 150
+
+
+def _detect_account_section(text: str) -> str | None:
+    """Detect explicit account-section headings without importing legacy parser modules."""
+    for line in text.splitlines():
+        candidate = " ".join(line.split()).strip(" :-")
+        if not candidate or len(candidate) > 90:
+            continue
+        normalized = normalize_header(candidate)
+        if normalized in {"account statement", "account name account number"}:
+            continue
+        if "account" not in normalized:
+            continue
+        period_index = normalized.find(" period ")
+        if period_index >= 0:
+            original_period = re.search(r"\bperiod\s*:", candidate, re.IGNORECASE)
+            if original_period:
+                label = candidate[:original_period.start()].strip(" :-")
+                if label and normalize_header(label) not in {"account name", "account number"}:
+                    return label
+        if re.fullmatch(r"[a-z][a-z /&-]{1,55} account", normalized):
+            return candidate
+    return None
+
 DATE_TIME_FORMATS = (
     "%d %b %Y %H:%M:%S",
     "%d %B %Y %H:%M:%S",
@@ -284,6 +309,8 @@ def extract_pdf_statement(content: bytes) -> ExtractionResult:
     mapping: ColumnMapping | None = None
     page_count = 0
     document_currency: str | None = None
+    account_section: str | None = None
+    scanned_pages: list[int] = []
 
     try:
         pdf = pdfplumber.open(BytesIO(content))
@@ -292,15 +319,26 @@ def extract_pdf_statement(content: bytes) -> ExtractionResult:
 
     with pdf:
         page_count = len(pdf.pages)
+        if page_count > MAX_PDF_PAGES:
+            raise ValueError(
+                f"This PDF has {page_count} pages. The safe limit is "
+                f"{MAX_PDF_PAGES} pages per upload."
+            )
         for page_number, page in enumerate(pdf.pages, start=1):
             page_text = page.extract_text() or ""
+            account_section = _detect_account_section(page_text) or account_section
             raw_page_text[page_number] = page_text
+            if not page_text.strip() and page.images:
+                scanned_pages.append(page_number)
             if page_number == 1:
                 document_currency = _parse_summary(page_text).currency
             if positions is None:
                 try:
                     mapping, positions, header_top = detect_column_mapping(page)
                 except ValueError:
+                    close_page = getattr(page, "close", None)
+                    if callable(close_page):
+                        close_page()
                     continue
 
             lines = _cluster_words(page.extract_words(x_tolerance=2, y_tolerance=3))
@@ -416,6 +454,7 @@ def extract_pdf_statement(content: bytes) -> ExtractionResult:
                             transaction_datetime=transaction_datetime,
                             running_balance=running_balance,
                             source_page=page_number,
+                            account_section=account_section,
                             extraction_confidence=mapping.confidence if mapping else None,
                         )
                     )
@@ -429,6 +468,9 @@ def extract_pdf_statement(content: bytes) -> ExtractionResult:
                             row=row_index,
                         )
                     )
+            close_page = getattr(page, "close", None)
+            if callable(close_page):
+                close_page()
 
     if not rows:
         bank_adapter_result = extract_with_bank_adapter(
@@ -445,8 +487,17 @@ def extract_pdf_statement(content: bytes) -> ExtractionResult:
     summary = _parse_summary(first_page_text)
     validation = validate_statement(rows, summary)
     combined_issues = [*issues, *validation.issues]
+    if scanned_pages:
+        combined_issues.append(ExtractionIssue(
+            code="mixed_text_and_scanned_pages",
+            message=(
+                "This PDF contains scanned pages that were not processed by text extraction. "
+                "Upload a text-searchable PDF or split out the scanned pages for OCR."
+            ),
+            severity="error",
+        ))
     status = validation.status
-    if issues:
+    if issues or scanned_pages:
         status = "incomplete"
     metadata = StatementMetadata(
         institution=None,

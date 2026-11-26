@@ -475,7 +475,11 @@ export default function ImportPage() {
                   <div className="space-y-3 border border-line px-4 py-3 text-sm">
                     <p className="font-medium">{result.source} · {result.status.replaceAll("_", " ")}</p>
                     {result.result?.extraction_method ? <p className="text-xs text-muted">{result.result.extraction_method === "pdf_ocr" || result.result.extraction_method === "image_ocr" ? "Scanned document · OCR extraction" : result.result.extraction_method === "pdf_table" || result.result.extraction_method === "pdf_text" ? "PDF text and table extraction" : result.result.extraction_method === "csv" ? "CSV transaction extraction" : "Statement text extraction"}</p> : null}
-                    {result.status === "needs_section_selection" ? (
+                    {result.status === "processing" ? (
+                      <p className="text-sm text-muted">Your statement is safely queued for background processing. No transactions have been staged or posted yet. Processing continues independently of this page. If it remains queued, the statement worker may not be running.</p>
+                    ) : result.status === "failed" ? (
+                      <p role="alert" className="text-sm text-red-700">{result.result?.error || "Statement extraction failed. No transactions were staged or posted."}</p>
+                    ) : result.status === "needs_section_selection" ? (
                       <>
                         <p>This statement contains more than one account. Choose which account section you want IPÌLẸ̀ to extract and review. This prevents transactions from different bank accounts being mixed together.</p>
                         <label className="block text-sm">

@@ -895,6 +895,8 @@ export type ImportJob = {
     };
     errors?: string[];
     extraction_method?: string;
+    processing_stage?: string;
+    error?: string;
     extraction_status?: string;
     account_section?: string | null;
     available_sections?: string[];
@@ -929,12 +931,41 @@ export function previewImport(body: { account_id: string; source: "csv" | "state
   });
 }
 
-export function previewStatementUpload(accountId: string, file: File, accountSection?: string) {
+const sleep = (milliseconds: number) =>
+  new Promise((resolve) => setTimeout(resolve, milliseconds));
+
+export async function previewStatementUpload(
+  accountId: string,
+  file: File,
+  accountSection?: string,
+): Promise<ImportJob> {
   const body = new FormData();
   body.append("account_id", accountId);
   body.append("file", file);
   if (accountSection) body.append("account_section", accountSection);
-  return request<ImportJob>("/api/v1/imports/preview-upload", { method: "POST", body, signal: AbortSignal.timeout(120_000) });
+
+  // Upload only queues the work. Extraction runs in a dedicated worker process,
+  // so the browser polls the durable job rather than holding a request open.
+  let job = await request<ImportJob>("/api/v1/imports/preview-upload", {
+    method: "POST",
+    body,
+  });
+  const terminalStatuses = new Set([
+    "pending_review",
+    "needs_review",
+    "needs_section_selection",
+    "failed",
+    "completed",
+    "completed_with_errors",
+  ]);
+
+  for (let attempt = 0; attempt < 300; attempt += 1) {
+    if (terminalStatuses.has(job.status)) return job;
+    await sleep(2_000);
+    job = await request<ImportJob>(`/api/v1/imports/jobs/${job.id}`);
+  }
+
+  return job;
 }
 
 export function confirmStatementReview(jobId: string, reason: string) {

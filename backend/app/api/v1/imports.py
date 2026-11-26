@@ -11,7 +11,6 @@ from fastapi import APIRouter, Depends, File, Form, Header, HTTPException, Uploa
 from fastapi.security import HTTPBasic, HTTPBasicCredentials
 from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
-from starlette.concurrency import run_in_threadpool
 
 from app.api.deps import HouseholdContext, get_db, require_roles
 from app.core.config import get_settings
@@ -27,13 +26,11 @@ from app.services.imports import (
     commit_staged_import,
     run_import,
     stage_import,
-    stage_import_rows,
 )
-from app.services.statement_extraction.extractor import extract_statement_document
-from app.services.statement_extraction.models import ExtractionStatus
-from app.services.statement_extraction.normalization import normalize_section_rows
-from app.services.statement_intelligence.schema import ExtractionResult
-from app.services.statement_intelligence.validation import validate_statement
+from app.services.statement_jobs import (
+    StatementQueueFullError,
+    enqueue_statement_extraction,
+)
 from app.services.transaction_intelligence import enrich_bank_alert
 
 router = APIRouter(prefix="/imports", tags=["imports"])
@@ -98,69 +95,6 @@ def _reject_inbound_email(
         "status": job.status,
         "message": "Alert rejected and not posted.",
     }
-
-def _extraction_payload(extraction: ExtractionResult) -> dict:
-    validation = extraction.validation or validate_statement(extraction.rows)
-    summary = extraction.summary
-    has_errors = any(issue.severity == "error" for issue in extraction.issues)
-    if extraction.is_importable:
-        extraction_status = validation.status
-    else:
-        extraction_status = "incomplete" if has_errors else "needs_review"
-    return {
-        "extraction_method": extraction.extraction_method,
-        "status": extraction_status,
-        "confidence": extraction.confidence,
-        "requires_manual_review": extraction_status != "verified",
-        "row_count": len(extraction.rows),
-        "summary": {
-            "opening_balance": (
-                str(summary.opening_balance) if summary.opening_balance is not None else None
-            ),
-            "closing_balance": (
-                str(summary.closing_balance) if summary.closing_balance is not None else None
-            ),
-            "total_debits": (
-                str(summary.total_debits) if summary.total_debits is not None else None
-            ),
-            "total_credits": (
-                str(summary.total_credits) if summary.total_credits is not None else None
-            ),
-            "debit_count": summary.debit_count,
-            "credit_count": summary.credit_count,
-            "currency": summary.currency or extraction.metadata.currency,
-            "period_start": (
-                summary.period_start.isoformat() if summary.period_start else None
-            ),
-            "period_end": summary.period_end.isoformat() if summary.period_end else None,
-        },
-        "validation": {
-            "status": validation.status,
-            "debit_total": str(validation.debit_total),
-            "credit_total": str(validation.credit_total),
-            "debit_count": validation.debit_count,
-            "credit_count": validation.credit_count,
-            "balance_check_count": validation.balance_check_count,
-        },
-        "issues": [
-            {
-                "code": issue.code,
-                "message": issue.message,
-                "severity": issue.severity,
-                "page": issue.page,
-                "row": issue.row,
-                "field": issue.field,
-            }
-            for issue in extraction.issues or list(validation.issues)
-        ],
-        "metadata": {
-            "institution": extraction.metadata.institution,
-            "currency": extraction.metadata.currency,
-            "page_count": extraction.metadata.page_count,
-            "transaction_pages": list(extraction.metadata.transaction_pages),
-        },
-    }
-
 
 def _scoped_account(db: Session, household_id: UUID, account_id: UUID) -> Account:
     account = (
@@ -230,7 +164,9 @@ def confirm_statement_review(
     issues = extraction.get("issues") or []
     hard_errors = [
         issue for issue in issues
-        if issue.get("code") in {"unparsed_transaction_row", "no_transactions"}
+        if issue.get("code") in {
+            "unparsed_transaction_row", "no_transactions", "mixed_text_and_scanned_pages"
+        }
     ]
     if hard_errors:
         raise HTTPException(
@@ -312,7 +248,7 @@ def import_statement(
     return job
 
 
-@router.post("/upload", response_model=ImportJobOut, status_code=status.HTTP_201_CREATED)
+@router.post("/upload", response_model=ImportJobOut, status_code=status.HTTP_202_ACCEPTED)
 async def upload_statement(
     account_id: UUID = Form(...),
     file: UploadFile = File(...),
@@ -328,16 +264,16 @@ async def upload_statement(
     )
 
 
-@router.post("/preview-upload", response_model=ImportJobOut, status_code=status.HTTP_201_CREATED)
+@router.post("/preview-upload", response_model=ImportJobOut, status_code=status.HTTP_202_ACCEPTED)
 async def preview_statement_upload(
     account_id: UUID = Form(...),
     file: UploadFile = File(...),
-    account_section: str | None = Form(default=None),
+    account_section: str | None = Form(default=None, max_length=120),
     ctx: HouseholdContext = Depends(require_roles("owner", "partner")),
     db: Session = Depends(get_db),
 ):
-    """Extract and stage a statement for review; no ledger write occurs here."""
-    filename = (file.filename or "statement").strip()
+    """Queue extraction and return immediately; no ledger write occurs here."""
+    filename = (file.filename or "statement").strip()[:200]
     suffix = filename.lower().rsplit(".", 1)[-1] if "." in filename else ""
     if suffix not in {"csv", "pdf", "txt", "png", "jpg", "jpeg", "webp"}:
         raise HTTPException(
@@ -348,73 +284,47 @@ async def preview_statement_upload(
     if upload_limit < 1:
         raise HTTPException(status_code=503, detail="Statement uploads are not configured.")
     raw = await file.read(upload_limit + 1)
+    await file.close()
     if len(raw) > upload_limit:
         raise HTTPException(
             status_code=413,
             detail=f"Statement exceeds the configured {upload_limit}-byte upload limit.",
         )
-    account = _scoped_account(db, ctx.household.id, account_id)
+    _scoped_account(db, ctx.household.id, account_id)
     try:
-        extraction = await run_in_threadpool(
-            extract_statement_document, raw, suffix, filename=filename
+        return enqueue_statement_extraction(
+            db,
+            household_id=ctx.household.id,
+            account_id=account_id,
+            filename=filename,
+            suffix=suffix,
+            content=raw,
+            account_section=account_section,
         )
-        if extraction.status in {ExtractionStatus.FAILED, ExtractionStatus.INCOMPLETE}:
-            error = next(
-                (issue.message for issue in extraction.issues if issue.severity == "error"),
-                "The statement could not be extracted completely. No transactions were staged.",
-            )
-            raise ValueError(error)
-
-        available_sections = [
-            section.label or "Unlabelled account" for section in extraction.sections
-        ]
-        if len(extraction.sections) > 1 and account_section is None:
-            job = ImportJob(
-                household_id=ctx.household.id,
-                source="statement",
-                filename=filename,
-                status="needs_section_selection",
-                result={
-                    "account_id": str(account.id),
-                    "extraction_method": extraction.method.value,
-                    "extraction_status": extraction.status.value,
-                    "available_sections": available_sections,
-                    "section_count": len(extraction.sections),
-                    "row_count": len(extraction.transactions),
-                    "message": (
-                        "This statement contains multiple accounts. Select the account "
-                        "section you want to review before importing."
-                    ),
-                },
-            )
-            db.add(job)
-            db.commit()
-            db.refresh(job)
-            return job
-
-        rows, selected_section = normalize_section_rows(extraction, account_section)
-        job = stage_import_rows(
-            db, ctx.household, account, rows, source="statement", filename=filename
-        )
-        job.result = {
-            **(job.result or {}),
-            "extraction_method": extraction.method.value,
-            "extraction_status": extraction.status.value,
-            "extraction_issues": [
-                {"code": issue.code, "message": issue.message, "severity": issue.severity}
-                for issue in extraction.issues
-            ],
-            "account_section": selected_section.label,
-            "section_count": len(extraction.sections),
-        }
-    except (ValueError, UnicodeDecodeError) as exc:
-        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    except StatementQueueFullError as exc:
+        db.rollback()
+        raise HTTPException(status_code=429, detail=str(exc)) from exc
     except Exception as exc:
-        if suffix in {"pdf", "png", "jpg", "jpeg", "webp"}:
-            raise HTTPException(status_code=422, detail=str(exc)) from exc
-        raise
-    db.commit()
-    db.refresh(job)
+        db.rollback()
+        raise HTTPException(
+            status_code=503,
+            detail="Statement processing could not be queued. Please try again.",
+        ) from exc
+
+
+@router.get("/jobs/{job_id}", response_model=ImportJobOut)
+def get_statement_import_job(
+    job_id: UUID,
+    ctx: HouseholdContext = Depends(require_roles("owner", "partner")),
+    db: Session = Depends(get_db),
+):
+    """Poll an extraction job without exposing jobs from another household."""
+    job = db.query(ImportJob).filter(
+        ImportJob.id == job_id,
+        ImportJob.household_id == ctx.household.id,
+    ).first()
+    if job is None:
+        raise HTTPException(status_code=404, detail="Import job not found.")
     return job
 
 @router.post("/mailbox")

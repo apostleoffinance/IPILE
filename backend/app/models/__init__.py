@@ -20,7 +20,7 @@ from app.models.giving import GivingPolicy, GivingRecord
 from app.models.gmail import GmailConnection
 from app.models.goal import Goal, GoalContribution
 from app.models.household import Household
-from app.models.imports import ImportJob, ImportMailbox
+from app.models.imports import ImportJob, ImportMailbox, StatementExtractionTask
 from app.models.income import IncomeSource
 from app.models.member import HouseholdMember
 from app.models.obligation import Obligation, ObligationOccurrence
@@ -69,6 +69,7 @@ __all__ = [
     "HouseholdMember",
     "ImportJob",
     "ImportMailbox",
+    "StatementExtractionTask",
     "IncomeSource",
     "Investment",
     "InvestmentTransaction",

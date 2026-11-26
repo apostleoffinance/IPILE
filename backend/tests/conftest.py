@@ -58,6 +58,7 @@ from app.models import (  # noqa: F401
     Simulation,
     SimulationRun,
     SinkingFund,
+    StatementExtractionTask,
     SupportTicket,
     Transaction,
     User,

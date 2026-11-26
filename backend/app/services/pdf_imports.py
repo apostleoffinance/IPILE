@@ -169,32 +169,21 @@ def parse_statement_image(content: bytes) -> list[ImportRow]:
 
 
 def extract_statement_document(content: bytes, suffix: str) -> ExtractionResult:
-    """Extract a document through the universal pipeline, with local OCR fallback."""
+    """Use one universal PDF extractor; ambiguous documents fail closed."""
     if suffix == "pdf":
         try:
             return extract_pdf_statement(content)
         except ValueError as text_error:
-            # Preserve support for selectable PDFs whose layout is handled by the
-            # established text/table adapter while the universal parser grows.
+            # OCR is a bounded fallback for scanned or otherwise image-based PDFs.
             try:
-                rows = _parse_selectable_pdf(content)
-            except Exception:
-                try:
-                    rows = parse_ocr_statement(extract_pdf_ocr_text(content))
-                except ValueError as ocr_error:
-                    raise ValueError(str(ocr_error)) from text_error
-                return ExtractionResult(
-                    rows=rows,
-                    extraction_method="pdf_ocr",
-                    validation=validate_statement(rows),
-                    confidence=0.65,
-                    diagnostics={"status": "verified"},
-                )
+                rows = parse_ocr_statement(extract_pdf_ocr_text(content))
+            except ValueError as ocr_error:
+                raise ValueError(str(ocr_error)) from text_error
             return ExtractionResult(
                 rows=rows,
-                extraction_method="pdf_text_legacy_fallback",
+                extraction_method="pdf_ocr",
                 validation=validate_statement(rows),
-                confidence=0.5,
+                confidence=0.65,
                 diagnostics={"status": "needs_review"},
             )
     if suffix in {"png", "jpg", "jpeg", "webp"}:
