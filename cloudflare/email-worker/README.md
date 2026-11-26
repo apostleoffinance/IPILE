@@ -38,7 +38,7 @@ npx wrangler secret put ALLOWED_BANK_SENDER_DOMAINS --env production
 - The recipient must contain a sufficiently long opaque household token. The API resolves only its SHA-256 hash to an enabled mailbox.
 - The Worker enforces a bounded raw email size and attachment size. Attachments are metadata only; they are never parsed as transaction content.
 - The backend webhook requires the shared secret and deduplicates provider Message IDs per household.
-- Alerts enter the household review queue. No account balance or transaction ledger is changed until an authorized household owner/partner approves the alert.
+- By default alerts enter the household review queue. Opt-in automation may post only verified alerts with a unique exact account match and explicit matching currency; all ambiguous alerts remain in review.
 - The parser recognizes a defined set of ISO 4217 codes and unambiguous currency symbols. Ambiguous dollar symbols remain unassigned until the user confirms the destination account currency.
 
 
