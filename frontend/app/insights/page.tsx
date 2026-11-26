@@ -15,21 +15,22 @@ import { ErrorState } from "@/components/shared/ErrorState";
 import { LoadingState } from "@/components/shared/LoadingState";
 import { Button } from "@/components/ui/button";
 import { Tabs,TabsContent,TabsList,TabsTrigger } from "@/components/ui/tabs";
-import { explainWithAi,getInsights,type Insights } from "@/lib/api";
+import { explainWithAi,getInsights,getNotifications,type Insights,type Notification } from "@/lib/api";
 import { decisionHrefForPattern } from "@/lib/decision-routing";
 
 export default function InsightsPage(){
  const [data,setData]=useState<Insights|null>(null),[error,setError]=useState<string|null>(null);
+ const [notifications,setNotifications]=useState<Notification[]>([]);
  const [explanation,setExplanation]=useState<string|null>(null),[pending,setPending]=useState(false),[refreshing,setRefreshing]=useState(false);
- async function refresh(){setRefreshing(true);setError(null);try{setData(await getInsights())}catch(err){setError(err instanceof Error?err.message:"Unable to load household insights.")}finally{setRefreshing(false)}}
- useEffect(()=>{let active=true;getInsights().then(value=>{if(active)setData(value)}).catch((err:Error)=>{if(active)setError(err.message)});return()=>{active=false}},[]);
+ async function refresh(){setRefreshing(true);setError(null);try{setData(await getInsights());getNotifications(true).then(setNotifications).catch(()=>setNotifications([]))}catch(err){setError(err instanceof Error?err.message:"Unable to load household insights.")}finally{setRefreshing(false)}}
+ useEffect(()=>{let active=true;getInsights().then(value=>{if(active)setData(value)}).catch((err:Error)=>{if(active)setError(err.message)});getNotifications(true).then(value=>{if(active)setNotifications(value)}).catch(()=>{if(active)setNotifications([])});return()=>{active=false}},[]);
  const currency=data?.currency??"NGN";
  const severity=useMemo(()=>(value:string)=>value==="critical"?"critical" as const:value==="warning"?"warning" as const:value==="info"?"info" as const:"neutral" as const,[]);
  return <AppShell>
   {!data&&!error?<LoadingState/>:null}
   {error&&!data?<ContentContainer><ErrorState message={error}/><Button type="button" variant="outline" onClick={refresh}>Try again</Button></ContentContainer>:null}
   {data?<ContentContainer className="ipile-insights-workspace">
-   <PageHeader eyebrow="Household intelligence" title="Insights" description="Understand the patterns behind your household's money, see what is changing and decide what deserves attention." actions={<div className="flex flex-wrap gap-2"><Button type="button" variant="outline" disabled={refreshing} onClick={refresh}>{refreshing?"Refreshing…":"Refresh"}</Button><Link href="/reports" className="inline-flex min-h-10 items-center rounded-md border border-line px-4 text-sm font-medium text-ink hover:bg-subtle">View reports</Link></div>}/>
+   <PageHeader eyebrow="Household intelligence" title="Insights" description="Understand the patterns behind your household's money, see what is changing and decide what deserves attention." actions={<div className="flex flex-wrap gap-2"><Button type="button" variant="outline" disabled={refreshing} onClick={refresh}>{refreshing?"Refreshing…":"Refresh"}</Button><Link href="/inbox" className="inline-flex min-h-10 items-center rounded-md border border-line px-4 text-sm font-medium text-ink hover:bg-subtle">Open inbox</Link><Link href="/reports" className="inline-flex min-h-10 items-center rounded-md border border-line px-4 text-sm font-medium text-ink hover:bg-subtle">View reports</Link></div>}/>
    <section className="ipile-insights-summary">
     <div><p className="ipile-insights-label">Financial health</p><p className="ipile-insights-score">{data.health?.score??"—"}<span>/100</span></p><p className="ipile-insights-note">{data.health?.label??"No health label available"}</p></div>
     <div><p className="ipile-insights-label">Reporting period</p><p className="ipile-insights-period">{data.period_start} — {data.period_end}</p><p className="ipile-insights-note">Based on recorded household activity</p></div>
@@ -41,6 +42,9 @@ export default function InsightsPage(){
    <Tabs defaultValue="overview" className="ipile-insights-tabs">
     <TabsList><TabsTrigger value="overview">Overview</TabsTrigger><TabsTrigger value="trends">Trends</TabsTrigger><TabsTrigger value="spending">Spending</TabsTrigger><TabsTrigger value="giving">Giving</TabsTrigger></TabsList>
     <TabsContent value="overview" className="space-y-7">
+     <section><SectionHeader title="New financial alerts" description="Proactive notifications from recurring-payment and transaction-pattern monitoring."/>
+      {!notifications.length?<EmptyState title="You're up to date" body="New financial alerts will appear here when recorded activity needs your attention."/>:<div className="grid gap-3 lg:grid-cols-2">{notifications.slice(0,4).map(row=><DecisionCard key={row.id} title={row.title} body={row.body} href="/inbox" severity={severity(row.severity)}/>)}</div>}
+     </section>
      <section><SectionHeader title="What needs attention" description="Signals produced from recorded household activity."/>
       {!data.patterns?.length?<EmptyState title="No patterns to review" body="Relevant changes and risks will appear here as household activity is recorded."/>:<div className="grid gap-3 lg:grid-cols-2">{data.patterns.map(p=><DecisionCard key={p.code+p.title} title={p.title} body={p.detail} href={decisionHrefForPattern(p.code)} severity={severity(p.severity)}/>)}</div>}
      </section>
