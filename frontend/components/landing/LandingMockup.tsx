@@ -1,14 +1,49 @@
 "use client";
 
 import Link from "next/link";
-import { ArrowUpRight } from "lucide-react";
+import { ArrowDown, ArrowUpRight, Check } from "lucide-react";
 import { Wordmark } from "@/components/brand/Wordmark";
 
-const features = [
-  ["01 / SEE CLEARLY", "Understand your whole picture", "Bring household accounts and activity into a single, organised financial view."],
-  ["02 / PLAN AHEAD", "Give every naira direction", "Plan budgets, upcoming obligations and savings goals with more confidence."],
-  ["03 / MOVE TOGETHER", "Build better habits together", "Coordinate household responsibilities and make shared decisions with clarity."],
+const audiences = [
+  { title: "For individuals", body: "Bring your accounts, income, expenses, savings and ambitions together. Understand your finances and take control of your next decision." },
+  { title: "For households", body: "Coordinate shared finances, household expenses, recurring obligations and financial priorities. Give everyone a clearer picture of what needs to be managed." },
+  { title: "For families", body: "Bring family responsibilities, dependants, contributions, shared goals and long-term plans into one financial foundation." },
 ];
+
+const foundations = [
+  ["01", "Money clarity", "Know what you have, where it lives and how it moves."],
+  ["02", "Planning", "Give your spending, bills and commitments a place in the bigger picture."],
+  ["03", "Protection", "Prepare for obligations, build financial resilience and understand what is available after commitments."],
+  ["04", "Wealth", "Turn consistent financial decisions into savings, investments and growing net worth."],
+  ["05", "Legacy", "Build financial habits, stability and a foundation that can support the next season of life."],
+];
+
+const responsibilities = [
+  "You and your personal finances",
+  "Partners and shared responsibilities",
+  "Children and dependants",
+  "Family obligations and contributions",
+  "Shared financial goals",
+  "The future you are building",
+];
+
+function SectionLabel({ children }: { children: React.ReactNode }) {
+  return <p className="ipile-marketing-kicker">{children}</p>;
+}
+
+function SectionHeading({ label, title, body }: { label: string; title: string; body?: string }) {
+  return (
+    <div className="max-w-2xl">
+      <SectionLabel>{label}</SectionLabel>
+      <h2 className="mt-4 font-display text-4xl leading-tight tracking-tight text-[#050807] md:text-5xl">{title}</h2>
+      {body ? <p className="mt-5 text-base leading-8 text-[#737973]">{body}</p> : null}
+    </div>
+  );
+}
+
+function PrimaryLink({ children = "Build your financial foundation", href = "/get-started" }: { children?: React.ReactNode; href?: string }) {
+  return <Link href={href} className="ipile-marketing-pill">{children}<ArrowUpRight size={16} aria-hidden="true" /></Link>;
+}
 
 export function LandingMockup() {
   return (
@@ -16,58 +51,148 @@ export function LandingMockup() {
       <header className="ipile-marketing-nav">
         <Link href="/" aria-label="IPÌLẸ̀ home"><Wordmark size="sm" priority /></Link>
         <nav aria-label="Main navigation">
-          <a href="#how">How it works</a><a href="#platform">Platform</a><a href="#features">Features</a><a href="#about">Our approach</a>
+          <a href="#foundation">Platform</a><a href="#who-its-for">Who it is for</a><a href="#family">Shared finances</a><a href="#preview">Product preview</a>
         </nav>
         <div className="ipile-marketing-nav-actions">
           <Link href="/login" className="ipile-marketing-signin">Sign in</Link>
-          <Link href="/get-started" className="ipile-marketing-pill">Get started <ArrowUpRight size={15} /></Link>
+          <PrimaryLink>Get started</PrimaryLink>
         </div>
-        <details className="ipile-marketing-mobile-menu"><summary aria-label="Open navigation">☰</summary><nav><a href="#how">How it works</a><a href="#platform">Platform</a><a href="#features">Features</a><a href="#about">Our approach</a><Link href="/login">Sign in</Link><Link href="/get-started">Get started</Link></nav></details>
+        <details className="ipile-marketing-mobile-menu">
+          <summary aria-label="Open navigation">☰</summary>
+          <nav><a href="#foundation">Platform</a><a href="#who-its-for">Who it is for</a><a href="#family">Shared finances</a><a href="#preview">Product preview</a><Link href="/login">Sign in</Link><Link href="/get-started">Get started</Link></nav>
+        </details>
       </header>
 
       <section className="ipile-marketing-hero">
         <div className="ipile-marketing-hero-copy">
-          <p className="ipile-marketing-eyebrow">A better way to manage money</p>
-          <h1>Your money.<br /><em>In harmony.</em></h1>
-          <p className="ipile-marketing-lead">A clearer picture of your household finances. Bring your accounts, spending, plans and people together in one considered space.</p>
-          <div className="ipile-marketing-actions"><Link href="/get-started" className="ipile-marketing-pill">Discover IPÌLẸ̀ <ArrowUpRight size={16} /></Link><a href="#platform">Explore the platform ↓</a></div>
-          <p className="ipile-marketing-note">Clarity for today · Confidence for tomorrow</p>
+          <p className="ipile-marketing-eyebrow">Your financial life, in one clear picture</p>
+          <h1>Bring your financial life<br /><em>into focus.</em></h1>
+          <p className="ipile-marketing-lead max-w-3xl">IPÌLẸ̀ brings your money, accounts, spending, commitments, plans and wealth together in one considered space — helping individuals, households and families understand where they stand and make more confident financial decisions.</p>
+          <div className="ipile-marketing-actions">
+            <PrimaryLink />
+            <a href="#how-it-works">See how it works <ArrowDown className="inline h-4 w-4" aria-hidden="true" /></a>
+          </div>
+          <p className="mx-auto mt-7 max-w-2xl text-sm leading-7 text-[#737973]">Know what you have. Know what it is committed to. Know what you can safely spend. See what you are building towards.</p>
+          <p className="ipile-marketing-note">Your money. In harmony.</p>
         </div>
         <div className="ipile-marketing-orbit" aria-hidden="true"><span className="orbit-a" /><span className="orbit-b" /><span className="orbit-line" /></div>
-        <a className="ipile-marketing-scroll" href="#how">Scroll to explore</a>
+        <a className="ipile-marketing-scroll" href="#how-it-works">Scroll to explore</a>
       </section>
 
-      <section className="ipile-marketing-section" id="how">
+      <section className="ipile-marketing-section" id="how-it-works">
         <div className="ipile-marketing-intro">
-          <div><p className="ipile-marketing-kicker">One view. More perspective.</p><h2>Make room for<br />better money decisions.</h2></div>
-          <p>Your financial life is connected. Your tools should be too. IPÌLẸ̀ helps you understand what comes in, what goes out, what you are building, and what needs your attention.</p>
+          <div><SectionLabel>The whole picture</SectionLabel><h2>Your financial life is connected.<br />Your money shouldn&apos;t feel scattered.</h2></div>
+          <div className="space-y-4 text-base leading-8 text-[#737973]">
+            <p>Income arrives in one account. Bills leave another. Savings sit somewhere else. Family obligations compete with personal priorities. Goals get postponed because it is difficult to see the whole picture.</p>
+            <p>Whether you manage your finances independently or share responsibilities with others, financial clarity starts with seeing everything together.</p>
+            <p className="font-medium text-[#003d35]">IPÌLẸ̀ gives your financial life one place to come together.</p>
+          </div>
         </div>
-        <div className="ipile-marketing-features" id="features">
-          {features.map(([number,title,body]) => <article key={number}><span>{number}</span><h3>{title}</h3><p>{body}</p></article>)}
+        <div className="ipile-marketing-features" id="whole-picture">
+          {["Accounts", "Income", "Spending", "Commitments", "Savings", "Investments", "Family", "Goals"].map((item, index) => <article key={item}><span>0{index + 1}</span><h3>{item}</h3></article>)}
         </div>
       </section>
 
-      <section className="ipile-marketing-preview" id="platform">
-        <div className="ipile-marketing-preview-head"><div><p className="ipile-marketing-kicker">A calmer financial workspace</p><h2>Everything, in its place.</h2></div><p>A first look at the IPÌLẸ̀ household dashboard. The figures below are sample content for this design preview.</p></div>
+      <section className="px-6 py-20 md:px-12 md:py-28" id="foundation">
+        <div className="mx-auto max-w-7xl">
+          <SectionHeading label="One financial foundation" title="Everything you need to understand, plan and build your financial future." body="Your money has different responsibilities. IPÌLẸ̀ helps you see them, organise them and understand what comes next." />
+          <div className="mt-14 grid gap-px border border-[#dcded8] bg-[#dcded8] md:grid-cols-2">
+            {[
+              ["01", "Know your money", "Accounts, income, transactions and cash flow. Understand where your money lives, where it goes and how it moves."],
+              ["02", "Plan what matters", "Budgets, bills, recurring expenses, obligations and sinking funds. Prepare for commitments before they become urgent."],
+              ["03", "Build your wealth", "Savings, investments, financial goals, assets and net worth. Track your progress and build towards the future you want."],
+              ["04", "Make better decisions", "Safe to Spend, financial simulations, insights and reports. Understand the consequences of financial decisions using your financial picture."],
+            ].map(([number, title, body]) => <article key={number} className="bg-[#f7f6f2] p-7 md:p-10">
+              <span className="text-xs font-semibold tracking-[.2em] text-[#b28c4b]">{number}</span><h3 className="mt-5 font-display text-3xl text-[#050807]">{title}</h3><p className="mt-4 max-w-md text-sm leading-7 text-[#737973]">{body}</p>
+            </article>)}
+          </div>
+          <div className="mt-9"><PrimaryLink>Explore the platform</PrimaryLink></div>
+        </div>
+      </section>
+
+      <section className="ipile-marketing-section" id="who-its-for">
+        <div className="ipile-marketing-intro">
+          <div><SectionLabel>Built around real financial life</SectionLabel><h2>Your finances are personal. Your financial responsibilities are unique.</h2></div>
+          <p>IPÌLẸ̀ works around the way you actually manage money — whether that means managing it alone or coordinating it with others.</p>
+        </div>
+        <div className="grid gap-5 md:grid-cols-3">
+          {audiences.map((item, index) => <article key={item.title} className="border-t-2 border-[#003d35] bg-white/60 p-6 md:p-8"><span className="text-xs tracking-[.2em] text-[#b28c4b]">0{index + 1}</span><h3 className="mt-7 font-display text-3xl text-[#050807]">{item.title}</h3><p className="mt-4 text-sm leading-7 text-[#737973]">{item.body}</p></article>)}
+        </div>
+        <p className="mt-12 text-center font-display text-2xl text-[#003d35]">One platform. Different financial lives. A clearer picture for everyone.</p>
+      </section>
+
+      <section className="ipile-marketing-split" id="family">
+        <div className="ipile-marketing-visual"><div className="visual-glow" /><article><small>THE PEOPLE BEHIND THE NUMBERS</small><strong>Money is personal.</strong><small>Financial life can be shared.</small><hr /><footer><span>IPÌLẸ̀ FINANCIAL FOUNDATION</span><span>02 / 05</span></footer></article></div>
+        <div className="ipile-marketing-split-copy">
+          <SectionLabel>The people behind the numbers</SectionLabel>
+          <h2>Money is personal.<br />Financial life can be shared.</h2>
+          <p>Your finances aren&apos;t just about what you spend. They&apos;re also about the people you support, the responsibilities you carry, the goals you share and the future you are preparing for.</p>
+          <p>IPÌLẸ̀ helps you bring those responsibilities into the bigger financial picture.</p>
+          <ul className="mt-6 space-y-3 text-sm text-[#505750]">{responsibilities.map((item) => <li key={item} className="flex items-center gap-3"><Check size={16} className="text-[#003d35]" aria-hidden="true" />{item}</li>)}</ul>
+          <p className="mt-6 text-sm leading-7 text-[#737973]">Whether you manage these responsibilities independently or together, IPÌLẸ̀ helps you see how they fit into your financial life.</p>
+        </div>
+      </section>
+
+      <section className="px-6 py-20 md:px-12 md:py-28">
+        <div className="mx-auto grid max-w-7xl gap-12 lg:grid-cols-[.8fr_1.2fr]">
+          <SectionHeading label="Underneath it all" title="A clearer foundation for every stage of your financial life." />
+          <div className="border-t border-[#dcded8]">{foundations.map(([number, title, body]) => <article key={number} className="grid grid-cols-[42px_1fr] gap-4 border-b border-[#dcded8] py-6"><span className="pt-1 text-xs tracking-[.18em] text-[#b28c4b]">{number}</span><div><h3 className="font-display text-2xl text-[#050807]">{title}</h3><p className="mt-2 max-w-lg text-sm leading-7 text-[#737973]">{body}</p></div></article>)}</div>
+        </div>
+      </section>
+
+      <section className="ipile-marketing-preview" id="preview">
+        <div className="ipile-marketing-preview-head"><div><SectionLabel>A window into IPÌLẸ̀</SectionLabel><h2>See your financial picture clearly.</h2></div><p>Not just a collection of accounts and transactions. A considered view of what you have, what is committed, what needs attention and what is getting stronger.</p></div>
         <div className="ipile-marketing-dashboard">
-          <div className="dashboard-top"><strong>IPÌLẸ̀ <span>·</span></strong><small>Household workspace　⌄　　◉ Olu A.</small></div>
+          <div className="dashboard-top"><strong>IPÌLẸ̀ <span>·</span></strong><small>Household workspace　⌄　　◉ Sample profile</small></div>
           <div className="dashboard-body"><aside><b>◫　Overview</b><span>▣　Money</span><span>▤　Planning</span><span>◇　Wealth</span><span>⌁　Insights</span><span>♧　Family</span><span className="settings">⚙　Settings</span></aside>
-            <div className="dashboard-main"><h3>Your household, in balance.</h3><p className="dashboard-caption">A clear view of where your money stands · Sample dashboard</p>
-              <div className="dashboard-metrics"><article><small>Household net worth</small><strong>₦24,850,000</strong><span>↗ 6.8% this month</span></article><article><small>Monthly income</small><strong>₦4,250,000</strong><span>↗ 3.6%</span></article><article><small>Monthly spending</small><strong>₦1,680,000</strong><span>On track</span></article></div>
-              <div className="dashboard-lower"><article><h4>Cash flow · Last 6 months</h4><div className="dashboard-chart">{[54,68,61,79,72,91].map((height,i)=><i key={i} style={{height:height+"%"}} />)}</div><div className="dashboard-months"><span>JUN</span><span>JUL</span><span>AUG</span><span>SEP</span><span>OCT</span><span>NOV</span></div></article>
-                <article><h4>Monthly plan</h4>{[["Housing",40],["Food & groceries",20],["Transport",12],["Other",28]].map(([label,value],i)=><div className="dashboard-budget" key={label as string}><div><span>{label}</span><b>{value}%</b></div><i><span style={{width:value+"%",background:i===1?"#c9a45c":i===2?"#8da994":i===3?"#b7b2a6":"#003d35"}} /></i></div>)}</article></div>
+            <div className="dashboard-main">
+              <h3>Good morning.</h3><p className="dashboard-caption">Your financial overview · Illustrative product preview</p>
+              <div className="grid gap-4 md:grid-cols-2">
+                <article className="rounded-sm bg-[#003d35] p-6 text-white"><small className="uppercase tracking-[.16em] text-white/65">Safe to Spend</small><strong className="mt-3 block text-4xl font-semibold">₦548,000</strong><p className="mt-3 text-xs leading-6 text-white/70">Available after planned commitments, protection and wealth allocations.</p></article>
+                <div className="grid grid-cols-2 gap-3">
+                  {[["Financial health","82 / 100"],["Net worth","₦4.8M"],["Emergency fund","₦900K"],["Investments","₦2.1M"]].map(([label,value]) => <article key={label} className="border border-[#e2e3de] p-4"><small className="text-[#737973]">{label}</small><strong className="mt-3 block text-xl text-[#050807]">{value}</strong></article>)}
+                </div>
+              </div>
+              <div className="dashboard-lower">
+                <article><h4>Upcoming obligations</h4>{[["University fees","Due in 18 days"],["Parents’ rent","Due in 42 days"]].map(([label,value]) => <div className="dashboard-budget" key={label}><div><span>{label}</span><b>{value}</b></div></div>)}</article>
+                <article><h4>What needs attention?</h4>{[["Food spending is approaching its budget","Review your plan"],["Relocation goal is on track","Keep building"]].map(([label,value]) => <div className="dashboard-budget" key={label}><div><span>{label}</span><b>{value}</b></div></div>)}</article>
+              </div>
             </div>
           </div>
         </div>
+        <p className="mx-auto mt-5 max-w-7xl text-xs text-[#737973]">Illustrative product preview — sample figures, not live account data.</p>
+        <p className="mx-auto mt-8 max-w-7xl text-center font-display text-2xl text-[#003d35]">One picture. Better awareness. More confident decisions.</p>
       </section>
 
-      <section className="ipile-marketing-split" id="about">
-        <div className="ipile-marketing-visual"><div className="visual-glow" /><article><small>HOUSEHOLD OVERVIEW</small><strong>₦ 4,250,000</strong><small>Monthly household income</small><hr /><footer><span>IPÌLẸ̀ FINANCIAL SPACE</span><span>01 / 04</span></footer></article></div>
-        <div className="ipile-marketing-split-copy"><p className="ipile-marketing-kicker">Designed around real life</p><h2>More than numbers.<br />A stronger foundation.</h2><p>From everyday spending to long-term goals, IPÌLẸ̀ gives your household the context to make thoughtful financial decisions. Less scattered information. More confidence in the next step.</p><Link href="/get-started" className="ipile-marketing-pill">Explore the experience <ArrowUpRight size={16} /></Link></div>
+      <section className="px-6 py-20 md:px-12 md:py-28" id="decision-support">
+        <div className="mx-auto grid max-w-7xl gap-14 lg:grid-cols-[1fr_.9fr] lg:items-center">
+          <div><SectionLabel>Decision support</SectionLabel><h2 className="mt-4 max-w-xl font-display text-4xl leading-tight text-[#050807] md:text-5xl">Before you make a financial decision, understand what it changes.</h2>
+            <p className="mt-6 max-w-xl text-base leading-8 text-[#737973]">IPÌLẸ̀ goes beyond recording what has happened. Its financial simulator helps you explore possible outcomes and understand how decisions could affect your plans.</p>
+            <p className="mt-4 max-w-xl text-base leading-8 text-[#737973]">What happens if your income changes? What if you take on a new obligation? What happens to your savings, commitments and financial goals?</p>
+            <p className="mt-5 font-medium text-[#003d35]">Explore the possibilities before making the decision.</p>
+          </div>
+          <div className="border border-[#dcded8] bg-white p-6 md:p-8"><div className="flex items-center justify-between"><SectionLabel>Illustrative scenario</SectionLabel><span className="text-xs text-[#b28c4b]">What if?</span></div>
+            <h3 className="mt-6 font-display text-3xl text-[#050807]">What if your income drops by 20%?</h3>
+            <div className="mt-6 grid grid-cols-2 gap-3"><article className="bg-[#f7f6f2] p-4"><small className="text-[#737973]">Current monthly income</small><strong className="mt-2 block text-2xl">₦2.0M</strong></article><article className="bg-[#f7f6f2] p-4"><small className="text-[#737973]">Projected monthly income</small><strong className="mt-2 block text-2xl">₦1.6M</strong></article></div>
+            <div className="mt-6 space-y-4 border-t border-[#e2e3de] pt-5 text-sm">{[["Safe to Spend","Recalculated"],["Emergency fund","Protection priorities maintained in the scenario"],["Financial goals","Timeline may need adjustment"],["Surplus","Reassessed against new income"]].map(([label,value]) => <div key={label} className="flex items-start justify-between gap-4"><span className="text-[#737973]">{label}</span><span className="max-w-[60%] text-right text-[#050807]">{value}</span></div>)}</div>
+          </div>
+        </div>
+        <div className="mx-auto mt-10 max-w-7xl"><PrimaryLink>Explore the foundation</PrimaryLink></div>
       </section>
 
-      <section className="ipile-marketing-cta"><p className="ipile-marketing-kicker">Your next chapter starts here</p><h2>Bring your financial life into focus.</h2><p>A thoughtful space for your household to see clearly, plan confidently and move forward together.</p><Link href="/get-started" className="ipile-marketing-pill">Get to know IPÌLẸ̀ <ArrowUpRight size={16} /></Link></section>
-      <footer className="ipile-marketing-footer"><div><Wordmark size="sm" /><small>Clarity for today. Confidence for tomorrow.</small></div><nav><a href="#how">How it works</a><a href="#platform">Platform</a><a href="#features">Features</a><a href="mailto:hello@ipile.app">Contact</a></nav><small>© 2026 IPÌLẸ̀. All rights reserved.</small></footer>
+      <section className="ipile-marketing-cta">
+        <p className="ipile-marketing-kicker">Your next chapter starts with clarity</p>
+        <h2>A better understanding of your money starts here.</h2>
+        <p>Whether you are organising your personal finances, managing a household or planning for your family&apos;s future, IPÌLẸ̀ gives you a clearer place to begin.</p>
+        <p className="mx-auto mt-4 max-w-xl text-sm leading-7 text-white/70">Bring everything together. Understand where you stand. Make your next financial decision with confidence.</p>
+        <div className="mt-9 flex flex-wrap justify-center gap-4"><PrimaryLink>Build your financial foundation</PrimaryLink><Link href="#how-it-works" className="px-4 py-3 text-sm text-white/80 underline underline-offset-4">See how IPÌLẸ̀ works</Link></div>
+        <p className="mt-8 text-xs tracking-[.18em] text-white/60">Your money. In harmony.</p>
+      </section>
+      <footer className="ipile-marketing-footer">
+        <div><Wordmark size="sm" /><small>Clarity for today. Confidence for tomorrow.</small></div>
+        <nav><a href="#foundation">Platform</a><a href="#who-its-for">Who it is for</a><a href="#family">Shared finances</a><a href="#preview">Product preview</a><Link href="/login">Sign in</Link><Link href="/get-started">Get started</Link></nav>
+        <small>© 2026 IPÌLẸ̀. All rights reserved.</small>
+      </footer>
     </main>
   );
 }
