@@ -1,7 +1,7 @@
 from datetime import date
 from decimal import Decimal
 from types import SimpleNamespace
-from uuid import uuid4
+from uuid import UUID, uuid4
 
 from app.services.transaction_patterns import (
     detect_recurring_payments,
@@ -9,12 +9,20 @@ from app.services.transaction_patterns import (
 )
 
 
-def _transaction(*, day, amount="100.00", merchant="Netflix", tx_id=None):
+def _transaction(
+    *,
+    day: date,
+    amount: str = "100.00",
+    merchant: str = "Netflix",
+    tx_id: UUID | None = None,
+    account_id: str = "account-1",
+    currency: str = "NGN",
+) -> SimpleNamespace:
     return SimpleNamespace(
         id=tx_id or uuid4(),
-        account_id="account-1",
+        account_id=account_id,
         category_id="category-1",
-        currency="NGN",
+        currency=currency,
         type="expense",
         status="cleared",
         deleted_at=None,
@@ -103,4 +111,15 @@ def test_bank_sender_domain_and_generic_alert_subject_do_not_become_payees():
     ]
     for row in rows:
         row.description = "Debit Alert"
+    assert detect_recurring_payments(rows, today=date(2026, 3, 6)) == []
+
+
+
+def test_recurring_detection_never_mixes_accounts_or_currencies():
+    rows = [
+        _transaction(day=date(2026, 1, 5), account_id="account-1"),
+        _transaction(day=date(2026, 2, 5), account_id="account-1"),
+        _transaction(day=date(2026, 3, 5), account_id="account-2"),
+        _transaction(day=date(2026, 1, 5), currency="USD"),
+    ]
     assert detect_recurring_payments(rows, today=date(2026, 3, 6)) == []
