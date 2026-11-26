@@ -15,7 +15,9 @@ class Household(Base):
     id: Mapped[uuid.UUID] = mapped_column(Uuid, primary_key=True, default=uuid.uuid4)
     name: Mapped[str] = mapped_column(String(200))
     slug: Mapped[str] = mapped_column(String(80), unique=True, index=True)
+    # Native ledger currency; historical transaction amounts stay unchanged.
     base_currency: Mapped[str] = mapped_column(String(3), default="NGN")
+    reporting_currency: Mapped[str] = mapped_column(String(3), default="NGN")
     # ISO 4217 currency used for consolidated household reporting; never rewrites ledger amounts.
     timezone: Mapped[str] = mapped_column(String(64), default="Africa/Lagos")
     country: Mapped[str] = mapped_column(String(2), default="NG")

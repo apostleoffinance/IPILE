@@ -21,6 +21,7 @@ import {
   exportHousehold,
   getBilling,
   getCurrentHousehold,
+  getCurrencyCatalog,
   updateCurrentHousehold,
   listInvites,
   listSupportTickets,
@@ -43,6 +44,9 @@ export default function SettingsPage() {
   const [householdName, setHouseholdName] = useState("");
   const [bufferAmount, setBufferAmount] = useState("");
   const [fiscalMonth, setFiscalMonth] = useState("1");
+  const [reportingCurrency, setReportingCurrency] = useState("NGN");
+  const [currencies, setCurrencies] = useState<{ code: string; name: string; symbol: string }[]>([]);
+  const [displayCurrency, setDisplayCurrency] = useState("NGN");
   const [canManageHousehold, setCanManageHousehold] = useState(false);
   const [invites, setInvites] = useState<Invite[]>([]);
   const [tickets, setTickets] = useState<SupportTicket[]>([]);
@@ -55,12 +59,13 @@ export default function SettingsPage() {
   const [newPassword, setNewPassword] = useState("");
 
   async function refresh() {
-    const [nextBilling, nextInvites, nextTickets, nextHousehold, me] = await Promise.all([
+    const [nextBilling, nextInvites, nextTickets, nextHousehold, me, currencyCatalog] = await Promise.all([
       getBilling(),
       listInvites().catch(() => [] as Invite[]),
       listSupportTickets(),
       getCurrentHousehold(),
       api.me(),
+      getCurrencyCatalog(),
     ]);
     setBilling(nextBilling);
     setHousehold(nextHousehold);
@@ -68,11 +73,14 @@ export default function SettingsPage() {
     setHouseholdName(nextHousehold.name);
     setBufferAmount(nextHousehold.minimum_buffer_amount);
     setFiscalMonth(String(nextHousehold.fiscal_month_start_day));
+    setReportingCurrency(nextHousehold.reporting_currency || nextHousehold.base_currency);
+    setCurrencies(currencyCatalog.currencies);
     setInvites(nextInvites);
     setTickets(nextTickets);
   }
 
   useEffect(() => {
+    setDisplayCurrency(window.localStorage.getItem("ipile_display_currency") || "NGN");
     refresh()
       .then(() => setReady(true))
       .catch((err: Error) => {
@@ -91,12 +99,14 @@ export default function SettingsPage() {
         name: householdName.trim(),
         minimum_buffer_amount: bufferAmount,
         fiscal_month_start_day: Number(fiscalMonth),
+        reporting_currency: reportingCurrency,
       });
       setHousehold(updated);
       setHouseholdName(updated.name);
       setBufferAmount(updated.minimum_buffer_amount);
       setFiscalMonth(String(updated.fiscal_month_start_day));
-      setMessage("Household settings saved.");
+      setReportingCurrency(updated.reporting_currency);
+      setMessage("Household settings saved. Existing account and transaction amounts were not changed.");
     } catch (err) {
       setError(err instanceof Error ? err.message : "Could not save household settings.");
     } finally {
@@ -201,9 +211,23 @@ export default function SettingsPage() {
             <label>Household name<Input value={householdName} onChange={(e) => setHouseholdName(e.target.value)} maxLength={200} required disabled={!canManageHousehold} /></label>
             <label>Minimum cash buffer<Input value={bufferAmount} onChange={(e) => setBufferAmount(e.target.value)} inputMode="decimal" required disabled={!canManageHousehold} /></label>
             <label>Fiscal period starts on day<Input type="number" min={1} max={28} step={1} value={fiscalMonth} onChange={(e) => setFiscalMonth(e.target.value)} disabled={!canManageHousehold} required /></label>
-            <div className="ipile-settings-readonly"><span>Primary currency</span><strong>{household.base_currency}</strong><span>Time zone</span><strong>{household.timezone}</strong><span>Country</span><strong>{household.country}</strong><p>Primary currency is selected during onboarding and remains fixed to protect financial history. Individual accounts can use other currencies.</p></div>
+            <label>Household reporting currency
+              <Select value={reportingCurrency} onChange={(e) => setReportingCurrency(e.target.value)} disabled={!canManageHousehold}>
+                {currencies.map((currency) => <option key={currency.code} value={currency.code}>{currency.code} — {currency.name}</option>)}
+              </Select>
+              <span className="text-xs text-muted">Used as the household's consolidated reporting currency. This does not rewrite account balances or historical transaction amounts.</span>
+            </label>
+            <div className="ipile-settings-readonly"><span>Ledger currency at onboarding</span><strong>{household.base_currency}</strong><span>Time zone</span><strong>{household.timezone}</strong><span>Country</span><strong>{household.country}</strong><p>Account currency remains specific to each account. Historical transaction amounts are preserved in their original currency.</p></div>
             <div className="ipile-settings-form-actions">{canManageHousehold ? <Button type="submit" disabled={pending || !householdName.trim()}>Save household settings</Button> : <span>Only a household owner can change these settings.</span>}<span>Changes are recorded by the household settings API.</span></div>
           </form> : <LoadingState />}
+        </section>
+
+        <section className="max-w-xl space-y-3">
+          <h2 className="text-lg font-medium">Display preference</h2>
+          <p className="text-sm text-muted">Choose your preferred currency for financial views that support currency conversion. Native account and transaction amounts remain labelled in their original currency.</p>
+          <Select value={displayCurrency} onChange={(e) => { setDisplayCurrency(e.target.value); window.localStorage.setItem("ipile_display_currency", e.target.value); window.dispatchEvent(new Event("ipile:display-currency-changed")); }}>
+            {currencies.map((currency) => <option key={currency.code} value={currency.code}>{currency.code} — {currency.name}</option>)}
+          </Select>
         </section>
 
         <section className="max-w-xl space-y-3">

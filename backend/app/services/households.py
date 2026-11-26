@@ -53,6 +53,7 @@ def create_household_for_owner(
         name=name,
         slug=unique_slug(db, slug or slugify(name)),
         base_currency=base_currency.upper(),
+        reporting_currency=base_currency.upper(),
         timezone=COUNTRY_TIMEZONES.get(country.upper(), "UTC"),
         country=country.upper(),
         fiscal_month_start_day=1,

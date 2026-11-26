@@ -28,6 +28,7 @@ export type Household = {
   name: string;
   slug: string;
   base_currency: string;
+  reporting_currency: string;
   timezone: string;
   country: string;
   fiscal_month_start_day: number;
@@ -446,6 +447,7 @@ let csrfToken: string | undefined;
 
 export function setHouseholdId(id?: string) {
   householdId = id;
+  currentHouseholdCache = undefined;
   if (typeof window !== "undefined") {
     window.dispatchEvent(new Event("ipile:household-changed"));
   }
@@ -582,19 +584,44 @@ export function getOverview() {
   return request<HouseholdOverview>("/api/v1/overview");
 }
 
-export function getCurrentHousehold() {
-  return request<Household>("/api/v1/households/current");
+let currentUserCache: { value: Promise<User>; expiresAt: number } | undefined;
+let currentHouseholdCache: { householdId: string | undefined; value: Promise<Household>; expiresAt: number } | undefined;
+
+export function getCurrentUser() {
+  const now = Date.now();
+  if (currentUserCache && currentUserCache.expiresAt > now) return currentUserCache.value;
+  const value = request<User>("/api/v1/auth/me").catch((error) => { currentUserCache = undefined; throw error; });
+  currentUserCache = { value, expiresAt: now + 15_000 };
+  return value;
 }
 
-export function updateCurrentHousehold(body: {
+export function invalidateCurrentUserCache() { currentUserCache = undefined; }
+
+export function getCurrentHousehold() {
+  const now = Date.now();
+  if (currentHouseholdCache && currentHouseholdCache.householdId === householdId && currentHouseholdCache.expiresAt > now) return currentHouseholdCache.value;
+  const value = request<Household>("/api/v1/households/current").catch((error) => { currentHouseholdCache = undefined; throw error; });
+  currentHouseholdCache = { householdId, value, expiresAt: now + 15_000 };
+  return value;
+}
+
+export function getCurrencyCatalog() {
+  return request<{ currencies: { code: string; name: string; symbol: string }[]; default: string }>("/api/v1/currencies");
+}
+
+export async function updateCurrentHousehold(body: {
   name?: string;
   minimum_buffer_amount?: string;
   fiscal_month_start_day?: number;
+  reporting_currency?: string;
 }) {
-  return request<Household>("/api/v1/households/current", {
+  const household = await request<Household>("/api/v1/households/current", {
     method: "PATCH",
     body: JSON.stringify(body),
   });
+  currentHouseholdCache = undefined;
+  if (typeof window !== "undefined") window.dispatchEvent(new Event("ipile:household-changed"));
+  return household;
 }
 
 export function getFinancialHealth() {
@@ -1230,7 +1257,7 @@ export function recordInvestmentTx(
 
 export const api = {
   health: () => request<{ status: string }>("/api/v1/health"),
-  me: () => request<User>("/api/v1/auth/me"),
+  me: () => getCurrentUser(),
   register: (body: {
     email: string;
     password: string;
@@ -1240,6 +1267,7 @@ export const api = {
   }) =>
     request<User>("/api/v1/auth/register", { method: "POST", body: JSON.stringify(body) }).then(
       (user) => {
+        invalidateCurrentUserCache();
         clearCsrfToken();
         return user;
       },
@@ -1253,6 +1281,7 @@ export const api = {
     ),
   logout: () =>
     request<void>("/api/v1/auth/logout", { method: "POST" }).then(() => {
+      invalidateCurrentUserCache();
       clearCsrfToken();
     }),
   changePassword: (body: { current_password: string; new_password: string }) =>
@@ -1336,7 +1365,7 @@ export const api = {
     // Resolve the current household member using endpoints already supported
     // by those deployments, while preserving household scoping.
     const [user, members] = await Promise.all([
-      request<User>("/api/v1/auth/me"),
+      getCurrentUser(),
       request<Member[]>("/api/v1/members"),
     ]);
     const member = members.find((row) => row.user_id === user.id);
