@@ -3,6 +3,12 @@ from datetime import date
 from decimal import Decimal
 
 from app.services.import_adapters import ImportRow
+from app.services.statement_intelligence.schema import (
+    ExtractionIssue,
+    ExtractionResult,
+    StatementSummary,
+)
+from app.services.statement_intelligence.validation import validate_statement
 
 from fastapi.testclient import TestClient
 
@@ -58,9 +64,9 @@ def test_scanned_image_statement_is_staged_for_review(client: TestClient, monkey
         json={"name": "Current", "type": "bank", "current_balance": "5000.00"},
     ).json()
 
-    def fake_parse(_content: bytes, suffix: str):
+    def fake_extract(_content: bytes, suffix: str):
         assert suffix == "png"
-        return [
+        rows = [
             ImportRow(
                 date=date(2026, 11, 26),
                 amount=Decimal("1500.00"),
@@ -68,9 +74,15 @@ def test_scanned_image_statement_is_staged_for_review(client: TestClient, monkey
                 description="ATM withdrawal",
                 external_id="ocr-image-1",
             )
-        ], "image_ocr"
+        ]
+        return ExtractionResult(
+            rows=rows,
+            extraction_method="image_ocr",
+            validation=validate_statement(rows),
+            confidence=0.6,
+        )
 
-    monkeypatch.setattr("app.api.v1.imports.parse_statement_document", fake_parse)
+    monkeypatch.setattr("app.api.v1.imports.extract_statement_document", fake_extract)
     preview = client.post(
         "/api/v1/imports/preview-upload",
         data={"account_id": account["id"]},
@@ -81,3 +93,66 @@ def test_scanned_image_statement_is_staged_for_review(client: TestClient, monkey
     assert preview.json()["result"]["extraction_method"] == "image_ocr"
     assert preview.json()["result"]["row_count"] == 1
     assert client.get("/api/v1/transactions").json() == []
+
+
+
+def test_unreconciled_statement_is_staged_but_cannot_be_committed(
+    client: TestClient, monkeypatch
+) -> None:
+    register(client, "unreconciled-statement@example.com")
+    account = client.post(
+        "/api/v1/accounts",
+        json={"name": "Current", "type": "bank", "current_balance": "5000.00"},
+    ).json()
+
+    def fake_extract(_content: bytes, suffix: str):
+        assert suffix == "pdf"
+        rows = [
+            ImportRow(
+                date=date(2026, 1, 1),
+                amount=Decimal("100.00"),
+                type="expense",
+                description="Unverified transaction",
+                external_id="unreconciled-1",
+                currency="NGN",
+            )
+        ]
+        summary = StatementSummary(
+            total_debits=Decimal("200.00"),
+            debit_count=2,
+            currency="NGN",
+        )
+        validation = validate_statement(rows, summary)
+        return ExtractionResult(
+            rows=rows,
+            summary=summary,
+            extraction_method="pdf_text_layout",
+            issues=list(validation.issues),
+            validation=validation,
+            confidence=0.9,
+        )
+
+    monkeypatch.setattr("app.api.v1.imports.extract_statement_document", fake_extract)
+    preview = client.post(
+        "/api/v1/imports/preview-upload",
+        data={"account_id": account["id"]},
+        files={"file": ("statement.pdf", b"statement", "application/pdf")},
+    )
+    assert preview.status_code == 201, preview.text
+    extraction = preview.json()["result"]["extraction"]
+    assert extraction["status"] == "incomplete"
+    assert extraction["requires_manual_review"] is True
+    assert extraction["validation"]["debit_count"] == 1
+    assert any(issue["code"] == "debit_count_mismatch" for issue in extraction["issues"])
+    assert client.get("/api/v1/transactions").json() == []
+
+    committed = client.post(
+        f"/api/v1/imports/jobs/{preview.json()['id']}/commit",
+        json={"account_id": account["id"]},
+    )
+    assert committed.status_code == 400
+    assert "unresolved extraction or reconciliation issues" in committed.json()["detail"]
+    assert client.get("/api/v1/transactions").json() == []
+    assert Decimal(client.get("/api/v1/accounts").json()[0]["current_balance"]) == Decimal(
+        "5000.00"
+    )
