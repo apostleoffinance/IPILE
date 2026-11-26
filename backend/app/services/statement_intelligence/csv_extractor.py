@@ -80,6 +80,7 @@ def parse_universal_csv(content: str) -> list[ImportRow]:
     balance_index = mapping.index_for(CanonicalField.BALANCE)
     currency_index = mapping.index_for(CanonicalField.CURRENCY)
     direction_index = mapping.index_for(CanonicalField.DIRECTION)
+    transaction_type_index = mapping.index_for(CanonicalField.TRANSACTION_TYPE)
     inferred_currency = _currency_from_headers(headers)
     rows: list[ImportRow] = []
     for row_number, values in enumerate(reader, start=2):
