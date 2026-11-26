@@ -104,19 +104,37 @@ def parse_universal_csv(content: str) -> list[ImportRow]:
                 raw_amount = cell(amount_index)
                 amount = _parse_amount(raw_amount)
                 direction = cell(direction_index).lower()
+                declared_type = cell(transaction_type_index).lower()
                 marker = raw_amount.upper()
                 is_debit = amount < 0 or "DR" in marker or direction in {
                     "debit", "dr", "out", "outgoing", "expense",
+                    "withdrawal", "withdraw", "payment",
                 }
                 is_credit = "CR" in marker or direction in {
-                    "credit", "cr", "in", "incoming", "income",
+                    "credit", "cr", "in", "incoming", "income", "refund", "deposit",
+                }
+                is_debit = is_debit or declared_type in {
+                    "debit", "dr", "withdrawal", "withdraw", "payment",
+                    "expense", "debit card", "withdrawal transaction",
+                }
+                is_credit = is_credit or declared_type in {
+                    "credit", "cr", "deposit", "income", "refund",
                 }
                 if is_debit == is_credit:
                     raise ValueError(
                         "Transaction direction is unclear; this amount was not guessed."
                     )
+                tx_type = declared_type or ("expense" if is_debit else "income")
+                if tx_type in {"debit", "dr", "withdrawal", "withdraw", "payment"}:
+                    tx_type = "expense"
+                elif tx_type in {"credit", "cr", "deposit"}:
+                    tx_type = "income"
+                if tx_type not in {
+                    "income", "expense", "refund", "transfer", "investment",
+                    "debt_payment", "giving",
+                }:
+                    tx_type = "expense" if is_debit else "income"
                 amount = -abs(amount) if is_debit else abs(amount)
-                tx_type = "expense" if is_debit else "income"
 
             description = cell(description_index) or None
             reference = cell(reference_index) or None
