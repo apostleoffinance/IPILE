@@ -81,19 +81,22 @@ def create_manual_rate(
         ExchangeRate.source == "manual",
     ).first()
     if existing:
-        existing.rate = payload.rate
-        db.add(existing)
-        row = existing
-    else:
-        row = ExchangeRate(
-            household_id=ctx.household.id,
-            base_currency=base,
-            quote_currency=quote,
-            rate=payload.rate,
-            rate_date=payload.rate_date,
-            source="manual",
+        raise HTTPException(
+            status_code=409,
+            detail=(
+                "A manual rate already exists for this currency pair and date. "
+                "Existing FX observations are immutable; use a new dated observation."
+            ),
         )
-        db.add(row)
+    row = ExchangeRate(
+        household_id=ctx.household.id,
+        base_currency=base,
+        quote_currency=quote,
+        rate=payload.rate,
+        rate_date=payload.rate_date,
+        source="manual",
+    )
+    db.add(row)
     db.commit()
     db.refresh(row)
     return row
