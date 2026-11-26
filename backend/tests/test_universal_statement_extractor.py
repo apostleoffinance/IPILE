@@ -2,9 +2,9 @@ from datetime import date
 from decimal import Decimal
 
 from app.services.statement_extraction import (
+    ExtractedTransaction,
     ExtractionMethod,
     ExtractionStatus,
-    ExtractedTransaction,
     TransactionDirection,
     extract_statement_document,
 )
