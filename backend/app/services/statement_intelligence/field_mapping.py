@@ -73,15 +73,7 @@ def map_statement_headers(headers: list[str] | tuple[str, ...]) -> ColumnMapping
         if len(positions) == 1
     }
     recognized = sum(len(positions) == 1 for positions in candidates.values())
-    confidence = recognized / max(1, len({
-        CanonicalField.TRANSACTION_DATE,
-        CanonicalField.DESCRIPTION,
-        CanonicalField.AMOUNT,
-        CanonicalField.DEBIT,
-        CanonicalField.CREDIT,
-        CanonicalField.BALANCE,
-        CanonicalField.REFERENCE,
-    }) & set(indexes))
+    confidence = min(1.0, recognized / 7)
     unmapped = tuple(headers[i] for i, header in enumerate(normalized) if not any(
         header in aliases for aliases in _NORMALIZED_ALIASES.values()
     ))
