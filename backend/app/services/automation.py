@@ -91,6 +91,7 @@ def _fund_from_allocation_lines(
                 Transaction.fund_id == fund.id,
                 Transaction.type == "transfer",
                 Transaction.description == period_tag,
+                Transaction.status.in_(("cleared", "reconciled")),
                 Transaction.deleted_at.is_(None),
             )
             .all()
