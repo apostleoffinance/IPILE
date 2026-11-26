@@ -208,6 +208,7 @@ def stage_import_rows(
     *,
     source: str,
     filename: str | None = None,
+    extraction: dict | None = None,
 ) -> ImportJob:
     """Persist normalized rows for review, never posting ledger effects."""
     if account.household_id != household.id or account.deleted_at is not None:
@@ -254,6 +255,12 @@ def stage_import_rows(
             "duplicate_count_at_preview": duplicate_count,
             "rows": serialized,
             "errors": [],
+            **({"extraction": extraction} if extraction else {}),
+            **(
+                {"extraction_method": extraction.get("extraction_method")}
+                if extraction and extraction.get("extraction_method")
+                else {}
+            ),
         },
     )
     db.add(job)
@@ -272,6 +279,12 @@ def commit_staged_import(
         raise ValueError("Import job not found.")
     if job.status != "pending_review" or job.source not in {"csv", "statement"}:
         raise ValueError("This import is not awaiting confirmation.")
+    extraction = job.result.get("extraction") or {}
+    if extraction.get("requires_manual_review"):
+        raise ValueError(
+            "This statement has unresolved extraction or reconciliation issues. "
+            "Review and correct the flagged information before importing it."
+        )
     if str(job.result.get("account_id")) != str(account_id):
         raise ValueError("Choose the account selected during preview.")
     account = (
@@ -314,6 +327,13 @@ def commit_staged_import(
         )
         for item in job.result.get("rows", [])
     ]
+    for row in rows:
+        row_currency = (row.currency or "").upper()
+        if row_currency and row_currency != account.currency.upper():
+            raise ValueError(
+                f"Statement currency {row_currency} does not match selected account currency "
+                f"{account.currency}. Choose an account in the statement currency."
+            )
     applied = apply_import_rows(
         db, household, account, rows, source=job.source, filename=job.filename
     )

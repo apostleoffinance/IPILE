@@ -29,10 +29,11 @@ from app.services.imports import (
     stage_import,
     stage_import_rows,
 )
-from app.services.pdf_imports import parse_statement_document
 from app.services.statement_extraction.extractor import extract_statement_document
 from app.services.statement_extraction.models import ExtractionStatus
 from app.services.statement_extraction.normalization import normalize_section_rows
+from app.services.statement_intelligence.schema import ExtractionResult
+from app.services.statement_intelligence.validation import validate_statement
 from app.services.transaction_intelligence import enrich_bank_alert
 
 router = APIRouter(prefix="/imports", tags=["imports"])
@@ -50,6 +51,11 @@ class ImportCorrectionBody(BaseModel):
     description: str | None = Field(default=None, max_length=500)
     currency: str | None = Field(default=None, min_length=3, max_length=3, pattern="^[A-Za-z]{3}$")
     category_name: str | None = Field(default=None, max_length=120)
+
+
+class StatementReviewConfirmationBody(BaseModel):
+    acknowledge_discrepancies: bool
+    reason: str = Field(min_length=20, max_length=500)
 
 
 def _mailbox_address(token: str) -> str:
@@ -93,6 +99,69 @@ def _reject_inbound_email(
         "message": "Alert rejected and not posted.",
     }
 
+def _extraction_payload(extraction: ExtractionResult) -> dict:
+    validation = extraction.validation or validate_statement(extraction.rows)
+    summary = extraction.summary
+    has_errors = any(issue.severity == "error" for issue in extraction.issues)
+    if extraction.is_importable:
+        extraction_status = validation.status
+    else:
+        extraction_status = "incomplete" if has_errors else "needs_review"
+    return {
+        "extraction_method": extraction.extraction_method,
+        "status": extraction_status,
+        "confidence": extraction.confidence,
+        "requires_manual_review": extraction_status != "verified",
+        "row_count": len(extraction.rows),
+        "summary": {
+            "opening_balance": (
+                str(summary.opening_balance) if summary.opening_balance is not None else None
+            ),
+            "closing_balance": (
+                str(summary.closing_balance) if summary.closing_balance is not None else None
+            ),
+            "total_debits": (
+                str(summary.total_debits) if summary.total_debits is not None else None
+            ),
+            "total_credits": (
+                str(summary.total_credits) if summary.total_credits is not None else None
+            ),
+            "debit_count": summary.debit_count,
+            "credit_count": summary.credit_count,
+            "currency": summary.currency or extraction.metadata.currency,
+            "period_start": (
+                summary.period_start.isoformat() if summary.period_start else None
+            ),
+            "period_end": summary.period_end.isoformat() if summary.period_end else None,
+        },
+        "validation": {
+            "status": validation.status,
+            "debit_total": str(validation.debit_total),
+            "credit_total": str(validation.credit_total),
+            "debit_count": validation.debit_count,
+            "credit_count": validation.credit_count,
+            "balance_check_count": validation.balance_check_count,
+        },
+        "issues": [
+            {
+                "code": issue.code,
+                "message": issue.message,
+                "severity": issue.severity,
+                "page": issue.page,
+                "row": issue.row,
+                "field": issue.field,
+            }
+            for issue in extraction.issues or list(validation.issues)
+        ],
+        "metadata": {
+            "institution": extraction.metadata.institution,
+            "currency": extraction.metadata.currency,
+            "page_count": extraction.metadata.page_count,
+            "transaction_pages": list(extraction.metadata.transaction_pages),
+        },
+    }
+
+
 def _scoped_account(db: Session, household_id: UUID, account_id: UUID) -> Account:
     account = (
         db.query(Account)
@@ -123,6 +192,63 @@ def preview_statement_import(
         )
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
+    db.commit()
+    db.refresh(job)
+    return job
+
+
+@router.post(
+    "/jobs/{job_id}/review-confirmation",
+    response_model=ImportJobOut,
+)
+def confirm_statement_review(
+    job_id: UUID,
+    payload: StatementReviewConfirmationBody,
+    ctx: HouseholdContext = Depends(require_roles("owner", "partner")),
+    db: Session = Depends(get_db),
+):
+    """Record explicit human acceptance of non-fatal reconciliation discrepancies."""
+    job = db.query(ImportJob).filter(
+        ImportJob.id == job_id,
+        ImportJob.household_id == ctx.household.id,
+        ImportJob.status == "pending_review",
+        ImportJob.source.in_(["csv", "statement"]),
+    ).first()
+    if job is None:
+        raise HTTPException(status_code=404, detail="Pending statement import not found.")
+    extraction = dict(job.result.get("extraction") or {})
+    if not extraction.get("requires_manual_review"):
+        raise HTTPException(
+            status_code=409,
+            detail="This statement does not require a review override.",
+        )
+    if not payload.acknowledge_discrepancies:
+        raise HTTPException(
+            status_code=400,
+            detail="Confirm that you reviewed the discrepancies before proceeding.",
+        )
+    issues = extraction.get("issues") or []
+    hard_errors = [
+        issue for issue in issues
+        if issue.get("code") in {"unparsed_transaction_row", "no_transactions"}
+    ]
+    if hard_errors:
+        raise HTTPException(
+            status_code=409,
+            detail=(
+                "Some transaction rows could not be extracted safely. "
+                "This statement cannot be approved with missing or unreadable rows."
+            ),
+        )
+    extraction["requires_manual_review"] = False
+    extraction["status"] = "manually_accepted"
+    extraction["manual_review"] = {
+        "acknowledged": True,
+        "reason": payload.reason.strip(),
+        "reviewed_at": datetime.now(UTC).isoformat(),
+    }
+    job.result = {**job.result, "extraction": extraction}
+    db.add(job)
     db.commit()
     db.refresh(job)
     return job
@@ -193,48 +319,13 @@ async def upload_statement(
     ctx: HouseholdContext = Depends(require_roles("owner", "partner")),
     db: Session = Depends(get_db),
 ):
-    filename = (file.filename or "statement").strip()
-    suffix = filename.lower().rsplit(".", 1)[-1] if "." in filename else ""
-    if suffix not in {"csv", "pdf", "txt", "png", "jpg", "jpeg", "webp"}:
-        raise HTTPException(
-            status_code=415,
-            detail="Upload a CSV, PDF, TXT, PNG, JPEG or WebP statement.",
-        )
-    upload_limit = get_settings().max_import_upload_bytes
-    if upload_limit < 1:
-        raise HTTPException(status_code=503, detail="Statement uploads are not configured.")
-    raw = await file.read(upload_limit + 1)
-    if len(raw) > upload_limit:
-        raise HTTPException(
-            status_code=413,
-            detail=f"Statement exceeds the configured {upload_limit}-byte upload limit.",
-        )
-    try:
-        if suffix in {"pdf", "png", "jpg", "jpeg", "webp"}:
-            rows, extraction_method = await run_in_threadpool(parse_statement_document, raw, suffix)
-            source = "statement"
-            account = _scoped_account(db, ctx.household.id, account_id)
-            job = apply_import_rows(
-                db, ctx.household, account, rows, source=source, filename=filename
-            )
-            job.result = {**(job.result or {}), "extraction_method": extraction_method}
-        else:
-            content = raw.decode("utf-8-sig")
-            source = "csv" if suffix == "csv" else "statement"
-            job = run_import(
-                db, ctx.household, account_id=account_id, source=source,
-                content=content, filename=filename,
-            )
-    except (ValueError, UnicodeDecodeError) as exc:
-        raise HTTPException(status_code=400, detail=str(exc)) from exc
-    except Exception as exc:
-        if suffix in {"pdf", "png", "jpg", "jpeg", "webp"}:
-            raise HTTPException(status_code=422, detail=str(exc)) from exc
-        raise
-    db.commit()
-    db.refresh(job)
-    return job
-
+    """Legacy upload URL now follows the same staged-review workflow."""
+    return await preview_statement_upload(
+        account_id=account_id,
+        file=file,
+        ctx=ctx,
+        db=db,
+    )
 
 
 @router.post("/preview-upload", response_model=ImportJobOut, status_code=status.HTTP_201_CREATED)

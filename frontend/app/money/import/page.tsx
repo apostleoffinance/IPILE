@@ -19,6 +19,7 @@ import {
   syncGmail,
   updateImportPreferences,
   commitStagedImport,
+  confirmStatementReview,
   createImportMailbox,
   correctEmailImport,
   getAccounts,
@@ -45,6 +46,7 @@ export default function ImportPage() {
   const [pending, setPending] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [result, setResult] = useState<ImportJob | null>(null);
+  const [reviewReason, setReviewReason] = useState("");
   const [mailboxAddress, setMailboxAddress] = useState<string | null>(null);
   const [emailJobs, setEmailJobs] = useState<ImportJob[]>([]);
   const [reviewAccounts, setReviewAccounts] = useState<Record<string, string>>({});
@@ -124,6 +126,21 @@ export default function ImportPage() {
       setResult(await commitStagedImport(jobId, accountId));
     } catch (err) {
       setError(err instanceof Error ? err.message : "Could not confirm this import.");
+    } finally {
+      setPending(false);
+    }
+  }
+
+  async function onConfirmStatementReview() {
+    if (!result || reviewReason.trim().length < 20) return;
+    setPending(true);
+    setError(null);
+    try {
+      const reviewed = await confirmStatementReview(result.id, reviewReason.trim());
+      setResult(reviewed);
+      setReviewReason("");
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Could not record your statement review.");
     } finally {
       setPending(false);
     }
@@ -479,8 +496,42 @@ export default function ImportPage() {
                         <div className="max-h-80 space-y-2 overflow-auto">
                           {result.result?.rows?.map((row, index) => <div key={row.external_id || index} className="flex flex-wrap justify-between gap-2 border-b border-line py-2"><span>{row.date} · {row.description || row.merchant || row.type}</span><span className="font-semibold">{row.amount}</span></div>)}
                         </div>
-                        <p className="text-xs text-muted">Review the rows and destination account before confirming. No balances have changed yet.</p>
-                        <Button type="button" disabled={pending} onClick={() => void onCommit(result.id)}>{pending ? "Confirming..." : "Confirm and import transactions"}</Button>
+                        <p className="text-xs text-muted">
+                          These transactions are staged for review. Nothing has entered your ledger and no account balance has changed.
+                        </p>
+                        {result.result?.extraction?.requires_manual_review ? (
+                          <div className="space-y-3 border border-line p-3">
+                            <p className="font-medium">Manual reconciliation review required</p>
+                            <p className="text-xs text-muted">
+                              The extracted rows do not fully agree with the statement summary or balance checks. Do not proceed unless you have compared the extracted transactions with the original statement.
+                            </p>
+                            <label className="block text-sm">
+                              <span className="text-muted">Explain why you are accepting these differences (at least 20 characters)</span>
+                              <textarea
+                                className="mt-1 min-h-24 w-full border border-line bg-surface px-3 py-2 text-sm"
+                                value={reviewReason}
+                                onChange={(event) => setReviewReason(event.target.value)}
+                                maxLength={500}
+                                placeholder="I compared the extracted transactions with the original statement and..."
+                              />
+                            </label>
+                            <Button
+                              type="button"
+                              variant="outline"
+                              disabled={pending || reviewReason.trim().length < 20 || result.result.extraction.issues.some((issue) => issue.code === "unparsed_transaction_row" || issue.code === "no_transactions")}
+                              onClick={() => void onConfirmStatementReview()}
+                            >
+                              {pending ? "Saving review..." : "I reviewed and accept these discrepancies"}
+                            </Button>
+                          </div>
+                        ) : null}
+                        <Button
+                          type="button"
+                          disabled={pending || Boolean(result.result?.extraction?.requires_manual_review)}
+                          onClick={() => void onCommit(result.id)}
+                        >
+                          {pending ? "Confirming..." : "Confirm and import transactions"}
+                        </Button>
                       </>
                     ) : (
                       <>
