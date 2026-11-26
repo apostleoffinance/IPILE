@@ -8,6 +8,9 @@ from io import BytesIO
 import pdfplumber
 
 from app.services.import_adapters import ImportRow, StatementImportAdapter, _make_row, _parse_amount
+from app.services.statement_intelligence.pdf_extractor import extract_pdf_statement
+from app.services.statement_intelligence.schema import ExtractionResult
+from app.services.statement_intelligence.validation import validate_statement
 from app.services.statement_ocr import (
     extract_image_ocr_text,
     extract_pdf_ocr_text,
@@ -165,16 +168,36 @@ def parse_statement_image(content: bytes) -> list[ImportRow]:
     return parse_ocr_statement(extract_image_ocr_text(content))
 
 
-def parse_statement_document(content: bytes, suffix: str) -> tuple[list[ImportRow], str]:
+def extract_statement_document(content: bytes, suffix: str) -> ExtractionResult:
+    """Extract a document through the universal pipeline, with local OCR fallback."""
     if suffix == "pdf":
         try:
-            return _parse_selectable_pdf(content), "pdf_text"
+            return extract_pdf_statement(content)
         except ValueError as text_error:
             try:
                 rows = parse_ocr_statement(extract_pdf_ocr_text(content))
             except ValueError as ocr_error:
                 raise ValueError(str(ocr_error)) from text_error
-            return rows, "pdf_ocr"
+            return ExtractionResult(
+                rows=rows,
+                extraction_method="pdf_ocr",
+                validation=validate_statement(rows),
+                confidence=0.65,
+                diagnostics={"status": "verified"},
+            )
     if suffix in {"png", "jpg", "jpeg", "webp"}:
-        return parse_statement_image(content), "image_ocr"
+        rows = parse_statement_image(content)
+        return ExtractionResult(
+            rows=rows,
+            extraction_method="image_ocr",
+            validation=validate_statement(rows),
+            confidence=0.6,
+            diagnostics={"status": "verified"},
+        )
     raise ValueError("Unsupported statement document type.")
+
+
+def parse_statement_document(content: bytes, suffix: str) -> tuple[list[ImportRow], str]:
+    """Compatibility wrapper for callers that only need rows and extraction method."""
+    result = extract_statement_document(content, suffix)
+    return result.rows, result.extraction_method
