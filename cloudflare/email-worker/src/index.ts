@@ -100,10 +100,12 @@ export default {
       key: header.key,
       value: header.value,
     }));
-    const authenticationResults = headerValue(headers, "authentication-results").toLowerCase();
+    // Cloudflare prepends its trusted result to message.headers. Never trust
+    // Authentication-Results parsed from raw MIME: a sender can forge that header.
+    const authenticationResults = (message.headers.get("Authentication-Results") ?? "").toLowerCase();
     const authenticated =
-      /\bdmarc=pass\b/.test(authenticationResults) ||
-      (/\bdkim=pass\b/.test(authenticationResults) && /\bspf=pass\b/.test(authenticationResults));
+      /^\s*mx\.cloudflare\.net\s*;/.test(authenticationResults) &&
+      /\bdmarc=pass\b/.test(authenticationResults);
     if (!authenticated) {
       message.setReject("The sender could not be verified. Contact your bank or forward an original alert.");
       return;
@@ -113,7 +115,9 @@ export default {
     const attachments = (parsed.attachments ?? []).map((attachment) => ({
       filename: (attachment.filename || "attachment").slice(0, 180),
       content_type: (attachment.mimeType || "application/octet-stream").slice(0, 120),
-      size: attachment.content?.byteLength ?? 0,
+      size: typeof attachment.content === "string"
+        ? new TextEncoder().encode(attachment.content).byteLength
+        : attachment.content?.byteLength ?? 0,
     }));
     if (attachments.some((attachment) => attachment.size > maxAttachmentBytes)) {
       message.setReject("An email attachment exceeds IPÌLẸ̀'s file-size limit.");
@@ -126,8 +130,8 @@ export default {
       Subject: (parsed.subject || "Bank transaction alert").slice(0, 200),
       TextBody: (parsed.text || "").slice(0, 100_000),
       HtmlBody: parsed.html ? String(parsed.html).slice(0, 200_000) : "",
-      Date: headerValue(headers, "date"),
-      MessageID: headerValue(headers, "message-id"),
+      Date: message.headers.get("Date") ?? headerValue(headers, "date"),
+      MessageID: message.headers.get("Message-ID") ?? headerValue(headers, "message-id"),
       AuthenticationResults: authenticationResults,
       Attachments: attachments,
       AttachmentPolicy: attachments.length ? "manual_upload_required" : "none",

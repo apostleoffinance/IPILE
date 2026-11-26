@@ -11,8 +11,11 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
 import {
+  approveEmailImport,
   commitStagedImport,
+  createImportMailbox,
   getAccounts,
+  getImportReview,
   previewImport,
   previewStatementUpload,
   type Account,
@@ -32,12 +35,35 @@ export default function ImportPage() {
   const [pending, setPending] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [result, setResult] = useState<ImportJob | null>(null);
+  const [mailboxAddress, setMailboxAddress] = useState<string | null>(null);
+  const [emailJobs, setEmailJobs] = useState<ImportJob[]>([]);
+  const [reviewAccounts, setReviewAccounts] = useState<Record<string, string>>({});
+  const [mailboxBusy, setMailboxBusy] = useState(false);
+
+  async function refreshEmailReview() {
+    const jobs = await getImportReview();
+    const pendingEmailJobs = jobs.filter((job) => job.source === "email");
+    setEmailJobs(pendingEmailJobs);
+    setReviewAccounts((current) => {
+      const next = { ...current };
+      for (const job of pendingEmailJobs) {
+        if (!next[job.id] && accounts?.[0]) next[job.id] = accounts[0].id;
+      }
+      return next;
+    });
+  }
 
   useEffect(() => {
     getAccounts()
-      .then((rows) => {
+      .then(async (rows) => {
         setAccounts(rows);
         if (rows[0]) setAccountId(rows[0].id);
+        try {
+          const jobs = await getImportReview();
+          setEmailJobs(jobs.filter((job) => job.source === "email"));
+        } catch {
+          // Keep statement imports usable if the review queue is temporarily unavailable.
+        }
       })
       .catch((err: Error) => setError(err.message));
   }, []);
@@ -51,12 +77,7 @@ export default function ImportPage() {
     try {
       const job = file
         ? await previewStatementUpload(accountId, file)
-        : await previewImport({
-            account_id: accountId,
-            source,
-            content,
-            filename: filename || undefined,
-          });
+        : await previewImport({ account_id: accountId, source, content, filename: filename || undefined });
       setResult(job);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Could not prepare this import.");
@@ -78,9 +99,35 @@ export default function ImportPage() {
     }
   }
 
-  if (!accounts) {
-    return <AppShell><LoadingState /></AppShell>;
+  async function onCreateMailbox() {
+    setMailboxBusy(true);
+    setError(null);
+    try {
+      const mailbox = await createImportMailbox();
+      setMailboxAddress(mailbox.address);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Could not create an inbound email address.");
+    } finally {
+      setMailboxBusy(false);
+    }
   }
+
+  async function onApproveEmail(job: ImportJob) {
+    const destination = reviewAccounts[job.id];
+    if (!destination) return;
+    setPending(true);
+    setError(null);
+    try {
+      await approveEmailImport(job.id, destination);
+      await refreshEmailReview();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Could not approve this bank alert.");
+    } finally {
+      setPending(false);
+    }
+  }
+
+  if (!accounts) return <AppShell><LoadingState /></AppShell>;
 
   return (
     <AppShell>
@@ -88,103 +135,140 @@ export default function ImportPage() {
         <PageHeader
           eyebrow="Money"
           title="Import transactions"
-          description="Import a bank statement, review the parsed transactions, and confirm before anything changes your household ledger."
+          description="Import a bank statement or forward bank alerts by email. Review every item before it enters your household ledger."
         />
         {error ? <ErrorState message={error} /> : null}
-        {accounts.length === 0 ? (
-          <EmptyState title="Add an account first" body="Imports are reviewed and posted against a household bank or cash account." />
-        ) : (
-          <div className="max-w-3xl space-y-8">
-            <section className="space-y-4 border border-line p-4">
-              <h2 className="font-semibold">1. Prepare a bank statement</h2>
-              <form className="space-y-4" onSubmit={onSubmit}>
-                <label className="block text-sm">
-                  <span className="text-muted">Destination account</span>
-                  <Select className="mt-1" value={accountId} onChange={(e) => setAccountId(e.target.value)}>
-                    {accounts.map((account) => (
-                      <option key={account.id} value={account.id}>{account.name} · {account.currency}</option>
-                    ))}
-                  </Select>
-                </label>
-                <fieldset className="flex gap-4 text-sm">
-                  <label className="flex items-center gap-2">
-                    <input type="radio" name="source" checked={source === "csv"} onChange={() => setSource("csv")} /> CSV
-                  </label>
-                  <label className="flex items-center gap-2">
-                    <input type="radio" name="source" checked={source === "statement"} onChange={() => setSource("statement")} /> Text statement
-                  </label>
-                </fieldset>
-                <p className="text-sm text-muted">{source === "csv" ? CSV_HINT : STATEMENT_HINT}</p>
-                <label className="block text-sm">
-                  <span className="text-muted">Upload a CSV, PDF or text file (max 10 MB)</span>
-                  <input
-                    className="mt-1 block w-full text-sm"
-                    type="file"
-                    accept=".csv,.pdf,.txt,application/pdf,text/csv,text/plain"
-                    onChange={(event) => {
-                      setFile(event.target.files?.[0] ?? null);
-                      if (event.target.files?.[0]) setContent("");
-                    }}
-                  />
-                </label>
-                <p className="text-xs text-muted">PDFs must contain selectable text. Scanned statements and receipt photos are not supported yet.</p>
-                <div className="text-center text-xs text-muted">or paste statement text</div>
-                <label className="block text-sm">
-                  <span className="text-muted">Filename (optional)</span>
-                  <Input className="mt-1" value={filename} onChange={(e) => setFilename(e.target.value)} placeholder="statement-september.csv" />
-                </label>
-                <label className="block text-sm">
-                  <span className="text-muted">Paste statement text</span>
-                  <textarea
-                    className="mt-1 min-h-40 w-full border border-line bg-surface px-3 py-2 font-mono text-xs"
-                    value={content}
-                    onChange={(e) => {
-                      setContent(e.target.value);
-                      if (e.target.value) setFile(null);
-                    }}
-                  />
-                </label>
-                <Button type="submit" disabled={pending || (!file && !content.trim())}>
-                  {pending ? "Preparing..." : "Preview import"}
+        <div className="max-w-3xl space-y-8">
+          <section className="space-y-4 border border-line p-4">
+            <h2 className="font-semibold">1. Receive bank alerts by email</h2>
+            <p className="text-sm text-muted">
+              Generate a private household address, then set your bank to email transaction alerts to it or create a forwarding rule in your personal inbox.
+            </p>
+            {mailboxAddress ? (
+              <div className="space-y-2 border border-line bg-surface p-3">
+                <p className="break-all font-mono text-sm">{mailboxAddress}</p>
+                <Button type="button" variant="outline" onClick={() => void navigator.clipboard.writeText(mailboxAddress)}>
+                  Copy email address
                 </Button>
-              </form>
-              {result ? (
-                <div className="space-y-3 border border-line px-4 py-3 text-sm">
-                  <p className="font-medium">{result.source} · {result.status.replaceAll("_", " ")}</p>
-                  {result.status === "pending_review" ? (
-                    <>
-                      <p>
-                        {result.result?.row_count ?? result.result?.rows?.length ?? 0} transactions parsed ·{" "}
-                        {result.result?.duplicate_count_at_preview ?? 0} possible duplicates already found
-                      </p>
-                      <div className="max-h-80 space-y-2 overflow-auto">
-                        {result.result?.rows?.map((row, index) => (
-                          <div key={row.external_id || index} className="flex flex-wrap justify-between gap-2 border-b border-line py-2">
-                            <span>{row.date} · {row.description || row.merchant || row.type}</span>
-                            <span className="font-semibold">{row.amount}</span>
-                          </div>
-                        ))}
-                      </div>
-                      <p className="text-xs text-muted">Review the rows and destination account before confirming. No balances have changed yet.</p>
-                      <Button type="button" disabled={pending} onClick={() => void onCommit(result.id)}>
-                        {pending ? "Confirming..." : "Confirm and import transactions"}
-                      </Button>
-                    </>
+                <p className="text-xs text-muted">
+                  Keep this address private. Generating another address invalidates this one. If you leave this page, generate a new address to retrieve one.
+                </p>
+              </div>
+            ) : null}
+            <Button type="button" variant="outline" disabled={mailboxBusy} onClick={() => void onCreateMailbox()}>
+              {mailboxBusy ? "Generating..." : mailboxAddress ? "Generate a new address" : "Generate bank-alert email"}
+            </Button>
+            <p className="text-xs text-muted">
+              Only verified bank sender domains are accepted. Alerts with unclear amounts or dates are held for review as rejected items. Email attachments are not imported automatically.
+            </p>
+          </section>
+
+          <section className="space-y-4 border border-line p-4">
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <h2 className="font-semibold">2. Review incoming bank alerts</h2>
+              <Button type="button" size="sm" variant="outline" onClick={() => void refreshEmailReview()}>Refresh</Button>
+            </div>
+            {emailJobs.length === 0 ? (
+              <EmptyState title="No email alerts to review" body="Forward a bank transaction alert to your private IPÌLẸ̀ address. New alerts will appear here." />
+            ) : emailJobs.map((job) => {
+              const row = job.result?.rows?.[0];
+              const rejected = job.status === "rejected";
+              return (
+                <article key={job.id} className="space-y-3 border border-line p-3">
+                  <div className="flex flex-wrap items-center justify-between gap-2">
+                    <p className="font-medium">{job.filename || "Bank alert"}</p>
+                    <span className="text-xs uppercase text-muted">{job.status.replaceAll("_", " ")}</span>
+                  </div>
+                  <p className="text-xs text-muted">From: {String(job.result?.sender ?? "Unknown sender")}</p>
+                  {row ? (
+                    <div className="grid gap-1 text-sm sm:grid-cols-2">
+                      <p>{row.date} · {row.type}</p>
+                      <p className="font-semibold">{row.amount}</p>
+                      <p className="text-muted sm:col-span-2">{row.description || row.merchant || "Bank transaction"}</p>
+                      {row.external_id ? <p className="text-xs text-muted sm:col-span-2">Reference: {row.external_id}</p> : null}
+                    </div>
+                  ) : null}
+                  {rejected ? (
+                    <ul className="list-disc pl-5 text-sm text-muted">
+                      {(job.result?.errors ?? ["This alert could not be parsed safely."]).map((message) => <li key={message}>{message}</li>)}
+                    </ul>
                   ) : (
-                    <>
-                      <p>Created {result.created_count}, skipped {result.skipped_count}, errors {result.error_count}</p>
-                      {result.result?.errors?.length ? (
-                        <ul className="list-disc pl-5 text-muted">
-                          {result.result.errors.map((row) => <li key={row}>{row}</li>)}
-                        </ul>
-                      ) : null}
-                    </>
+                    <div className="space-y-2">
+                      <label className="block text-sm">
+                        <span className="text-muted">Post to account</span>
+                        <Select className="mt-1" value={reviewAccounts[job.id] ?? accounts[0]?.id ?? ""} onChange={(event) => setReviewAccounts((current) => ({ ...current, [job.id]: event.target.value }))}>
+                          {accounts.map((account) => <option key={account.id} value={account.id}>{account.name} · {account.currency}</option>)}
+                        </Select>
+                      </label>
+                      <Button type="button" disabled={pending || accounts.length === 0} onClick={() => void onApproveEmail(job)}>
+                        {pending ? "Processing..." : "Approve and add transaction"}
+                      </Button>
+                    </div>
                   )}
-                </div>
-              ) : null}
-            </section>
-          </div>
-        )}
+                </article>
+              );
+            })}
+            <p className="text-xs text-muted">Approval is required before an alert changes your transaction history or account balance.</p>
+          </section>
+
+          <section className="space-y-4 border border-line p-4">
+            <h2 className="font-semibold">3. Import a bank statement</h2>
+            {accounts.length === 0 ? (
+              <EmptyState title="Add an account first" body="Imports are reviewed and posted against a household bank or cash account." />
+            ) : (
+              <>
+                <form className="space-y-4" onSubmit={onSubmit}>
+                  <label className="block text-sm">
+                    <span className="text-muted">Destination account</span>
+                    <Select className="mt-1" value={accountId} onChange={(event) => setAccountId(event.target.value)}>
+                      {accounts.map((account) => <option key={account.id} value={account.id}>{account.name} · {account.currency}</option>)}
+                    </Select>
+                  </label>
+                  <fieldset className="flex gap-4 text-sm">
+                    <label className="flex items-center gap-2"><input type="radio" name="source" checked={source === "csv"} onChange={() => setSource("csv")} /> CSV</label>
+                    <label className="flex items-center gap-2"><input type="radio" name="source" checked={source === "statement"} onChange={() => setSource("statement")} /> Text statement</label>
+                  </fieldset>
+                  <p className="text-sm text-muted">{source === "csv" ? CSV_HINT : STATEMENT_HINT}</p>
+                  <label className="block text-sm">
+                    <span className="text-muted">Upload a CSV, PDF or text file (max 10 MB)</span>
+                    <input className="mt-1 block w-full text-sm" type="file" accept=".csv,.pdf,.txt,application/pdf,text/csv,text/plain" onChange={(event) => { setFile(event.target.files?.[0] ?? null); if (event.target.files?.[0]) setContent(""); }} />
+                  </label>
+                  <p className="text-xs text-muted">PDFs must contain selectable text. Scanned statements and receipt photos are not supported yet.</p>
+                  <div className="text-center text-xs text-muted">or paste statement text</div>
+                  <label className="block text-sm">
+                    <span className="text-muted">Filename (optional)</span>
+                    <Input className="mt-1" value={filename} onChange={(event) => setFilename(event.target.value)} placeholder="statement-september.csv" />
+                  </label>
+                  <label className="block text-sm">
+                    <span className="text-muted">Paste statement text</span>
+                    <textarea className="mt-1 min-h-40 w-full border border-line bg-surface px-3 py-2 font-mono text-xs" value={content} onChange={(event) => { setContent(event.target.value); if (event.target.value) setFile(null); }} />
+                  </label>
+                  <Button type="submit" disabled={pending || (!file && !content.trim())}>{pending ? "Preparing..." : "Preview import"}</Button>
+                </form>
+                {result ? (
+                  <div className="space-y-3 border border-line px-4 py-3 text-sm">
+                    <p className="font-medium">{result.source} · {result.status.replaceAll("_", " ")}</p>
+                    {result.status === "pending_review" ? (
+                      <>
+                        <p>{result.result?.row_count ?? result.result?.rows?.length ?? 0} transactions parsed · {result.result?.duplicate_count_at_preview ?? 0} possible duplicates already found</p>
+                        <div className="max-h-80 space-y-2 overflow-auto">
+                          {result.result?.rows?.map((row, index) => <div key={row.external_id || index} className="flex flex-wrap justify-between gap-2 border-b border-line py-2"><span>{row.date} · {row.description || row.merchant || row.type}</span><span className="font-semibold">{row.amount}</span></div>)}
+                        </div>
+                        <p className="text-xs text-muted">Review the rows and destination account before confirming. No balances have changed yet.</p>
+                        <Button type="button" disabled={pending} onClick={() => void onCommit(result.id)}>{pending ? "Confirming..." : "Confirm and import transactions"}</Button>
+                      </>
+                    ) : (
+                      <>
+                        <p>Created {result.created_count}, skipped {result.skipped_count}, errors {result.error_count}</p>
+                        {result.result?.errors?.length ? <ul className="list-disc pl-5 text-muted">{result.result.errors.map((row) => <li key={row}>{row}</li>)}</ul> : null}
+                      </>
+                    )}
+                  </div>
+                ) : null}
+              </>
+            )}
+          </section>
+        </div>
       </ContentContainer>
     </AppShell>
   );
