@@ -92,3 +92,15 @@ def test_flags_a_recurring_payment_that_appears_overdue():
     assert len(found) == 1
     assert found[0]["code"] == "recurring_payment_missed"
     assert found[0]["severity"] == "warning"
+
+
+
+def test_bank_sender_domain_and_generic_alert_subject_do_not_become_payees():
+    rows = [
+        _transaction(day=date(2026, 1, 5), merchant="gtbank.com"),
+        _transaction(day=date(2026, 2, 5), merchant="gtbank.com"),
+        _transaction(day=date(2026, 3, 5), merchant="gtbank.com"),
+    ]
+    for row in rows:
+        row.description = "Debit Alert"
+    assert detect_recurring_payments(rows, today=date(2026, 3, 6)) == []
