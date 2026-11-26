@@ -84,6 +84,23 @@ describe("Cloudflare inbound bank-alert Worker", () => {
     expect(rejects).toHaveLength(1);
   });
 
+  it("accepts the operator-observed OPay sender domain when explicitly allowlisted", async () => {
+    const fetchMock = vi.fn().mockResolvedValue(new Response("{}", { status: 200 }));
+    vi.stubGlobal("fetch", fetchMock);
+    const { message, rejects } = emailMessage({ from: "no-reply@opay-nigeria.com" });
+    const opayEnv = {
+      ...env,
+      ALLOWED_BANK_SENDER_DOMAINS: "bank.example,opay-nigeria.com",
+    };
+
+    await worker.email(message, opayEnv as never);
+
+    expect(rejects).toEqual([]);
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    const payload = JSON.parse(String((fetchMock.mock.calls[0] as [URL, RequestInit])[1].body));
+    expect(payload.From).toBe("no-reply@opay-nigeria.com");
+  });
+
   it("rejects a forged raw MIME authentication header when Cloudflare does not pass DMARC", async () => {
     const fetchMock = vi.fn();
     vi.stubGlobal("fetch", fetchMock);
