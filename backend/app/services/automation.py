@@ -24,6 +24,7 @@ from app.services.allocations import (
 from app.services.balances import apply_transaction_effect
 from app.services.budgets import evaluate_budget_alerts
 from app.services.currencies import get_rate
+from app.services.financial_intelligence import run_financial_intelligence
 from app.services.funds import ensure_fund_account, record_contribution
 from app.services.notifications import sync_notifications_from_alerts
 from app.services.obligations import generate_occurrences
@@ -52,7 +53,7 @@ def _fund_from_allocation_lines(
     *,
     today: date,
 ) -> dict:
-    """Apply fund destination lines once per allocation run (idempotent via period marker)."""
+    """Apply only the unfunded difference for each allocation line in this period."""
     source = _liquid_source(db, household.id)
     if source is None:
         return {"funded_lines": 0, "total": "0.00"}
@@ -83,24 +84,45 @@ def _fund_from_allocation_lines(
         )
         if fund is None:
             continue
-        already = (
+        already_rows = (
             db.query(Transaction)
             .filter(
                 Transaction.household_id == household.id,
                 Transaction.fund_id == fund.id,
                 Transaction.type == "transfer",
                 Transaction.description == period_tag,
+                Transaction.status.in_(("cleared", "reconciled")),
                 Transaction.deleted_at.is_(None),
             )
-            .first()
+            .all()
         )
-        if already is not None:
+        already_amount = quantize_money(
+            sum(
+                (
+                    quantize_money(
+                        Decimal(
+                            str(
+                                row.base_amount
+                                if row.base_amount is not None
+                                else row.amount
+                            )
+                        )
+                    )
+                    for row in already_rows
+                    if row.base_amount is not None
+                    or row.currency == household.base_currency
+                ),
+                Decimal("0.00"),
+            )
+        )
+        remaining_amount = quantize_money(amount - already_amount)
+        if remaining_amount <= 0:
             continue
         source_currency = source.currency or household.base_currency
         rate, rate_date, rate_source = get_rate(
             db, household.id, source_currency, household.base_currency, today
         )
-        source_amount = (amount / rate).quantize(Decimal("0.01"))
+        source_amount = (remaining_amount / rate).quantize(Decimal("0.01"))
         if Decimal(str(source.current_balance)) < source_amount:
             continue
         dest = ensure_fund_account(db, fund)
@@ -110,14 +132,14 @@ def _fund_from_allocation_lines(
             counterparty_account_id=dest.id if dest else None,
             amount=source_amount,
             currency=source_currency,
-            base_amount=amount,
+            base_amount=remaining_amount,
             base_currency=household.base_currency,
             exchange_rate=rate,
             exchange_rate_date=rate_date,
             exchange_rate_source=rate_source,
-            counterparty_amount=amount,
+            counterparty_amount=remaining_amount,
             counterparty_currency=dest.currency if dest else household.base_currency,
-            counterparty_base_amount=amount,
+            counterparty_base_amount=remaining_amount,
             counterparty_exchange_rate=(Decimal("1") / rate),
             counterparty_exchange_rate_date=rate_date,
             counterparty_exchange_rate_source=rate_source,
@@ -143,12 +165,12 @@ def _fund_from_allocation_lines(
             db,
             fund,
             account_id=source.id,
-            amount=amount,
+            amount=remaining_amount,
             contribution_date=today,
             transaction_id=tx.id,
         )
         funded += 1
-        total += amount
+        total += remaining_amount
         db.refresh(source)
     return {"funded_lines": funded, "total": format_money(total)}
 
@@ -200,6 +222,7 @@ def run_income_recognized_chain(
     evaluate_budget_alerts(db, household.id)
     due = run_due_date_checks(db, household, today=today)
     sts = compute_safe_to_spend(db, household, today=today)
+    intelligence = run_financial_intelligence(db, household, today=today)
     notes = sync_notifications_from_alerts(db, household.id)
     return {
         "allocation_run_id": str(run.id),
@@ -207,6 +230,7 @@ def run_income_recognized_chain(
         "total_allocated": format_money(run.total_allocated),
         "funds": fund_result,
         "due": due,
+        "financial_intelligence": intelligence,
         "safe_to_spend": format_money(sts.current),
         "notifications_created": len(notes),
     }
@@ -217,9 +241,11 @@ def run_daily_chain(db: Session, household: Household, today: date | None = None
     evaluate_budget_alerts(db, household.id)
     due = run_due_date_checks(db, household, today=today)
     compute_safe_to_spend(db, household, today=today)
+    intelligence = run_financial_intelligence(db, household, today=today)
     notes = sync_notifications_from_alerts(db, household.id)
     return {
         "due": due,
+        "financial_intelligence": intelligence,
         "notifications_created": len(notes),
         "horizon": (today + timedelta(days=30)).isoformat(),
     }

@@ -15,7 +15,6 @@ from app.models.member import HouseholdMember
 from app.models.obligation import Obligation
 from app.models.transaction import Transaction
 from app.schemas.transaction import TransactionCreate, TransactionOut, TransactionUpdate
-from app.services.allocations import ensure_period_allocation
 from app.services.audit import write_audit
 from app.services.balances import TRANSFER_TYPE, apply_transaction_effect
 from app.services.budgets import evaluate_budget_alerts
@@ -295,10 +294,28 @@ def create_transaction(
     )
     db.flush()
     evaluate_budget_alerts(db, ctx.household.id)
-    if transaction.type == "income" and transaction.status in {"cleared", "reconciled"}:
+    if (
+        transaction.access_scope == "shared"
+        and transaction.type == "income"
+        and transaction.status in {"cleared", "reconciled"}
+    ):
         from app.services.automation import run_tick
 
-        run_tick(db, ctx.household, tick_type="income_recognized")
+        _, skipped = run_tick(db, ctx.household, tick_type="income_recognized")
+        if skipped:
+            from app.services.automation import run_income_recognized_chain
+
+            run_income_recognized_chain(db, ctx.household)
+    elif (
+        transaction.access_scope == "shared"
+        and transaction.type == "expense"
+        and transaction.status in {"cleared", "reconciled"}
+    ):
+        from app.services.financial_intelligence import run_financial_intelligence
+        from app.services.notifications import sync_notifications_from_alerts
+
+        run_financial_intelligence(db, ctx.household)
+        sync_notifications_from_alerts(db, ctx.household.id)
     write_audit(
         db,
         household_id=ctx.household.id,
@@ -398,6 +415,16 @@ def update_transaction(
     db.add(transaction)
     db.flush()
     evaluate_budget_alerts(db, ctx.household.id)
+    if transaction.access_scope == "shared" and transaction.type == "income":
+        from app.services.automation import run_income_recognized_chain
+
+        run_income_recognized_chain(db, ctx.household)
+    elif transaction.access_scope == "shared" and transaction.type == "expense":
+        from app.services.financial_intelligence import run_financial_intelligence
+        from app.services.notifications import sync_notifications_from_alerts
+
+        run_financial_intelligence(db, ctx.household)
+        sync_notifications_from_alerts(db, ctx.household.id)
     write_audit(
         db,
         household_id=ctx.household.id,
@@ -440,8 +467,16 @@ def void_transaction(
     db.add(transaction)
     db.flush()
     evaluate_budget_alerts(db, ctx.household.id)
-    if was_income:
-        ensure_period_allocation(db, ctx.household)
+    if transaction.access_scope == "shared" and was_income:
+        from app.services.automation import run_income_recognized_chain
+
+        run_income_recognized_chain(db, ctx.household)
+    elif transaction.access_scope == "shared":
+        from app.services.financial_intelligence import run_financial_intelligence
+        from app.services.notifications import sync_notifications_from_alerts
+
+        run_financial_intelligence(db, ctx.household)
+        sync_notifications_from_alerts(db, ctx.household.id)
     write_audit(
         db,
         household_id=ctx.household.id,

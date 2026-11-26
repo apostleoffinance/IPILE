@@ -79,7 +79,7 @@ export default function InboxPage() {
         {!loaded && !error ? <LoadingState /> : null}
         {error ? <ErrorState message={error} /> : null}
         {loaded && !rows.length ? (
-          <EmptyState title="Inbox clear" body="Alerts from budgets and obligations appear here." />
+          <EmptyState title="Inbox clear" body="Financial patterns, unusual transactions, budgets and obligations appear here." />
         ) : null}
         {rows.length ? <AlertList alerts={alerts} onRead={onRead} /> : null}
       </ContentContainer>

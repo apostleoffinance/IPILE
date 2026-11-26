@@ -176,66 +176,65 @@ def detect_unusual_transactions(
     multiplier: Decimal = Decimal("3.0"),
 ) -> list[dict]:
     """Flag recent transactions materially above their own payee baseline."""
-    rows = [
-        row for row in transactions
-        if row.type in {"income", "expense"}
-        and row.status in {"cleared", "reconciled"}
-        and row.deleted_at is None
-        and row.currency
-    ]
-    signals: list[dict] = []
-    for current in rows:
-        if not (today - timedelta(days=lookback_days) <= current.date <= today):
+    groups: dict[tuple, list] = defaultdict(list)
+    for row in transactions:
+        if (
+            row.type not in {"income", "expense"}
+            or row.status not in {"cleared", "reconciled"}
+            or row.deleted_at is not None
+            or not row.currency
+        ):
+            continue
+        payee = _payee_key(row)
+        if not payee:
             continue
         key = (
-            current.account_id,
-            current.currency.upper(),
-            current.type,
-            current.category_id,
-            _payee_key(current),
+            row.account_id,
+            row.currency.upper(),
+            row.type,
+            row.category_id,
+            payee,
         )
-        if not key[-1]:
-            continue
-        history = [
-            row for row in rows
-            if row.id != current.id
-            and row.date < current.date
-            and row.date >= current.date - timedelta(days=baseline_days)
-            and (
-                row.account_id,
-                row.currency.upper(),
-                row.type,
-                row.category_id,
-                _payee_key(row),
-            ) == key
-        ]
-        if len(history) < minimum_history:
-            continue
-        baseline = Decimal(str(median([_amount(row) for row in history])))
-        amount = _amount(current)
-        if baseline <= 0 or amount < baseline * multiplier:
-            continue
-        ratio = (amount / baseline).quantize(Decimal("0.01"))
-        signals.append({
-            "code": "unusually_large_transaction",
-            "severity": "warning",
-            "title": "Transaction is larger than usual",
-            "detail": (
-                f"{(current.merchant or current.description or 'This payee')} is "
-                f"{ratio}× its historical typical amount. Check that this is expected."
-            ),
-            "evidence": {
-                "transaction_id": str(current.id),
-                "date": current.date.isoformat(),
-                "amount": str(amount),
-                "currency": current.currency.upper(),
-                "historical_median": str(baseline.quantize(Decimal("0.01"))),
-                "multiple": str(ratio),
-                "history_count": len(history),
-                "account_id": str(current.account_id),
-                "category_id": str(current.category_id) if current.category_id else None,
-            },
-        })
+        groups[key].append(row)
+
+    signals: list[dict] = []
+    recent_start = today - timedelta(days=lookback_days)
+    for key, group_rows in groups.items():
+        ordered = sorted(group_rows, key=lambda item: item.date)
+        for index, current in enumerate(ordered):
+            if not (recent_start <= current.date <= today):
+                continue
+            history = [
+                row for row in ordered[:index]
+                if row.date >= current.date - timedelta(days=baseline_days)
+            ]
+            if len(history) < minimum_history:
+                continue
+            baseline = Decimal(str(median([_amount(row) for row in history])))
+            amount = _amount(current)
+            if baseline <= 0 or amount < baseline * multiplier:
+                continue
+            ratio = (amount / baseline).quantize(Decimal("0.01"))
+            signals.append({
+                "code": "unusually_large_transaction",
+                "severity": "warning",
+                "title": "Transaction is larger than usual",
+                "detail": (
+                    f"{(current.merchant or current.description or 'This payee')} is "
+                    f"{ratio}× its historical typical amount. Check that this is expected."
+                ),
+                "evidence": {
+                    "transaction_id": str(current.id),
+                    "date": current.date.isoformat(),
+                    "amount": str(amount),
+                    "currency": current.currency.upper(),
+                    "historical_median": str(baseline.quantize(Decimal("0.01"))),
+                    "multiple": str(ratio),
+                    "history_count": len(history),
+                    "account_id": str(current.account_id),
+                    "category_id": str(current.category_id) if current.category_id else None,
+                },
+            })
     return sorted(signals, key=lambda item: Decimal(item["evidence"]["multiple"]), reverse=True)
 
 

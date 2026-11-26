@@ -43,6 +43,20 @@ def test_duplicate_ticks_do_not_double_allocate(client: TestClient) -> None:
     latest = client.get("/api/v1/allocations/latest").json()
     assert latest["recognized_income"] == "500000.00"
 
+    additional_income = client.post(
+        "/api/v1/transactions",
+        json={
+            "account_id": account["id"],
+            "amount": "250000.00",
+            "type": "income",
+            "date": date.today().isoformat(),
+            "status": "cleared",
+        },
+    )
+    assert additional_income.status_code == 201, additional_income.text
+    refreshed = client.get("/api/v1/allocations/latest").json()
+    assert refreshed["recognized_income"] == "750000.00"
+
 
 def test_budget_threshold_and_overspend_alerts(client: TestClient) -> None:
     register(client, "auto-budget@example.com")
@@ -117,3 +131,203 @@ def test_underfunded_obligation_alert_and_seed_inbox(client: TestClient) -> None
     inbox = client.get("/api/v1/notifications").json()
     assert len(inbox) >= 1
     assert any(row["severity"] in {"warning", "critical"} for row in inbox)
+
+
+
+def test_recurring_payment_generates_one_proactive_alert_and_notification(
+    client: TestClient,
+) -> None:
+    from app.services.recurring import add_months
+
+    register(client, "proactive-recurring@example.com")
+    account = client.post(
+        "/api/v1/accounts",
+        json={"name": "Current", "type": "bank", "current_balance": "100000.00"},
+    ).json()
+    anchor = date.today().replace(day=5)
+    for months_ago in (2, 1, 0):
+        occurred_on = add_months(anchor, -months_ago)
+        response = client.post(
+            "/api/v1/transactions",
+            json={
+                "account_id": account["id"],
+                "amount": "1000.00",
+                "type": "expense",
+                "date": occurred_on.isoformat(),
+                "merchant": "Netflix",
+                "description": "Monthly subscription",
+                "status": "cleared",
+            },
+        )
+        assert response.status_code == 201, response.text
+
+    alerts = client.get("/api/v1/alerts").json()
+    recurring = [row for row in alerts if row["type"] == "recurring_payment_upcoming"]
+    assert len(recurring) == 1
+    assert recurring[0]["related_entity_id"] == account["id"]
+
+    inbox = client.get("/api/v1/notifications", params={"unread_only": "true"}).json()
+    proactive = [row for row in inbox if row["title"] == "Expected recurring transaction"]
+    assert len(proactive) == 1
+
+    tick = client.post("/api/v1/automation/tick", json={"tick_type": "daily"})
+    assert tick.status_code == 200, tick.text
+    inbox_after_tick = client.get(
+        "/api/v1/notifications", params={"unread_only": "true"}
+    ).json()
+    recurring_after_tick = [
+        row for row in inbox_after_tick
+        if row["title"] == "Expected recurring transaction"
+    ]
+    assert len(recurring_after_tick) == 1
+
+
+def test_unusually_large_transaction_generates_proactive_alert(client: TestClient) -> None:
+    register(client, "proactive-anomaly@example.com")
+    account = client.post(
+        "/api/v1/accounts",
+        json={"name": "Current", "type": "bank", "current_balance": "100000.00"},
+    ).json()
+    history = [
+        (date(2026, 7, 20), "100.00"),
+        (date(2026, 8, 20), "110.00"),
+        (date(2026, 9, 20), "90.00"),
+        (date(2026, 10, 20), "100.00"),
+    ]
+    anomaly_transaction_id = None
+    for occurred_on, amount in history + [(date(2026, 11, 20), "500.00")]:
+        response = client.post(
+            "/api/v1/transactions",
+            json={
+                "account_id": account["id"],
+                "amount": amount,
+                "type": "expense",
+                "date": occurred_on.isoformat(),
+                "merchant": "PowerCo",
+                "description": "Utility payment",
+                "status": "cleared",
+            },
+        )
+        assert response.status_code == 201, response.text
+        anomaly_transaction_id = response.json()["id"]
+
+    alerts = client.get("/api/v1/alerts").json()
+    anomaly = [row for row in alerts if row["type"] == "unusually_large_transaction"]
+    assert len(anomaly) == 1
+    assert anomaly[0]["severity"] == "warning"
+
+    inbox = client.get("/api/v1/notifications", params={"unread_only": "true"}).json()
+    assert any(row["title"] == "Transaction is larger than usual" for row in inbox)
+
+    voided = client.post(f"/api/v1/transactions/{anomaly_transaction_id}/void")
+    assert voided.status_code == 200, voided.text
+    remaining = client.get("/api/v1/alerts").json()
+    assert not any(row["type"] == "unusually_large_transaction" for row in remaining)
+    unread_after_void = client.get(
+        "/api/v1/notifications", params={"unread_only": "true"}
+    ).json()
+    assert not any(
+        row["title"] == "Transaction is larger than usual" for row in unread_after_void
+    )
+
+
+
+def test_same_period_income_refreshes_allocation_and_fund_top_up(client: TestClient) -> None:
+    register(client, "income-refresh@example.com")
+    account = client.post(
+        "/api/v1/accounts",
+        json={"name": "Current", "type": "bank", "current_balance": "0.00"},
+    ).json()
+    fund = client.post(
+        "/api/v1/funds",
+        json={
+            "name": "Emergency reserve",
+            "target_amount": "1000000.00",
+            "monthly_contribution": "0.00",
+        },
+    )
+    assert fund.status_code == 201, fund.text
+    rule = client.post(
+        "/api/v1/allocation-rules",
+        json={
+            "name": "Emergency reserve",
+            "type": "percentage",
+            "basis": "recognized_income",
+            "rate": "0.20",
+            "priority": 0,
+            "destination_type": "fund",
+            "destination_id": fund.json()["id"],
+        },
+    )
+    assert rule.status_code == 201, rule.text
+
+    first = client.post(
+        "/api/v1/transactions",
+        json={
+            "account_id": account["id"],
+            "amount": "500000.00",
+            "type": "income",
+            "date": date.today().isoformat(),
+            "status": "cleared",
+        },
+    )
+    assert first.status_code == 201, first.text
+    fund_after_first = client.get("/api/v1/funds").json()[0]
+    assert fund_after_first["current_amount"] == "100000.00"
+
+    second = client.post(
+        "/api/v1/transactions",
+        json={
+            "account_id": account["id"],
+            "amount": "250000.00",
+            "type": "income",
+            "date": date.today().isoformat(),
+            "status": "cleared",
+        },
+    )
+    assert second.status_code == 201, second.text
+    latest = client.get("/api/v1/allocations/latest").json()
+    assert latest["recognized_income"] == "750000.00"
+    fund_after_second = client.get("/api/v1/funds").json()[0]
+    assert fund_after_second["current_amount"] == "150000.00"
+
+
+
+def test_read_recurring_alert_is_not_reopened_by_daily_refresh(client: TestClient) -> None:
+    from app.services.recurring import add_months
+
+    register(client, "read-proactive@example.com")
+    account = client.post(
+        "/api/v1/accounts",
+        json={"name": "Current", "type": "bank", "current_balance": "100000.00"},
+    ).json()
+    anchor = date.today().replace(day=5)
+    for months_ago in (2, 1, 0):
+        occurred_on = add_months(anchor, -months_ago)
+        response = client.post(
+            "/api/v1/transactions",
+            json={
+                "account_id": account["id"],
+                "amount": "1000.00",
+                "type": "expense",
+                "date": occurred_on.isoformat(),
+                "merchant": "Netflix",
+                "description": "Monthly subscription",
+                "status": "cleared",
+            },
+        )
+        assert response.status_code == 201, response.text
+
+    inbox = client.get("/api/v1/notifications", params={"unread_only": "true"}).json()
+    notification = next(
+        row for row in inbox if row["title"] == "Expected recurring transaction"
+    )
+    marked = client.post(f"/api/v1/notifications/{notification['id']}/read")
+    assert marked.status_code == 200, marked.text
+
+    tick = client.post("/api/v1/automation/tick", json={"tick_type": "daily"})
+    assert tick.status_code == 200, tick.text
+    alerts = client.get("/api/v1/alerts").json()
+    assert not any(row["type"] == "recurring_payment_upcoming" for row in alerts)
+    unread = client.get("/api/v1/notifications", params={"unread_only": "true"}).json()
+    assert not any(row["title"] == "Expected recurring transaction" for row in unread)
