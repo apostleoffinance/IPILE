@@ -109,3 +109,12 @@ def test_universal_csv_combines_separate_transaction_date_and_time_columns() -> 
     rows = parse_universal_csv(content)
     assert rows[0].transaction_datetime == datetime(2026, 2, 10, 9, 45, 30)
     assert rows[0].type == "expense"
+
+def test_universal_csv_uses_explicit_negative_sign_as_debit_direction() -> None:
+    content = (
+        "Transaction Date,Description,Amount,Reference\\n"
+        "2026-01-01,Card purchase,-100.00,ref-negative\\n"
+    )
+    rows = parse_universal_csv(content)
+    assert rows[0].type == "expense"
+    assert rows[0].amount == Decimal("100.00")
