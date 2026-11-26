@@ -42,6 +42,7 @@ class ImportCorrectionBody(BaseModel):
     date: date_type | None = None
     type: str | None = Field(default=None, pattern="^(income|expense)$")
     description: str | None = Field(default=None, max_length=500)
+    currency: str | None = Field(default=None, min_length=3, max_length=3, pattern="^[A-Za-z]{3}$")
 
 
 def _mailbox_address(token: str) -> str:
@@ -439,6 +440,7 @@ def receive_inbound_email(
             "rows": [{
                 "date": row.date.isoformat(),
                 "amount": str(row.amount),
+                "currency": row.currency,
                 "type": row.type,
                 "description": row.description,
                 "external_id": row.external_id,
@@ -539,6 +541,18 @@ def approve_email_import(
     if job is None:
         raise HTTPException(status_code=404, detail="Pending email import not found.")
     account = _scoped_account(db, ctx.household.id, payload.account_id)
+    source_rows = list(job.result.get("rows", []))
+    for item in source_rows:
+        alert_currency = str(item.get("currency") or "").upper()
+        if alert_currency and alert_currency != account.currency.upper():
+            raise HTTPException(
+                status_code=409,
+                detail=(
+                    f"This alert is denominated in {alert_currency}, but the selected "
+                    f"account uses {account.currency}. Choose a matching account or correct "
+                    "the currency before approval."
+                ),
+            )
     rows = [
         ImportRow(
             date=datetime.fromisoformat(item["date"]).date(),
@@ -547,8 +561,9 @@ def approve_email_import(
             description=item.get("description"),
             external_id=item["external_id"],
             merchant=item.get("merchant"),
+            currency=(str(item.get("currency") or account.currency).upper()),
         )
-        for item in job.result.get("rows", [])
+        for item in source_rows
     ]
     applied = apply_import_rows(
         db,
