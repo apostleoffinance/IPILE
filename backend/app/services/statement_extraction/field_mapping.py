@@ -30,7 +30,9 @@ ALIASES: dict[ColumnField, tuple[str, ...]] = {
         "posted date", "booking date",
     ),
     ColumnField.TRANSACTION_TIME: ("transaction time", "trans time", "txn time", "time"),
-    ColumnField.DATETIME: ("transaction datetime", "transaction date time", "date time", "timestamp"),
+    ColumnField.DATETIME: (
+        "transaction datetime", "transaction date time", "date time", "timestamp",
+    ),
     ColumnField.VALUE_DATE: ("value date", "effective date", "settlement date"),
     ColumnField.DESCRIPTION: (
         "description", "narration", "particulars", "details", "transaction details",
