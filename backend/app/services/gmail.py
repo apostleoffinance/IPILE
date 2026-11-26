@@ -139,11 +139,19 @@ def extract_message(message: dict[str, Any]) -> dict[str, str]:
     }
 
 
-def list_recent_messages(access_token: str, after_internal_ms: int | None) -> list[dict[str, Any]]:
+def list_recent_messages(
+    access_token: str,
+    after_internal_ms: int | None,
+    sender_domains: list[str],
+) -> list[dict[str, Any]]:
+    if not sender_domains:
+        return []
     if after_internal_ms:
         query = f"after:{max(0, after_internal_ms // 1000 - 60)}"
     else:
         query = "newer_than:7d"
+    sender_query = "{ " + " ".join(f"from:{domain}" for domain in sender_domains) + " }"
+    query = f"{query} {sender_query}"
     messages: list[dict[str, Any]] = []
     page_token: str | None = None
     while True:
