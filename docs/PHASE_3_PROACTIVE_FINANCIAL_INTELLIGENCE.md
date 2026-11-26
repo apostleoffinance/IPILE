@@ -16,6 +16,8 @@ Turn verified Phase 2 transaction patterns into timely, explainable household al
 - Do not reopen alerts a household member has already read or resolved.
 - Resolve stale recurring reminders when the expected date changes, and resolve anomaly alerts when the source transaction is corrected, voided or ages out of the detection window.
 - Refresh intelligence on daily automation, recognized income, shared manual transaction creation/update/void, and imported transaction commits.
+- Recompute allocation runs when additional income arrives in an already-processed period; incrementally top up fund transfers by the unfunded difference without automatically withdrawing funds when targets fall.
+- Recompute allocations after shared income edits or voids, and after imports containing income.
 - Keep review-only bank alerts out of the ledger and intelligence pipeline until approval.
 - Surface unread proactive alerts on the Insights page and link users to the Inbox for review.
 - Use only shared, cleared/reconciled transactions for household-level alerts.
@@ -34,6 +36,7 @@ Turn verified Phase 2 transaction patterns into timely, explainable household al
 - A third consistent monthly transaction creates one upcoming recurring alert and one in-app notification.
 - Re-running daily automation does not duplicate that notification.
 - A transaction materially above its same-payee historical median creates an anomaly alert and notification.
+- Additional same-period income refreshes recognized income and allocation amounts without duplicate fund transfers; fund contributions increase only by the incremental difference.
 - Voiding/correcting the source transaction resolves its open anomaly alert.
 - Imported transactions invoke the same intelligence refresh path after they are committed.
 - The Insights page displays unread proactive notifications and routes to the Inbox.
