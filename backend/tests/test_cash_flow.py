@@ -1,5 +1,8 @@
 from calendar import monthrange
 from datetime import date, timedelta
+from decimal import Decimal
+
+from app.services import cash_flow
 
 from fastapi.testclient import TestClient
 
@@ -129,12 +132,7 @@ def test_cash_flow_rejects_inverted_range(client: TestClient) -> None:
 def test_cash_flow_historical_native_balance_uses_account_currency_snapshot(
     client: TestClient, monkeypatch
 ) -> None:
-    from decimal import Decimal
-    from app.services import cash_flow
-
     register(client, "cashflow-multi-currency@example.com")
-    household = client.get("/api/v1/households/current").json()
-    household_id = household["id"]
     foreign = client.post(
         "/api/v1/accounts",
         json={
