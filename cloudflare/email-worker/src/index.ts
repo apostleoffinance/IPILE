@@ -157,11 +157,16 @@ export default {
         signal: AbortSignal.timeout(12_000),
       });
     } catch {
+      console.error("bank_alert_delivery_failed reason=backend_network_error");
       message.setReject("IPÌLẸ̀ could not receive this alert right now. Please try forwarding it again later.");
       return;
     }
 
-    if (response.ok) return;
+    if (response.ok) {
+      console.info("bank_alert_delivered");
+      return;
+    }
+    console.error("bank_alert_delivery_failed status=" + response.status);
     if (response.status >= 400 && response.status < 500) {
       message.setReject("IPÌLẸ̀ could not accept this alert. Check the household import address and sender.");
       return;
@@ -177,23 +182,39 @@ export default {
         method: "POST",
         headers: { "x-gmail-sync-secret": env.GMAIL_SYNC_CRON_SECRET },
         signal: AbortSignal.timeout(55_000),
-      }).then((response) => {
-        if (!response.ok) throw new Error(`Gmail sync scheduler returned ${response.status}`);
+      }).then(async (response) => {
+        if (!response.ok) {
+          console.error("gmail_sync_cron_failed status=" + response.status);
+          throw new Error("Gmail sync scheduler returned " + response.status);
+        }
+        const result = await response.json() as Record<string, unknown>;
+        console.info("gmail_sync_cron_completed " + JSON.stringify({
+          connections: Number(result.connections || 0), scanned: Number(result.scanned || 0),
+          queued: Number(result.queued || 0), auto_posted: Number(result.auto_posted || 0),
+          rejected: Number(result.rejected || 0), failed: Number(result.failed || 0),
+        }));
       }));
     }
 
-    // Worker cron runs every five minutes. The API uses household timezones
-    // and scheduler_ticks uniqueness to run daily automation once per local day.
+    // The API uses household timezones and scheduler_ticks uniqueness to run daily.
     if (env.AUTOMATION_CRON_SECRET) {
       tasks.push(fetch(new URL("/api/v1/automation/cron/daily", env.BACKEND_URL), {
         method: "POST",
         headers: { "x-automation-cron-secret": env.AUTOMATION_CRON_SECRET },
         signal: AbortSignal.timeout(55_000),
-      }).then((response) => {
-        if (!response.ok) throw new Error(`Daily automation scheduler returned ${response.status}`);
+      }).then(async (response) => {
+        if (!response.ok) {
+          console.error("daily_automation_cron_failed status=" + response.status);
+          throw new Error("Daily automation scheduler returned " + response.status);
+        }
+        const result = await response.json() as Record<string, unknown>;
+        console.info("daily_automation_cron_completed " + JSON.stringify({
+          households: Number(result.households || 0), processed: Number(result.processed || 0),
+          skipped: Number(result.skipped || 0), failed: Number(result.failed || 0),
+        }));
       }));
     }
 
     if (tasks.length) ctx.waitUntil(Promise.all(tasks).then(() => undefined));
-  },
+  }
 } satisfies ExportedHandler<Env>;
