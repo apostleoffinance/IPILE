@@ -1,4 +1,5 @@
-from app.services.statement_extraction.document_intelligence import PDFContentKind
+from decimal import Decimal
+
 from app.services.statement_extraction.field_mapping import ColumnField
 from app.services.statement_extraction.pdf_layout import (
     _find_header, _parse_date_time, _parse_cell_amount,
