@@ -44,7 +44,7 @@ This covers the 14 institutions in the CSV:
 | OPay | `opayweb.com`, `opay-inc.com`, `opay-nigeria.com` | `no-reply@opayweb.com`, `alerts@opay-inc.com`, `no-reply@opay-nigeria.com` (observed by operator) |
 | PalmPay | `palmpay.com` | `no-reply@palmpay.com` |
 
-**Important:** the Worker currently enforces the trusted root-domain allowlist (not a per-address sender allowlist). It also requires Cloudflare's trusted DMARC result to pass. The sender addresses above are reference formats from the supplied CSV, not a guarantee that every institution always uses only those addresses. Verify real original alert samples before tightening to exact sender addresses or changing a bank's parser. This initial list is an NGN bank-alert intake allowlist; it does not imply multi-currency parsing is complete.
+**Important:** the Worker currently enforces the trusted root-domain allowlist (not a per-address sender allowlist). It also requires Cloudflare's trusted DMARC result to pass. The sender addresses above are reference formats from the supplied CSV, not a guarantee that every institution always uses only those addresses. Verify real original alert samples before tightening to exact sender addresses or changing a bank's parser. This is an initial trusted-sender allowlist. The alert parser recognizes supported ISO currency codes and unambiguous currency symbols; verify bank-specific formats before enabling automatic posting.
 
 ## 3. Configure and deploy the Email Worker
 
@@ -92,7 +92,7 @@ The default Worker environment targets the IPÌLẸ̀ staging API. The named `pr
 - Incoming alerts are pending review. No transaction or balance is changed until an authorized household owner/partner approves the alert.
 - Ambiguous amounts, multiple currency amounts, unclear debit/credit direction or missing usable dates are rejected into the review queue rather than guessed.
 - Attachments are metadata only and are not parsed or executed. Statement attachments must be uploaded separately through the authenticated statement-import flow.
-- The parser currently supports NGN-denominated alert formats. Add and test bank-specific formats before enabling other currencies.
+- The parser recognizes a defined set of ISO 4217 codes and unambiguous currency symbols. Ambiguous dollar symbols remain unassigned until the user confirms the destination account currency.
 - Avoid forwarding unrelated sensitive email to a household's import address.
 
 
