@@ -436,7 +436,7 @@ export default function ImportPage() {
                   )}
                   <label className="block text-sm">
                     <span className="text-muted">Choose your bank statement file (CSV, PDF, PNG, JPEG or WebP · max 10 MB)</span>
-                    <input className="mt-1 block w-full text-sm" type="file" accept=".csv,.pdf,.txt,.png,.jpg,.jpeg,.webp,application/pdf,text/csv,text/plain,image/png,image/jpeg,image/webp" onChange={(event) => { setFile(event.target.files?.[0] ?? null); if (event.target.files?.[0]) setContent(""); }} />
+                    <input className="mt-1 block w-full text-sm" type="file" accept=".csv,.pdf,.txt,.png,.jpg,.jpeg,.webp,application/pdf,text/csv,text/plain,image/png,image/jpeg,image/webp" onChange={(event) => { setFile(event.target.files?.[0] ?? null); setAccountSection(""); setResult(null); if (event.target.files?.[0]) setContent(""); }} />
                   </label>
                   <p className="text-xs text-muted">PDFs with selectable text are read directly. Image-only or scanned PDFs are automatically scanned with OCR, as are PNG, JPEG and WebP images. Files are processed privately and are not added to your ledger during scanning. Maximum file size: 10 MB; scanned PDFs: up to 12 pages.</p>
                   <div className="text-center text-xs text-muted">or paste statement text instead of uploading a file</div>
@@ -457,7 +457,7 @@ export default function ImportPage() {
                 {result ? (
                   <div className="space-y-3 border border-line px-4 py-3 text-sm">
                     <p className="font-medium">{result.source} · {result.status.replaceAll("_", " ")}</p>
-                    {result.result?.extraction_method ? <p className="text-xs text-muted">{result.result.extraction_method === "pdf_ocr" || result.result.extraction_method === "image_ocr" ? "Scanned document · OCR extraction" : result.result.extraction_method === "pdf_text" ? "PDF text extraction" : "Structured file extraction"}</p> : null}
+                    {result.result?.extraction_method ? <p className="text-xs text-muted">{result.result.extraction_method === "pdf_ocr" || result.result.extraction_method === "image_ocr" ? "Scanned document · OCR extraction" : result.result.extraction_method === "pdf_table" || result.result.extraction_method === "pdf_text" ? "PDF text and table extraction" : result.result.extraction_method === "csv" ? "CSV transaction extraction" : "Statement text extraction"}</p> : null}
                     {result.status === "needs_section_selection" ? (
                       <>
                         <p>This statement contains more than one account. Choose which account section you want IPÌLẸ̀ to extract and review. This prevents transactions from different bank accounts being mixed together.</p>
