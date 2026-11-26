@@ -44,4 +44,15 @@ export function formatMoney(value: string, currency = "NGN"): string {
   return (negative ? "-" : "") + prefix + integer + decimal + suffix;
 }
 
+/**
+ * Formats API-provided amounts without allowing an absent or malformed value
+ * to crash an entire page. Strict parsing remains available through formatMoney.
+ */
+export function formatMoneySafe(value: unknown, currency = "NGN"): string {
+  if (typeof value !== "string" || !/^-?\d+(\.\d{1,2})?$/.test(value.trim())) {
+    return "—";
+  }
+  return formatMoney(value, currency);
+}
+
 export const formatNaira = formatMoney;

@@ -2,11 +2,11 @@
 
 import * as React from "react";
 import { useHouseholdCurrency } from "@/hooks/useHouseholdCurrency";
-import { formatMoney } from "@/lib/money";
+import { formatMoneySafe } from "@/lib/money";
 import { cn } from "@/lib/utils";
 
 type MoneyAmountProps = {
-  amount: string;
+  amount: string | null | undefined;
   currency?: string;
   className?: string;
 };
@@ -14,5 +14,5 @@ type MoneyAmountProps = {
 export function MoneyAmount({ amount, currency, className }: MoneyAmountProps) {
   const householdCurrency = useHouseholdCurrency();
   const displayCurrency = currency ?? householdCurrency ?? "NGN";
-  return <span className={cn("tabular", className)}>{formatMoney(amount, displayCurrency)}</span>;
+  return <span className={cn("tabular", className)}>{formatMoneySafe(amount, displayCurrency)}</span>;
 }

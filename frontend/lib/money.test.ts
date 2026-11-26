@@ -1,4 +1,4 @@
-import { formatNaira, parseMoney } from "./money";
+import { formatMoneySafe, formatNaira, parseMoney } from "./money";
 
 function assert(condition: boolean, message: string) {
   if (!condition) throw new Error(message);
@@ -24,6 +24,12 @@ for (const [input, expected, currency] of formatCases) {
 assert(parseMoney("90") === "90.00", "parseMoney should pad cents");
 assert(parseMoney("90.5") === "90.50", "parseMoney should pad single fractional digit");
 assert(parseMoney("-12.3") === "-12.30", "parseMoney should keep sign");
+
+assert(formatMoneySafe("123.45") === "₦123.45", "safe formatter should format valid values");
+assert(formatMoneySafe(undefined) === "—", "safe formatter should handle undefined");
+assert(formatMoneySafe(null) === "—", "safe formatter should handle null");
+assert(formatMoneySafe(123) === "—", "safe formatter should handle non-string values");
+assert(formatMoneySafe("not-money") === "—", "safe formatter should handle malformed values");
 
 let threw = false;
 try {
