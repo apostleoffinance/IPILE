@@ -82,11 +82,33 @@ def detect_recurring_payments(
         if frequency is None:
             continue
         expected = ordered[-1].date + timedelta(days=round(median(intervals)))
-        if (
-            expected < today - timedelta(days=5)
-            or expected > today + timedelta(days=lookahead_days)
-        ):
+        overdue_days = (today - expected).days
+        if overdue_days > 35:
             continue
+        if overdue_days > 5:
+            signal_code = "recurring_payment_missed"
+            severity = "warning"
+            title = "Expected recurring transaction not seen"
+            detail = (
+                f"{payee.title()} was expected on {expected.isoformat()}, but no "
+                "matching transaction has been recorded."
+            )
+        elif expected <= today + timedelta(days=lookahead_days):
+            signal_code = "recurring_payment_upcoming"
+            severity = "info"
+            title = "Expected recurring transaction"
+            detail = (
+                f"{payee.title()} is likely to repeat {frequency}; the next occurrence "
+                f"is expected on {expected.isoformat()}."
+            )
+        else:
+            signal_code = "recurring_payment_detected"
+            severity = "info"
+            title = "Recurring transaction pattern detected"
+            detail = (
+                f"{payee.title()} appears to repeat {frequency}; its next expected "
+                f"date is {expected.isoformat()}."
+            )
         amounts = [_amount(row) for row in ordered]
         typical_amount = Decimal(str(median(amounts)))
         stable = typical_amount > 0 and (
