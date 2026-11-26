@@ -43,7 +43,7 @@ def _detect_account_section(text: str) -> str | None:
             continue
         period_index = normalized.find(" period ")
         if period_index >= 0:
-            original_period = re.search(r"\\bperiod\\s*:", candidate, re.IGNORECASE)
+            original_period = re.search(r"\bperiod\s*:", candidate, re.IGNORECASE)
             if original_period:
                 label = candidate[:original_period.start()].strip(" :-")
                 if label and normalize_header(label) not in {"account name", "account number"}:
