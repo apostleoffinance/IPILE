@@ -2,8 +2,10 @@ from __future__ import annotations
 
 import hashlib
 import hmac
+import re
 import secrets
 from datetime import UTC, datetime, timedelta
+from email.utils import parseaddr
 
 from fastapi import APIRouter, Depends, Header, HTTPException
 from fastapi.responses import RedirectResponse
@@ -54,10 +56,23 @@ def _sender_allowed(sender: str) -> bool:
     ))
 
 
+def _gmail_dmarc_passes_for_sender(sender: str, authentication_results: str) -> bool:
+    sender_address = parseaddr(sender)[1].lower()
+    sender_domain = sender_address.rsplit("@", 1)[-1]
+    match = re.search(
+        r"\bdmarc=pass\b.*?\bheader\.from=([a-z0-9.-]+)",
+        authentication_results,
+        re.IGNORECASE,
+    )
+    return bool(match and sender_domain and match.group(1).lower() == sender_domain)
+
+
 def _save_alert(db: Session, connection: GmailConnection, message: dict[str, str]) -> str:
     if not _sender_allowed(message["from"]):
         return "ignored"
-    if "dmarc=pass" not in message.get("authentication_results", ""):
+    if not _gmail_dmarc_passes_for_sender(
+        message["from"], message.get("authentication_results", "")
+    ):
         return "ignored"
     if not message["body"]:
         return "ignored"
