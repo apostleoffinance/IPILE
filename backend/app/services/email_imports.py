@@ -113,3 +113,39 @@ def parse_bank_alert(
         merchant=_sender_domain(sender)[:200],
         currency=currency_code,
     )
+
+
+
+def apply_alert_automation(db, household, job, row, account):
+    """Auto-post only a verified alert with an exact account and currency match."""
+    mode = (household.settings or {}).get("bank_alert_automation_mode", "review_everything")
+    if mode == "review_everything" or account is None or not row.currency:
+        return False
+    if mode not in {"auto_trusted", "full_automation"}:
+        return False
+    if account.currency.upper() != row.currency.upper():
+        return False
+
+    from app.services.imports import apply_import_rows
+
+    applied = apply_import_rows(
+        db,
+        household,
+        account,
+        [row],
+        source="email",
+        filename=job.filename,
+    )
+    job.status = "approved"
+    job.created_count = applied.created_count
+    job.skipped_count = applied.skipped_count
+    job.error_count = applied.error_count
+    job.result = {
+        **job.result,
+        "auto_posted": True,
+        "automation_mode": mode,
+        "errors": applied.result.get("errors", []),
+    }
+    db.delete(applied)
+    db.add(job)
+    return True
