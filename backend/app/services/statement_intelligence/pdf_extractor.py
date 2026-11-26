@@ -26,6 +26,9 @@ from app.services.statement_intelligence.schema import (
     StatementSummary,
 )
 from app.services.statement_intelligence.validation import validate_statement
+from app.services.statement_extraction.pdf_layout import _detect_account_section
+
+MAX_PDF_PAGES = 150
 
 DATE_TIME_FORMATS = (
     "%d %b %Y %H:%M:%S",
@@ -284,6 +287,7 @@ def extract_pdf_statement(content: bytes) -> ExtractionResult:
     mapping: ColumnMapping | None = None
     page_count = 0
     document_currency: str | None = None
+    account_section: str | None = None
 
     try:
         pdf = pdfplumber.open(BytesIO(content))
@@ -292,8 +296,13 @@ def extract_pdf_statement(content: bytes) -> ExtractionResult:
 
     with pdf:
         page_count = len(pdf.pages)
+        if page_count > MAX_PDF_PAGES:
+            raise ValueError(
+                f"This PDF has {page_count} pages. The current safe limit is {MAX_PDF_PAGES} pages per upload."
+            )
         for page_number, page in enumerate(pdf.pages, start=1):
             page_text = page.extract_text() or ""
+            account_section = _detect_account_section(page_text) or account_section
             raw_page_text[page_number] = page_text
             if page_number == 1:
                 document_currency = _parse_summary(page_text).currency
@@ -301,6 +310,7 @@ def extract_pdf_statement(content: bytes) -> ExtractionResult:
                 try:
                     mapping, positions, header_top = detect_column_mapping(page)
                 except ValueError:
+                    page.close()
                     continue
 
             lines = _cluster_words(page.extract_words(x_tolerance=2, y_tolerance=3))
@@ -416,6 +426,7 @@ def extract_pdf_statement(content: bytes) -> ExtractionResult:
                             transaction_datetime=transaction_datetime,
                             running_balance=running_balance,
                             source_page=page_number,
+                            account_section=account_section,
                             extraction_confidence=mapping.confidence if mapping else None,
                         )
                     )
@@ -429,6 +440,7 @@ def extract_pdf_statement(content: bytes) -> ExtractionResult:
                             row=row_index,
                         )
                     )
+            page.close()
 
     if not rows:
         bank_adapter_result = extract_with_bank_adapter(
