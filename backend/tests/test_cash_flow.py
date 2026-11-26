@@ -156,9 +156,12 @@ def test_cash_flow_historical_native_balance_uses_account_currency_snapshot(
     )
     assert transaction.status_code == 201, transaction.text
 
+    observed_dates = set()
+
     def fake_conversion(db, household_obj, amount, currency, on_date):
         assert currency == "USD"
-        assert on_date == past - timedelta(days=1)
+        assert on_date in {past - timedelta(days=1), past}
+        observed_dates.add(on_date)
         return (Decimal(str(amount)) * Decimal("0.75")).quantize(Decimal("0.01"))
 
     monkeypatch.setattr(cash_flow, "amount_in_base_currency", fake_conversion)
@@ -170,6 +173,7 @@ def test_cash_flow_historical_native_balance_uses_account_currency_snapshot(
     # Future expense is reversed in native USD before valuing the reconstructed
     # $100 historical balance at the historical rate of 0.75.
     assert body["closing_cash"] == "75.00"
+    assert observed_dates == {past - timedelta(days=1), past}
 
 
 def test_cash_flow_reverses_foreign_transfer_using_destination_native_amount(
@@ -202,8 +206,11 @@ def test_cash_flow_reverses_foreign_transfer_using_destination_native_amount(
     transfer_body = transfer.json()
     assert Decimal(transfer_body["counterparty_amount"]) > Decimal("0")
 
+    observed_dates = set()
+
     def convert(db, household, amount, currency, on_date):
-        assert on_date == past - timedelta(days=1)
+        assert on_date in {past - timedelta(days=1), past}
+        observed_dates.add(on_date)
         rates = {"USD": Decimal("0.80"), "EUR": Decimal("0.90")}
         return (Decimal(str(amount)) * rates[currency]).quantize(Decimal("0.01"))
 
@@ -218,3 +225,4 @@ def test_cash_flow_reverses_foreign_transfer_using_destination_native_amount(
         + Decimal("0.00") * Decimal("0.90")
     )
     assert Decimal(body["closing_cash"]) == expected
+    assert observed_dates == {past - timedelta(days=1), past}
