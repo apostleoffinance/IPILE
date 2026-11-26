@@ -5,7 +5,6 @@ from app.services.statement_extraction import (
     ExtractionMethod,
     ExtractionStatus,
     ExtractedTransaction,
-    StatementAccountSection,
     TransactionDirection,
     extract_statement_document,
 )
@@ -13,7 +12,6 @@ from app.services.statement_extraction.document_intelligence import (
     PDFContentKind,
     PDFDocumentProfile,
 )
-from app.services.statement_extraction.models import StatementMetadata
 
 
 def test_universal_pdf_extractor_preserves_multiple_account_sections(monkeypatch) -> None:
