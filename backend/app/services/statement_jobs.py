@@ -80,6 +80,7 @@ def enqueue_statement_extraction(
     filename: str,
     suffix: str,
     content: bytes,
+    account_section: str | None = None,
 ) -> ImportJob:
     job = ImportJob(
         household_id=household_id,
@@ -96,6 +97,7 @@ def enqueue_statement_extraction(
         account_id=account_id,
         filename=filename[:200],
         suffix=suffix,
+        account_section=account_section,
         content=content,
         status="pending",
     )
@@ -145,43 +147,69 @@ def process_next_statement_task() -> bool:
                 raise ValueError("The account or household for this import is no longer available.")
             extraction = extract_statement(bytes(task.content), task.suffix)
             review = extraction_payload(extraction)
-            if not extraction.rows:
-                job.status = "failed"
-                job.error_count = 1
+            sections = sorted({
+                row.account_section for row in extraction.rows if row.account_section
+            })
+            if len(sections) > 1 and not task.account_section:
+                job.status = "needs_section_selection"
                 job.result = {
                     **(job.result or {}),
-                    "processing_stage": "failed",
-                    "error": "No transaction rows could be extracted safely.",
-                    "extraction": review,
+                    "processing_stage": "complete",
+                    "available_sections": sections,
+                    "section_count": len(sections),
+                    "row_count": len(extraction.rows),
+                    "extraction_method": extraction.extraction_method,
+                    "message": (
+                        "This statement contains multiple accounts. Upload it again "
+                        "and select the account section you want to review."
+                    ),
                 }
             else:
-                staged = stage_import_rows(
-                    db,
-                    household,
-                    account,
-                    extraction.rows,
-                    source="statement",
-                    filename=task.filename,
-                    extraction=review,
-                )
-                staged.result = {
-                    **(staged.result or {}),
-                    "processing_stage": "complete",
-                    "extraction_method": extraction.extraction_method,
-                    "extraction_status": review["status"],
-                }
-                # Preserve the original job ID returned to the uploading client.
-                job.status = staged.status
-                job.created_count = staged.created_count
-                job.skipped_count = staged.skipped_count
-                job.error_count = staged.error_count
-                job.result = {
-                    **(staged.result or {}),
-                    "account_id": str(account.id),
-                    "processing_stage": "complete",
-                    "extraction": review,
-                }
-                db.delete(staged)
+                rows = extraction.rows
+                if task.account_section:
+                    rows = [
+                        row for row in rows if row.account_section == task.account_section
+                    ]
+                    if not rows:
+                        raise ValueError(
+                            "The selected account section was not found in the extracted statement."
+                        )
+                if not rows:
+                    job.status = "failed"
+                    job.error_count = 1
+                    job.result = {
+                        **(job.result or {}),
+                        "processing_stage": "failed",
+                        "error": "No transaction rows could be extracted safely.",
+                        "extraction": review,
+                    }
+                else:
+                    staged = stage_import_rows(
+                        db,
+                        household,
+                        account,
+                        rows,
+                        source="statement",
+                        filename=task.filename,
+                        extraction=review,
+                    )
+                    # Preserve the original job ID returned to the uploading client.
+                    job.status = staged.status
+                    job.created_count = staged.created_count
+                    job.skipped_count = staged.skipped_count
+                    job.error_count = staged.error_count
+                    job.result = {
+                        **(staged.result or {}),
+                        "account_id": str(account.id),
+                        "processing_stage": "complete",
+                        "extraction_method": extraction.extraction_method,
+                        "extraction_status": review["status"],
+                        "extraction_issues": review["issues"],
+                        "account_section": task.account_section,
+                        "section_count": len(sections) or 1,
+                        "extraction": review,
+                    }
+                    db.delete(staged)
             task.status = "completed"
             task.content = b""
             task.claimed_at = None
