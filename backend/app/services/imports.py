@@ -306,7 +306,9 @@ def commit_staged_import(
                 if item.get("transaction_datetime") else None
             ),
             running_balance=(
-                Decimal(item["running_balance"]) if item.get("running_balance") is not None else None
+                Decimal(item["running_balance"])
+                if item.get("running_balance") is not None
+                else None
             ),
             source_page=item.get("source_page"),
             extraction_confidence=item.get("extraction_confidence"),
