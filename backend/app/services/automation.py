@@ -53,7 +53,7 @@ def _fund_from_allocation_lines(
     *,
     today: date,
 ) -> dict:
-    """Apply fund destination lines once per allocation run (idempotent via period marker)."""
+    """Apply only the unfunded difference for each allocation line in this period."""
     source = _liquid_source(db, household.id)
     if source is None:
         return {"funded_lines": 0, "total": "0.00"}
