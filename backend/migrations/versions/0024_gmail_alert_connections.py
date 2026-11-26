@@ -38,11 +38,9 @@ def upgrade() -> None:
         sa.Column("revoked_at", sa.DateTime(timezone=True), nullable=True),
         sa.UniqueConstraint("household_id", name="uq_gmail_connections_household"),
     )
-    op.create_index("ix_gmail_connections_household_id", "gmail_connections", ["household_id"])
     op.create_index("ix_gmail_connections_state_hash", "gmail_connections", ["state_hash"])
 
 
 def downgrade() -> None:
     op.drop_index("ix_gmail_connections_state_hash", table_name="gmail_connections")
-    op.drop_index("ix_gmail_connections_household_id", table_name="gmail_connections")
     op.drop_table("gmail_connections")
