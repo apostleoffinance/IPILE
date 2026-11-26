@@ -29,6 +29,7 @@ from app.services.imports import (
     stage_import_rows,
 )
 from app.services.pdf_imports import parse_pdf_statement
+from app.services.transaction_intelligence import enrich_bank_alert
 
 router = APIRouter(prefix="/imports", tags=["imports"])
 INBOUND_BASIC_AUTH = HTTPBasic(auto_error=False)
@@ -44,6 +45,7 @@ class ImportCorrectionBody(BaseModel):
     type: str | None = Field(default=None, pattern="^(income|expense)$")
     description: str | None = Field(default=None, max_length=500)
     currency: str | None = Field(default=None, min_length=3, max_length=3, pattern="^[A-Za-z]{3}$")
+    category_name: str | None = Field(default=None, max_length=120)
 
 
 def _mailbox_address(token: str) -> str:
@@ -409,24 +411,16 @@ def receive_inbound_email(
                 "message": "This bank alert is already waiting for household review.",
             }
 
-    # Suggest an account only on an exact institution match. Ambiguous or
-    # unknown matches remain unassigned and require an explicit user choice.
-    sender_domain = sender.rsplit("@", 1)[-1].strip().lower()
-    sender_root = sender_domain.split(".", 1)[0]
-    account_candidates = (
-        db.query(Account)
-        .filter(
-            Account.household_id == mailbox.household_id,
-            Account.deleted_at.is_(None),
-        )
-        .all()
+    row, suggested_account, intelligence = enrich_bank_alert(
+        db,
+        mailbox.household_id,
+        row,
+        sender=sender,
+        provider="cloudflare_forwarding",
+        provider_event_id=message_id or None,
+        sender_verified=True,
+        classification_context=body,
     )
-    exact_matches = [
-        account for account in account_candidates
-        if (account.institution or "").strip().lower().replace(" ", "").replace("-", "")
-        == sender_root.replace("-", "")
-    ]
-    suggested_account = exact_matches[0] if len(exact_matches) == 1 else None
 
     job = ImportJob(
         household_id=mailbox.household_id,
@@ -437,7 +431,8 @@ def receive_inbound_email(
             "sender": sender[:200],
             "message_id": message_id or None,
             "suggested_account_id": str(suggested_account.id) if suggested_account else None,
-            "account_match": "exact_institution" if suggested_account else "needs_selection",
+            "account_match": intelligence["account_match"],
+            "intelligence": intelligence,
             "rows": [{
                 "date": row.date.isoformat(),
                 "amount": str(row.amount),
@@ -446,6 +441,7 @@ def receive_inbound_email(
                 "description": row.description,
                 "external_id": row.external_id,
                 "merchant": row.merchant,
+                "category_name": row.category_name,
             }],
         },
     )
@@ -566,6 +562,7 @@ def approve_email_import(
             external_id=item["external_id"],
             merchant=item.get("merchant"),
             currency=(str(item.get("currency") or account.currency).upper()),
+            category_name=item.get("category_name"),
         )
         for item in source_rows
     ]
@@ -581,7 +578,12 @@ def approve_email_import(
     job.created_count = applied.created_count
     job.skipped_count = applied.skipped_count
     job.error_count = applied.error_count
-    job.result = {"sender": job.result.get("sender"), "errors": applied.result.get("errors", [])}
+    job.result = {
+        **job.result,
+        "approved_account_id": str(account.id),
+        "approved_at": datetime.now(UTC).isoformat(),
+        "errors": applied.result.get("errors", []),
+    }
     db.delete(applied)
     db.add(job)
     db.commit()

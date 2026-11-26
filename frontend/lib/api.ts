@@ -779,6 +779,27 @@ export type ImportJob = {
     suggested_account_id?: string | null;
     account_match?: string;
     corrected?: boolean;
+    intelligence?: {
+      confidence_score: number;
+      confidence_band: "high" | "medium" | "low";
+      review_reasons: string[];
+      account_match: string;
+      suggested_account_id: string | null;
+      sender_verified: boolean;
+      category_suggestion: { name: string | null; confidence: string; reason: string };
+      normalized_event: {
+        provider: string;
+        provider_event_id: string | null;
+        external_id: string;
+        occurred_on: string;
+        amount: string;
+        currency: string | null;
+        direction: string;
+        description: string | null;
+        merchant: string | null;
+        sender_verified: boolean;
+      };
+    };
     errors?: string[];
     account_id?: string;
     row_count?: number;

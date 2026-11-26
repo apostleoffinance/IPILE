@@ -14,7 +14,6 @@ from sqlalchemy.orm import Session
 
 from app.api.deps import HouseholdContext, get_db, require_roles
 from app.core.config import get_settings
-from app.models.account import Account
 from app.models.gmail import GmailConnection
 from app.models.household import Household
 from app.models.imports import ImportJob
@@ -32,6 +31,7 @@ from app.services.gmail import (
     refresh_access_token,
     revoke_refresh_token,
 )
+from app.services.transaction_intelligence import enrich_bank_alert
 
 router = APIRouter(prefix="/imports", tags=["imports"])
 
@@ -124,17 +124,16 @@ def _save_alert(db: Session, connection: GmailConnection, message: dict[str, str
     ):
         return "duplicate"
 
-    domain = message["from"].rsplit("@", 1)[-1].strip().lower()
-    root = domain.split(".", 1)[0].replace("-", "")
-    accounts = db.query(Account).filter(
-        Account.household_id == connection.household_id,
-        Account.deleted_at.is_(None),
-    ).all()
-    matches = [
-        account for account in accounts
-        if (account.institution or "").strip().lower().replace(" ", "").replace("-", "") == root
-    ]
-    suggested = matches[0] if len(matches) == 1 else None
+    row, suggested, intelligence = enrich_bank_alert(
+        db,
+        connection.household_id,
+        row,
+        sender=message["from"],
+        provider="gmail",
+        provider_event_id=message["message_id"],
+        sender_verified=True,
+        classification_context=message["body"],
+    )
     job = ImportJob(
         household_id=connection.household_id,
         source="email",
@@ -145,7 +144,8 @@ def _save_alert(db: Session, connection: GmailConnection, message: dict[str, str
             "message_id": message["message_id"],
             "provider": "gmail",
             "suggested_account_id": str(suggested.id) if suggested else None,
-            "account_match": "exact_institution" if suggested else "needs_selection",
+            "account_match": intelligence["account_match"],
+            "intelligence": intelligence,
             "rows": [{
                 "date": row.date.isoformat(),
                 "amount": str(row.amount),
@@ -154,6 +154,7 @@ def _save_alert(db: Session, connection: GmailConnection, message: dict[str, str
                 "description": row.description,
                 "external_id": row.external_id,
                 "merchant": row.merchant,
+                "category_name": row.category_name,
             }],
         },
     )
