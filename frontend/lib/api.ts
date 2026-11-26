@@ -28,6 +28,7 @@ export type Household = {
   name: string;
   slug: string;
   base_currency: string;
+  reporting_currency: string;
   timezone: string;
   country: string;
   fiscal_month_start_day: number;
@@ -582,14 +583,36 @@ export function getOverview() {
   return request<HouseholdOverview>("/api/v1/overview");
 }
 
+let currentUserCache: { value: Promise<User>; expiresAt: number } | undefined;
+let currentHouseholdCache: { householdId: string | undefined; value: Promise<Household>; expiresAt: number } | undefined;
+
+export function getCurrentUser() {
+  const now = Date.now();
+  if (currentUserCache && currentUserCache.expiresAt > now) return currentUserCache.value;
+  const value = request<User>("/api/v1/auth/me").catch((error) => { currentUserCache = undefined; throw error; });
+  currentUserCache = { value, expiresAt: now + 15_000 };
+  return value;
+}
+
+export function invalidateCurrentUserCache() { currentUserCache = undefined; }
+
 export function getCurrentHousehold() {
-  return request<Household>("/api/v1/households/current");
+  const now = Date.now();
+  if (currentHouseholdCache && currentHouseholdCache.householdId === householdId && currentHouseholdCache.expiresAt > now) return currentHouseholdCache.value;
+  const value = request<Household>("/api/v1/households/current").catch((error) => { currentHouseholdCache = undefined; throw error; });
+  currentHouseholdCache = { householdId, value, expiresAt: now + 15_000 };
+  return value;
+}
+
+export function getCurrencyCatalog() {
+  return request<{ currencies: { code: string; name: string; symbol: string }[]; default: string }>("/api/v1/currencies");
 }
 
 export function updateCurrentHousehold(body: {
   name?: string;
   minimum_buffer_amount?: string;
   fiscal_month_start_day?: number;
+  reporting_currency?: string;
 }) {
   return request<Household>("/api/v1/households/current", {
     method: "PATCH",
@@ -1230,7 +1253,7 @@ export function recordInvestmentTx(
 
 export const api = {
   health: () => request<{ status: string }>("/api/v1/health"),
-  me: () => request<User>("/api/v1/auth/me"),
+  me: () => getCurrentUser(),
   register: (body: {
     email: string;
     password: string;
