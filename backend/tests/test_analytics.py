@@ -86,3 +86,41 @@ def test_freeze_snapshot_does_not_change_balances(client: TestClient) -> None:
     rows = client.get("/api/v1/snapshots").json()
     assert len(rows) == 1
     assert rows[0]["income"] == "0.00"
+
+
+
+def test_insights_include_detected_recurring_payment(client: TestClient) -> None:
+    from datetime import date
+
+    from app.services.recurring import add_months
+
+    register(client, "recurring-insight@example.com")
+    account = client.post(
+        "/api/v1/accounts",
+        json={"name": "Current", "type": "bank", "current_balance": "100000.00"},
+    ).json()
+    anchor = date.today().replace(day=5)
+    for months_ago in (2, 1, 0):
+        occurred_on = add_months(anchor, -months_ago)
+        response = client.post(
+            "/api/v1/transactions",
+            json={
+                "account_id": account["id"],
+                "amount": "1000.00",
+                "type": "expense",
+                "date": occurred_on.isoformat(),
+                "merchant": "Netflix",
+                "description": "Monthly subscription",
+                "status": "cleared",
+            },
+        )
+        assert response.status_code == 201, response.text
+
+    insights = client.get("/api/v1/insights")
+    assert insights.status_code == 200, insights.text
+    recurring = [
+        row for row in insights.json()["patterns"]
+        if row["code"] == "recurring_payment_upcoming"
+    ]
+    assert len(recurring) == 1
+    assert recurring[0]["evidence"]["payee"] == "netflix"
