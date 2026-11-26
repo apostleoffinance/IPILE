@@ -70,19 +70,34 @@ def _cluster_words(words: list[dict[str, Any]], tolerance: float = 2.0) -> dict[
 
 
 def _header_candidates(words: list[dict[str, Any]]) -> dict[CanonicalField, list[float]]:
-    """Find canonical header phrases from adjacent PDF words."""
+    """Find canonical header phrases, preferring the longest phrase at each position."""
     candidates: dict[CanonicalField, list[float]] = defaultdict(list)
     ordered = sorted(words, key=lambda item: float(item["x0"]))
-    for start in range(len(ordered)):
-        for end in range(min(len(ordered), start + 4), start, -1):
-            phrase = " ".join(str(word["text"]) for word in ordered[start:end])
+    index = 0
+    while index < len(ordered):
+        matched_end = index + 1
+        matched_field = None
+        for end in range(min(len(ordered), index + 4), index, -1):
+            phrase = " ".join(str(word["text"]) for word in ordered[index:end])
             normalized = normalize_header(phrase)
-            for field_name, aliases in _NORMALIZED_ALIASES.items():
-                if normalized in aliases:
-                    candidates[field_name].append(float(ordered[start]["x0"]))
-                    break
+            field_name = next(
+                (
+                    candidate
+                    for candidate, aliases in _NORMALIZED_ALIASES.items()
+                    if normalized in aliases
+                ),
+                None,
+            )
+            if field_name is not None:
+                matched_end = end
+                matched_field = field_name
+                break
+        if matched_field is None:
+            index += 1
+            continue
+        candidates[matched_field].append(float(ordered[index]["x0"]))
+        index = matched_end
     return candidates
-
 
 def detect_column_mapping(page: Any) -> tuple[ColumnMapping, dict[CanonicalField, float], float]:
     """Detect a transaction table header and retain its x-coordinate boundaries."""
