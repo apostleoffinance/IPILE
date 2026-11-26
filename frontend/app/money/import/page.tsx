@@ -198,6 +198,7 @@ export default function ImportPage() {
         date: correction.date ?? String(row.date),
         type: correction.type ?? (row.type as "income" | "expense"),
         description: correction.description ?? String(row.description ?? ""),
+        currency: correction.currency ?? row.currency ?? accounts.find((account) => account.id === reviewAccounts[job.id])?.currency ?? undefined,
       });
       await refreshEmailReview();
       setEmailCorrections((current) => {
@@ -351,6 +352,12 @@ export default function ImportPage() {
                         <label className="block text-sm">
                           <span className="text-muted">Description</span>
                           <Input className="mt-1" value={emailCorrections[job.id]?.description ?? String(row?.description ?? "")} onChange={(event) => setEmailCorrections((current) => ({ ...current, [job.id]: { ...current[job.id], description: event.target.value } }))} />
+                        </label>
+                        <label className="block text-sm">
+                          <span className="text-muted">Transaction currency</span>
+                          <Select className="mt-1" value={emailCorrections[job.id]?.currency ?? row?.currency ?? (accounts.find((account) => account.id === reviewAccounts[job.id])?.currency ?? "")} onChange={(event) => setEmailCorrections((current) => ({ ...current, [job.id]: { ...current[job.id], currency: event.target.value } }))}>
+                            {[...new Set(accounts.map((account) => account.currency))].map((currency) => <option key={currency} value={currency}>{currency}</option>)}
+                          </Select>
                         </label>
                       </div>
                       <Button type="button" variant="outline" disabled={pending} onClick={() => void onCorrectEmail(job)}>
