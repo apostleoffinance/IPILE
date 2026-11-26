@@ -164,6 +164,7 @@ def extract_pdf_layout_transactions(content: bytes) -> tuple[ExtractedTransactio
     """
     transactions: list[ExtractedTransaction] = []
     carried_layout: tuple[float, dict[ColumnField, tuple[float, float]]] | None = None
+    carried_currency: str | None = None
     with pdfplumber.open(BytesIO(content)) as document:
         for page_number, page in enumerate(document.pages, start=1):
             words = page.extract_words(x_tolerance=1, y_tolerance=2) or []
@@ -172,9 +173,17 @@ def extract_pdf_layout_transactions(content: bytes) -> tuple[ExtractedTransactio
             header = _find_header(words)
             if header:
                 carried_layout = header
-            if carried_layout is None:
+                header_y, columns = header
+                header_words = [
+                    word for word in words if abs(word["top"] - header_y) <= 2.5
+                ]
+                carried_currency = _cell_currency([word["text"] for word in header_words])
+            elif carried_layout is not None:
+                # Repeated-page statements often omit the table heading after page one.
+                # Carry column geometry, but start row bands at the current page top.
+                header_y, columns = 0.0, carried_layout[1]
+            else:
                 continue
-            header_y, columns = carried_layout
             date_field = next(
                 (field for field in (
                     ColumnField.DATETIME, ColumnField.TRANSACTION_TIME,
@@ -248,7 +257,7 @@ def extract_pdf_layout_transactions(content: bytes) -> tuple[ExtractedTransactio
                     reference=reference,
                     running_balance=balance,
                     channel=channel,
-                    currency=_cell_currency([field.value for field in columns]),
+                    currency=carried_currency,
                     source_page=page_number,
                     source_row=row_index + 1,
                     original_text=raw_date,
