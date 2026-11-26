@@ -32,6 +32,7 @@ def test_header_mapper_recognizes_common_bank_synonyms_and_currency_suffixes() -
         "Transaction Reference",
     ])
     assert mapping.index_for(CanonicalField.TRANSACTION_DATE) == 0
+    assert mapping.index_for(CanonicalField.TRANSACTION_TIME) is None
     assert mapping.index_for(CanonicalField.VALUE_DATE) == 1
     assert mapping.index_for(CanonicalField.DESCRIPTION) == 2
     assert mapping.index_for(CanonicalField.DEBIT) == 3
