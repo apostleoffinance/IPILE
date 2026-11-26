@@ -245,7 +245,7 @@ def import_statement(
     return job
 
 
-@router.post("/upload", response_model=ImportJobOut, status_code=status.HTTP_201_CREATED)
+@router.post("/upload", response_model=ImportJobOut, status_code=status.HTTP_202_ACCEPTED)
 async def upload_statement(
     account_id: UUID = Form(...),
     file: UploadFile = File(...),
@@ -265,7 +265,7 @@ async def upload_statement(
 async def preview_statement_upload(
     account_id: UUID = Form(...),
     file: UploadFile = File(...),
-    account_section: str | None = Form(default=None),
+    account_section: str | None = Form(default=None, max_length=120),
     ctx: HouseholdContext = Depends(require_roles("owner", "partner")),
     db: Session = Depends(get_db),
 ):
