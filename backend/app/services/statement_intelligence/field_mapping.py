@@ -45,8 +45,9 @@ ALIASES: dict[CanonicalField, frozenset[str]] = {
     CanonicalField.CURRENCY: frozenset({"currency", "ccy", "currency code"}),
     CanonicalField.TRANSACTION_TIME: frozenset({"time", "time of transaction"}),
     CanonicalField.DIRECTION: frozenset({
-        "type", "transaction type", "direction", "dr cr", "dr cr indicator",
+        "direction", "debit credit indicator", "dr cr", "dr cr indicator",
     }),
+    CanonicalField.TRANSACTION_TYPE: frozenset({"type", "transaction type"}),
     CanonicalField.MERCHANT: frozenset({
         "merchant", "payee", "beneficiary", "counterparty", "recipient",
     }),
