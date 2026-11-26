@@ -189,7 +189,7 @@ export default function ImportPage() {
 
   async function onCorrectEmail(job: ImportJob) {
     const row = job.result?.rows?.[0];
-    if (!row) return;
+    if (!row || !accounts) return;
     const correction = emailCorrections[job.id] ?? {};
     setPending(true);
     setError(null);
