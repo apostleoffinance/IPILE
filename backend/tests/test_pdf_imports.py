@@ -2,14 +2,12 @@
 from datetime import date
 from decimal import Decimal
 
-from app.services.import_adapters import ImportRow
 from app.services.statement_extraction.models import (
     ExtractionMethod,
     ExtractionResult,
     ExtractionStatus,
     ExtractedTransaction,
     StatementAccountSection,
-    StatementMetadata,
     TransactionDirection,
 )
 
@@ -101,11 +99,6 @@ def test_scanned_image_statement_is_staged_for_review(client: TestClient, monkey
 def test_multi_account_statement_requires_explicit_section_selection(
     client: TestClient, monkeypatch,
 ) -> None:
-    from app.services.statement_extraction.models import (
-        ExtractionMethod, ExtractionResult, ExtractionStatus, ExtractedTransaction,
-        StatementAccountSection, TransactionDirection,
-    )
-
     register(client, "multi-section-import@example.com")
     account = client.post(
         "/api/v1/accounts",
