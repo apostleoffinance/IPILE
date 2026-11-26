@@ -97,3 +97,14 @@ def test_universal_csv_supports_different_bank_header_conventions(
     assert rows[0].type == expected_type
     assert rows[0].currency == expected_currency
     assert rows[0].external_id == expected_reference
+
+
+
+def test_universal_csv_combines_separate_transaction_date_and_time_columns() -> None:
+    content = (
+        "Transaction Date,Time,Description,Debit,Credit,Reference\n"
+        "2026-02-10,09:45:30,Transport,250.00,,TIME-001\n"
+    )
+    rows = parse_universal_csv(content)
+    assert rows[0].transaction_datetime == datetime(2026, 2, 10, 9, 45, 30)
+    assert rows[0].type == "expense"
