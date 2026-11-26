@@ -214,7 +214,10 @@ def confirm_statement_review(
         raise HTTPException(status_code=404, detail="Pending statement import not found.")
     extraction = dict(job.result.get("extraction") or {})
     if not extraction.get("requires_manual_review"):
-        raise HTTPException(status_code=409, detail="This statement does not require a review override.")
+        raise HTTPException(
+            status_code=409,
+            detail="This statement does not require a review override.",
+        )
     if not payload.acknowledge_discrepancies:
         raise HTTPException(
             status_code=400,
