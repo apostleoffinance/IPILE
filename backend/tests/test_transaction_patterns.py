@@ -67,3 +67,28 @@ def test_does_not_flag_large_transaction_without_sufficient_history():
         _transaction(day=date(2026, 3, 2), amount="1000.00"),
     ]
     assert detect_unusual_transactions(rows, today=date(2026, 3, 6)) == []
+
+
+def test_detects_annual_recurring_pattern_even_when_not_due_soon():
+    rows = [
+        _transaction(day=date(2024, 1, 1), amount="1200.00"),
+        _transaction(day=date(2025, 1, 1), amount="1200.00"),
+        _transaction(day=date(2026, 1, 1), amount="1200.00"),
+    ]
+    found = detect_recurring_payments(rows, today=date(2026, 1, 5))
+    assert len(found) == 1
+    assert found[0]["code"] == "recurring_payment_detected"
+    assert found[0]["evidence"]["frequency"] == "annual"
+    assert found[0]["evidence"]["expected_next_date"] == "2027-01-01"
+
+
+def test_flags_a_recurring_payment_that_appears_overdue():
+    rows = [
+        _transaction(day=date(2025, 12, 1)),
+        _transaction(day=date(2026, 1, 1)),
+        _transaction(day=date(2026, 1, 31)),
+    ]
+    found = detect_recurring_payments(rows, today=date(2026, 3, 10))
+    assert len(found) == 1
+    assert found[0]["code"] == "recurring_payment_missed"
+    assert found[0]["severity"] == "warning"
