@@ -15,7 +15,7 @@ export function useHouseholdCurrency() {
       if (!currencyRequest) {
         currencyRequest = getCurrentHousehold()
           .then((household) => {
-            cachedCurrency = household.base_currency;
+            cachedCurrency = household.reporting_currency || household.base_currency;
             return cachedCurrency;
           })
           .catch((error) => {
