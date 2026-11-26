@@ -178,7 +178,7 @@ def extract_statement_document(content: bytes, suffix: str) -> ExtractionResult:
             # established text/table adapter while the universal parser grows.
             try:
                 rows = _parse_selectable_pdf(content)
-            except ValueError:
+            except Exception:
                 try:
                     rows = parse_ocr_statement(extract_pdf_ocr_text(content))
                 except ValueError as ocr_error:
