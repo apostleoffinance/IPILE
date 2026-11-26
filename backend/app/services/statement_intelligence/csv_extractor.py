@@ -105,7 +105,7 @@ def parse_universal_csv(content: str) -> list[ImportRow]:
                 direction = cell(direction_index).lower()
                 declared_type = cell(transaction_type_index).lower()
                 marker = raw_amount.upper()
-                is_debit = "DR" in marker or direction in {
+                is_debit = amount < 0 or "DR" in marker or direction in {
                     "debit", "dr", "out", "outgoing", "expense", "withdrawal", "withdraw", "payment",
                 }
                 is_credit = "CR" in marker or direction in {
