@@ -28,7 +28,7 @@ from app.services.imports import (
     stage_import,
     stage_import_rows,
 )
-from app.services.pdf_imports import parse_pdf_statement
+from app.services.pdf_imports import parse_pdf_statement, parse_statement_document
 from app.services.transaction_intelligence import enrich_bank_alert
 
 router = APIRouter(prefix="/imports", tags=["imports"])
@@ -191,8 +191,8 @@ async def upload_statement(
 ):
     filename = (file.filename or "statement").strip()
     suffix = filename.lower().rsplit(".", 1)[-1] if "." in filename else ""
-    if suffix not in {"csv", "pdf", "txt"}:
-        raise HTTPException(status_code=415, detail="Upload a CSV, PDF, or TXT statement.")
+    if suffix not in {"csv", "pdf", "txt", "png", "jpg", "jpeg", "webp"}:
+        raise HTTPException(status_code=415, detail="Upload a CSV, PDF, TXT, PNG, JPEG or WebP statement.")
     upload_limit = get_settings().max_import_upload_bytes
     if upload_limit < 1:
         raise HTTPException(status_code=503, detail="Statement uploads are not configured.")
@@ -203,13 +203,14 @@ async def upload_statement(
             detail=f"Statement exceeds the configured {upload_limit}-byte upload limit.",
         )
     try:
-        if suffix == "pdf":
-            rows = parse_pdf_statement(raw)
+        if suffix in {"pdf", "png", "jpg", "jpeg", "webp"}:
+            rows, extraction_method = parse_statement_document(raw, suffix)
             source = "statement"
             account = _scoped_account(db, ctx.household.id, account_id)
             job = apply_import_rows(
                 db, ctx.household, account, rows, source=source, filename=filename
             )
+            job.result = {**(job.result or {}), "extraction_method": extraction_method}
         else:
             content = raw.decode("utf-8-sig")
             source = "csv" if suffix == "csv" else "statement"
@@ -220,11 +221,8 @@ async def upload_statement(
     except (ValueError, UnicodeDecodeError) as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
     except Exception as exc:
-        if suffix == "pdf":
-            raise HTTPException(
-                status_code=400,
-                detail="Could not read this PDF statement.",
-            ) from exc
+        if suffix in {"pdf", "png", "jpg", "jpeg", "webp"}:
+            raise HTTPException(status_code=422, detail=str(exc)) from exc
         raise
     db.commit()
     db.refresh(job)
@@ -242,8 +240,8 @@ async def preview_statement_upload(
     """Upload and parse a supported statement into review without posting transactions."""
     filename = (file.filename or "statement").strip()
     suffix = filename.lower().rsplit(".", 1)[-1] if "." in filename else ""
-    if suffix not in {"csv", "pdf", "txt"}:
-        raise HTTPException(status_code=415, detail="Upload a CSV, PDF, or TXT statement.")
+    if suffix not in {"csv", "pdf", "txt", "png", "jpg", "jpeg", "webp"}:
+        raise HTTPException(status_code=415, detail="Upload a CSV, PDF, TXT, PNG, JPEG or WebP statement.")
     upload_limit = get_settings().max_import_upload_bytes
     if upload_limit < 1:
         raise HTTPException(status_code=503, detail="Statement uploads are not configured.")
@@ -255,8 +253,9 @@ async def preview_statement_upload(
         )
     account = _scoped_account(db, ctx.household.id, account_id)
     try:
-        if suffix == "pdf":
-            rows = parse_pdf_statement(raw)
+        extraction_method = "csv" if suffix == "csv" else "text"
+        if suffix in {"pdf", "png", "jpg", "jpeg", "webp"}:
+            rows, extraction_method = parse_statement_document(raw, suffix)
             source = "statement"
         else:
             content = raw.decode("utf-8-sig")
@@ -267,13 +266,12 @@ async def preview_statement_upload(
         job = stage_import_rows(
             db, ctx.household, account, rows, source=source, filename=filename
         )
+        job.result = {**(job.result or {}), "extraction_method": extraction_method}
     except (ValueError, UnicodeDecodeError) as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
     except Exception as exc:
-        if suffix == "pdf":
-            raise HTTPException(
-                status_code=400, detail="Could not read this PDF statement."
-            ) from exc
+        if suffix in {"pdf", "png", "jpg", "jpeg", "webp"}:
+            raise HTTPException(status_code=422, detail=str(exc)) from exc
         raise
     db.commit()
     db.refresh(job)
