@@ -147,7 +147,7 @@ def parse_universal_csv(content: str) -> list[ImportRow]:
             value_date = _parse_datetime(value_date_text).date() if value_date_text else None
             balance_text = cell(balance_index)
             running_balance = (
-                abs(_amount_or_zero(balance_text))
+                _amount_or_zero(balance_text)
                 if balance_text and balance_text not in {"-", "--", "—", "–"}
                 else None
             )
