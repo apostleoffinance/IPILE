@@ -69,6 +69,9 @@ def parse_universal_csv(content: str) -> list[ImportRow]:
     balance_index = mapping.index_for(CanonicalField.BALANCE)
     currency_index = mapping.index_for(CanonicalField.CURRENCY)
     direction_index = mapping.index_for(CanonicalField.DIRECTION)
+    merchant_index = mapping.index_for(CanonicalField.MERCHANT)
+    category_index = mapping.index_for(CanonicalField.CATEGORY)
+    time_index = mapping.index_for(CanonicalField.TRANSACTION_TIME)
     inferred_currency = _currency_from_headers(headers)
     rows: list[ImportRow] = []
 
@@ -80,7 +83,12 @@ def parse_universal_csv(content: str) -> list[ImportRow]:
             return values[index].strip() if index is not None and index < len(values) else ""
 
         try:
-            transaction_datetime = _parse_datetime(cell(date_index))
+            date_value = cell(date_index)
+            time_value = cell(time_index)
+            transaction_datetime = _parse_datetime(
+                date_value if time_value and time_value in date_value
+                else (date_value + " " + time_value).strip()
+            )
             if debit_index is not None or credit_index is not None:
                 debit = abs(_amount_or_zero(cell(debit_index)))
                 credit = abs(_amount_or_zero(cell(credit_index)))
@@ -95,20 +103,29 @@ def parse_universal_csv(content: str) -> list[ImportRow]:
                 amount = _parse_amount(raw_amount)
                 direction = cell(direction_index).lower()
                 marker = raw_amount.upper()
-                is_debit = amount < 0 or "DR" in marker or direction in {
-                    "debit", "dr", "out", "outgoing", "expense",
+                known_types = {
+                    "income", "expense", "transfer", "refund", "investment",
+                    "debt_payment", "giving",
                 }
-                is_credit = "CR" in marker or direction in {
-                    "credit", "cr", "in", "incoming", "income",
-                }
-                if is_debit == is_credit:
-                    raise ValueError(
-                        "Transaction direction is unclear; this amount was not guessed."
-                    )
-                amount = -abs(amount) if is_debit else abs(amount)
-                tx_type = "expense" if is_debit else "income"
+                if direction in known_types:
+                    tx_type = direction
+                else:
+                    is_debit = "DR" in marker or direction in {
+                        "debit", "dr", "out", "outgoing",
+                    }
+                    is_credit = "CR" in marker or direction in {
+                        "credit", "cr", "in", "incoming",
+                    }
+                    if is_debit == is_credit:
+                        raise ValueError(
+                            "Transaction direction is unclear; this amount was not guessed."
+                        )
+                    tx_type = "expense" if is_debit else "income"
+                amount = abs(amount)
 
             description = cell(description_index) or None
+            merchant = cell(merchant_index) or description
+            category = cell(category_index) or None
             reference = cell(reference_index) or None
             value_date_text = cell(value_date_index)
             value_date = _parse_datetime(value_date_text).date() if value_date_text else None
@@ -124,8 +141,9 @@ def parse_universal_csv(content: str) -> list[ImportRow]:
                 amount=amount,
                 tx_type=tx_type,
                 description=description,
-                external_id=cell(reference_index) or None,
-                merchant=description,
+                external_id=reference,
+                merchant=merchant,
+                category=category,
                 row_index=row_number,
                 currency=currency or inferred_currency,
                 value_date=value_date,
