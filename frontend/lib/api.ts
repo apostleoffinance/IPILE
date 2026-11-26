@@ -466,10 +466,21 @@ async function ensureCsrfToken(): Promise<string> {
     csrfToken = fromCookie;
     return fromCookie;
   }
-  const response = await fetch(`${requireApiUrl()}/api/v1/auth/csrf`, { credentials: "include" });
-  const data = (await response.json()) as { csrf_token?: string };
+  let response: Response;
+  try {
+    response = await fetch(`${requireApiUrl()}/api/v1/auth/csrf`, { credentials: "include" });
+  } catch {
+    throw new Error("We couldn't connect securely. Check your connection and try again.");
+  }
+  const raw = await response.text().catch(() => "");
+  let data: { csrf_token?: string } = {};
+  try {
+    data = raw ? (JSON.parse(raw) as { csrf_token?: string }) : {};
+  } catch {
+    data = {};
+  }
   if (!response.ok || !data.csrf_token) {
-    throw new Error("Unable to establish CSRF protection.");
+    throw new Error("We couldn't start a secure session. Please refresh the page and try again.");
   }
   csrfToken = data.csrf_token;
   return csrfToken;
@@ -488,7 +499,13 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
     ...(householdId ? { "X-Household-Id": householdId } : {}),
     ...((init?.headers as Record<string, string> | undefined) ?? {}),
   };
-  if (["POST", "PUT", "PATCH", "DELETE"].includes(method)) {
+  const csrfExempt = [
+    "/api/v1/auth/login",
+    "/api/v1/auth/register",
+    "/api/v1/auth/csrf",
+    "/api/v1/webhooks",
+  ].some((prefix) => path === prefix || path.startsWith(`${prefix}/`));
+  if (["POST", "PUT", "PATCH", "DELETE"].includes(method) && !csrfExempt) {
     headers["X-CSRF-Token"] = await ensureCsrfToken();
   }
 
@@ -531,37 +548,67 @@ async function parseResponse<T>(response: Response): Promise<T> {
   }
 
   const contentType = response.headers.get("content-type") ?? "";
+  const rawText = await response.text().catch(() => "");
   let data: Record<string, unknown> = {};
-  let rawText = "";
-
-  if (contentType.includes("application/json")) {
-    data = (await response.json().catch(() => ({}))) as Record<string, unknown>;
-  } else {
-    rawText = await response.text().catch(() => "");
+  if (rawText) {
     try {
-      data = rawText ? (JSON.parse(rawText) as Record<string, unknown>) : {};
+      const parsed: unknown = JSON.parse(rawText);
+      if (parsed && typeof parsed === "object" && !Array.isArray(parsed)) {
+        data = parsed as Record<string, unknown>;
+      }
     } catch {
-      data = {};
+      // A proxy, edge runtime, or unavailable backend may return HTML or an empty body.
+      // Never expose that raw response to the user.
     }
   }
 
   if (!response.ok) {
     const retryAfter = response.headers.get("retry-after");
-    const errorObject = data.error as { message?: string } | undefined;
+    const errorObject = data.error as { message?: unknown } | undefined;
     const detail = data.detail ?? errorObject?.message;
-    const message =
-      typeof detail === "string"
-        ? detail
-        : response.status === 429
-          ? "Too many requests. Please wait a moment before trying again."
-          : rawText.trim() || `Request failed (HTTP ${response.status}).`;
-    throw new Error(retryAfter && response.status === 429 ? `${message} Try again in ${retryAfter} seconds.` : message);
+    const safeDetail = typeof detail === "string" && detail.length <= 240 ? detail : undefined;
+    let message =
+      response.status === 401
+        ? "Your email or password doesn't look right. Check your details and try again."
+        : response.status === 403
+          ? "You don't have permission to complete this action. Please refresh and try again."
+          : response.status === 404
+            ? "We couldn't find what you were looking for. Refresh the page and try again."
+            : response.status === 409
+              ? "This information is already in use. Check your details and try again."
+              : response.status === 422
+                ? "Some of the information needs attention. Check the fields and try again."
+                : response.status === 429
+                  ? "You're trying that a little too often. Please wait a moment and try again."
+                  : response.status >= 500
+                    ? "IPÌLẸ̀ is temporarily unavailable. Please try again in a moment."
+                    : safeDetail ?? "We couldn't complete that request. Please check your details and try again.";
+
+    // Only surface concise, expected client-side validation messages.
+    if (response.status >= 400 && response.status < 500 && safeDetail) {
+      const friendlyDetails: Record<string, string> = {
+        "Invalid credentials.": "Your email or password doesn't look right. Check your details and try again.",
+        "Email already registered.": "An account with this email already exists. Sign in or use another email address.",
+        "Account is disabled.": "This account is currently unavailable. Please contact support for help.",
+        "Current password is incorrect.": "Your current password is incorrect. Please try again.",
+      };
+      message = friendlyDetails[safeDetail] ?? safeDetail;
+    }
+    if (retryAfter && response.status === 429) {
+      message = `${message} Try again in ${retryAfter} seconds.`;
+    }
+    throw new Error(message);
   }
 
-  if (!contentType.includes("application/json") && rawText) {
-    throw new Error("The server returned an unexpected response. Please try again shortly.");
+  if (!contentType.includes("application/json") || !rawText) {
+    throw new Error("We couldn't complete that request because the service returned an unexpected response. Please try again.");
   }
-  return data as T;
+
+  try {
+    return JSON.parse(rawText) as T;
+  } catch {
+    throw new Error("We couldn't read the response from the service. Please try again.");
+  }
 }
 
 export type MemberFinancialSummary = {
