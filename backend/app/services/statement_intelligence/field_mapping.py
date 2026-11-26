@@ -35,7 +35,8 @@ ALIASES: dict[CanonicalField, frozenset[str]] = {
     }),
     CanonicalField.REFERENCE: frozenset({
         "reference", "transaction reference", "transaction id", "transaction no",
-        "transaction number", "session id", "session reference", "external id",
+        "transaction number", "reference number", "transaction ref", "bank reference",
+        "session id", "session reference", "external id",
         "rrn", "narration reference",
     }),
     CanonicalField.CHANNEL: frozenset({
@@ -46,6 +47,10 @@ ALIASES: dict[CanonicalField, frozenset[str]] = {
     CanonicalField.DIRECTION: frozenset({
         "type", "transaction type", "direction", "dr cr", "dr cr indicator",
     }),
+    CanonicalField.MERCHANT: frozenset({
+        "merchant", "payee", "beneficiary", "counterparty", "recipient",
+    }),
+    CanonicalField.CATEGORY: frozenset({"category", "transaction category"}),
 }
 
 
