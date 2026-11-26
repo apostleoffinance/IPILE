@@ -558,11 +558,12 @@ def insights_payload(db: Session, household: Household, today: date | None = Non
             Transaction.access_scope == "shared",
             Transaction.status.in_(("cleared", "reconciled")),
             Transaction.deleted_at.is_(None),
-            Transaction.date >= today - timedelta(days=210),
+            Transaction.date >= today - timedelta(days=800),
             Transaction.date <= today,
             Transaction.type.in_(("income", "expense")),
         )
         .order_by(Transaction.date.asc())
+        .limit(5000)
         .all()
     )
     patterns.extend(detect_transaction_patterns(recent_transactions, today=today))
