@@ -27,6 +27,7 @@ jobs:
             local base="$2"
             local body
             local headers
+            local release
             body="$(mktemp)"
             headers="$(mktemp)"
 
@@ -52,6 +53,10 @@ jobs:
 
           check_api "Staging" "https://ipile-staging-api-v2.onrender.com"
           check_api "Production" "https://ipile-bmfz.onrender.com"
+      - name: Compare staging and production release commits
+        shell: bash
+        run: |
+          set -euo pipefail
           [[ "${{ steps.api.outputs.staging_release }}" == "${{ steps.api.outputs.production_release }}" ]] || {
             echo "Staging and production are running different backend commits."
             exit 1
