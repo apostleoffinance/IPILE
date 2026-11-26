@@ -73,14 +73,20 @@ def test_pdf_layout_reconstructs_wrapped_descriptions_and_repeated_pages(monkeyp
         height = 100
         images = []
 
-        def __init__(self, words):
+        def __init__(self, words, section_text=""):
             self.words = words
+            self.section_text = section_text
 
         def extract_words(self, **_kwargs):
             return self.words
 
+        def extract_text(self):
+            return self.section_text
+
     class FakeDocument:
-        pages = [FakePage(first_page_words), FakePage([
+        pages = [
+            FakePage(first_page_words, "Wallet Account Period: 01 Jan 2026 - 25 Nov 2026"),
+            FakePage([
             word("03", 10, 18, 10), word("Jan", 19, 30, 10),
             word("2026", 31, 45, 10), word("11:00:00", 46, 65, 10),
             word("SECOND", 70, 110, 10), word("--", 150, 160, 10),
@@ -102,3 +108,14 @@ def test_pdf_layout_reconstructs_wrapped_descriptions_and_repeated_pages(monkeyp
     assert rows[0].reference == "REF-001"
     assert rows[1].direction == TransactionDirection.DEBIT
     assert rows[2].source_page == 2
+    assert rows[0].account_section == "Wallet Account"
+    assert rows[2].account_section == "Savings Account"
+
+
+
+def test_account_section_detection_is_institution_agnostic() -> None:
+    from app.services.statement_extraction.pdf_layout import _detect_account_section
+
+    assert _detect_account_section("Current Account Period: 01 Jan 2026") == "Current Account"
+    assert _detect_account_section("Savings Account") == "Savings Account"
+    assert _detect_account_section("Account Name Account Number") is None
