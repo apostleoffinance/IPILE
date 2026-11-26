@@ -81,7 +81,7 @@ def test_scanned_image_statement_is_staged_for_review(client: TestClient, monkey
             confidence=0.6,
         )
 
-    monkeypatch.setattr("app.api.v1.imports.extract_statement_document", fake_extract)
+    monkeypatch.setattr("app.api.v1.imports.extract_statement", fake_extract)
     preview = client.post(
         "/api/v1/imports/preview-upload",
         data={"account_id": account["id"]},
@@ -131,7 +131,7 @@ def test_unreconciled_statement_is_staged_but_cannot_be_committed(
             confidence=0.9,
         )
 
-    monkeypatch.setattr("app.api.v1.imports.extract_statement_document", fake_extract)
+    monkeypatch.setattr("app.api.v1.imports.extract_statement", fake_extract)
     preview = client.post(
         "/api/v1/imports/preview-upload",
         data={"account_id": account["id"]},
@@ -186,7 +186,7 @@ def test_statement_currency_must_match_selected_account_before_commit(
             confidence=0.95,
         )
 
-    monkeypatch.setattr("app.api.v1.imports.extract_statement_document", fake_extract)
+    monkeypatch.setattr("app.api.v1.imports.extract_statement", fake_extract)
     preview = client.post(
         "/api/v1/imports/preview-upload",
         data={"account_id": account["id"]},
@@ -237,7 +237,7 @@ def test_statement_discrepancies_require_explicit_acknowledgement_before_commit(
             confidence=0.9,
         )
 
-    monkeypatch.setattr("app.api.v1.imports.extract_statement_document", fake_extract)
+    monkeypatch.setattr("app.api.v1.imports.extract_statement", fake_extract)
     preview = client.post(
         "/api/v1/imports/preview-upload",
         data={"account_id": account["id"]},
