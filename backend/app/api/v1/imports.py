@@ -51,6 +51,11 @@ class ImportCorrectionBody(BaseModel):
     category_name: str | None = Field(default=None, max_length=120)
 
 
+class StatementReviewConfirmationBody(BaseModel):
+    acknowledge_discrepancies: bool
+    reason: str = Field(min_length=20, max_length=500)
+
+
 def _mailbox_address(token: str) -> str:
     domain = get_settings().inbound_email_domain.strip().lower()
     if not domain:
@@ -185,6 +190,60 @@ def preview_statement_import(
         )
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
+    db.commit()
+    db.refresh(job)
+    return job
+
+
+@router.post(
+    "/jobs/{job_id}/review-confirmation",
+    response_model=ImportJobOut,
+)
+def confirm_statement_review(
+    job_id: UUID,
+    payload: StatementReviewConfirmationBody,
+    ctx: HouseholdContext = Depends(require_roles("owner", "partner")),
+    db: Session = Depends(get_db),
+):
+    """Record explicit human acceptance of non-fatal reconciliation discrepancies."""
+    job = db.query(ImportJob).filter(
+        ImportJob.id == job_id,
+        ImportJob.household_id == ctx.household.id,
+        ImportJob.status == "pending_review",
+        ImportJob.source.in_(["csv", "statement"]),
+    ).first()
+    if job is None:
+        raise HTTPException(status_code=404, detail="Pending statement import not found.")
+    extraction = dict(job.result.get("extraction") or {})
+    if not extraction.get("requires_manual_review"):
+        raise HTTPException(status_code=409, detail="This statement does not require a review override.")
+    if not payload.acknowledge_discrepancies:
+        raise HTTPException(
+            status_code=400,
+            detail="Confirm that you reviewed the discrepancies before proceeding.",
+        )
+    issues = extraction.get("issues") or []
+    hard_errors = [
+        issue for issue in issues
+        if issue.get("code") in {"unparsed_transaction_row", "no_transactions"}
+    ]
+    if hard_errors:
+        raise HTTPException(
+            status_code=409,
+            detail=(
+                "Some transaction rows could not be extracted safely. "
+                "This statement cannot be approved with missing or unreadable rows."
+            ),
+        )
+    extraction["requires_manual_review"] = False
+    extraction["status"] = "manually_accepted"
+    extraction["manual_review"] = {
+        "acknowledged": True,
+        "reason": payload.reason.strip(),
+        "reviewed_at": datetime.now(UTC).isoformat(),
+    }
+    job.result = {**job.result, "extraction": extraction}
+    db.add(job)
     db.commit()
     db.refresh(job)
     return job
