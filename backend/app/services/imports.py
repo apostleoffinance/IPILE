@@ -1,4 +1,4 @@
-from datetime import date
+from datetime import date, datetime
 from decimal import Decimal
 from uuid import UUID
 
@@ -202,6 +202,7 @@ def stage_import_rows(
     *,
     source: str,
     filename: str | None = None,
+    extraction: dict | None = None,
 ) -> ImportJob:
     """Persist normalized rows for review, never posting ledger effects."""
     if account.household_id != household.id or account.deleted_at is not None:
@@ -217,6 +218,16 @@ def stage_import_rows(
             "external_id": row.external_id,
             "merchant": row.merchant,
             "category_name": row.category_name,
+            "currency": row.currency,
+            "value_date": row.value_date.isoformat() if row.value_date else None,
+            "transaction_datetime": (
+                row.transaction_datetime.isoformat() if row.transaction_datetime else None
+            ),
+            "running_balance": (
+                str(row.running_balance) if row.running_balance is not None else None
+            ),
+            "source_page": row.source_page,
+            "extraction_confidence": row.extraction_confidence,
         }
         for row in rows
     ]
@@ -234,6 +245,12 @@ def stage_import_rows(
             "duplicate_count_at_preview": duplicate_count,
             "rows": serialized,
             "errors": [],
+            **({"extraction": extraction} if extraction else {}),
+            **(
+                {"extraction_method": extraction.get("extraction_method")}
+                if extraction and extraction.get("extraction_method")
+                else {}
+            ),
         },
     )
     db.add(job)
@@ -252,6 +269,12 @@ def commit_staged_import(
         raise ValueError("Import job not found.")
     if job.status != "pending_review" or job.source not in {"csv", "statement"}:
         raise ValueError("This import is not awaiting confirmation.")
+    extraction = job.result.get("extraction") or {}
+    if extraction.get("requires_manual_review"):
+        raise ValueError(
+            "This statement has unresolved extraction or reconciliation issues. "
+            "Review and correct the flagged information before importing it."
+        )
     if str(job.result.get("account_id")) != str(account_id):
         raise ValueError("Choose the account selected during preview.")
     account = (
@@ -274,9 +297,29 @@ def commit_staged_import(
             external_id=item["external_id"],
             merchant=item.get("merchant"),
             category_name=item.get("category_name"),
+            currency=item.get("currency"),
+            value_date=(
+                date.fromisoformat(item["value_date"]) if item.get("value_date") else None
+            ),
+            transaction_datetime=(
+                datetime.fromisoformat(item["transaction_datetime"])
+                if item.get("transaction_datetime") else None
+            ),
+            running_balance=(
+                Decimal(item["running_balance"]) if item.get("running_balance") is not None else None
+            ),
+            source_page=item.get("source_page"),
+            extraction_confidence=item.get("extraction_confidence"),
         )
         for item in job.result.get("rows", [])
     ]
+    for row in rows:
+        row_currency = (row.currency or "").upper()
+        if row_currency and row_currency != account.currency.upper():
+            raise ValueError(
+                f"Statement currency {row_currency} does not match selected account currency "
+                f"{account.currency}. Choose an account in the statement currency."
+            )
     applied = apply_import_rows(
         db, household, account, rows, source=job.source, filename=job.filename
     )
