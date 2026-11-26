@@ -7,6 +7,7 @@ from __future__ import annotations
 
 import re
 from collections import defaultdict
+from calendar import monthrange
 from datetime import date, timedelta
 from decimal import Decimal
 from statistics import median
@@ -44,6 +45,18 @@ def _payee_key(transaction) -> str:
 
 def _amount(transaction) -> Decimal:
     return Decimal(str(transaction.amount))
+
+
+def _advance_expected_date(last_date: date, frequency: str) -> date:
+    if frequency == "weekly":
+        return last_date + timedelta(days=7)
+    if frequency == "biweekly":
+        return last_date + timedelta(days=14)
+    months = {"monthly": 1, "quarterly": 3, "annual": 12}[frequency]
+    month_index = last_date.month - 1 + months
+    year = last_date.year + month_index // 12
+    month = month_index % 12 + 1
+    return date(year, month, min(last_date.day, monthrange(year, month)[1]))
 
 
 def _frequency(intervals: list[int]) -> str | None:
@@ -97,7 +110,7 @@ def detect_recurring_payments(
         frequency = _frequency(intervals)
         if frequency is None:
             continue
-        expected = ordered[-1].date + timedelta(days=round(median(intervals)))
+        expected = _advance_expected_date(ordered[-1].date, frequency)
         overdue_days = (today - expected).days
         if overdue_days > 35:
             continue
