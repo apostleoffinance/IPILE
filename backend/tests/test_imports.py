@@ -546,3 +546,57 @@ def test_email_alert_without_bank_reference_uses_stable_fingerprint() -> None:
     replay = parse_bank_alert(**values, message_id="delivery-two")
     assert first.external_id == replay.external_id
     assert first.external_id.startswith("alert:")
+
+
+
+def test_email_alert_can_be_corrected_before_approval_without_posting(
+    client: TestClient, monkeypatch
+) -> None:
+    from decimal import Decimal
+
+    from app.api.v1 import imports as imports_api
+    from app.core.config import Settings
+
+    register(client, "correct-alert@example.com")
+    account = client.post(
+        "/api/v1/accounts",
+        json={"name": "Current", "type": "bank", "current_balance": "50000.00"},
+    ).json()
+    monkeypatch.setattr(
+        imports_api,
+        "get_settings",
+        lambda: Settings(
+            inbound_email_domain="imports.example.test",
+            inbound_email_webhook_secret="test-secret",
+        ),
+    )
+    mailbox = client.post("/api/v1/imports/mailbox").json()
+    inbound = client.post(
+        "/api/v1/imports/inbound-email",
+        headers={"X-Inbound-Email-Secret": "test-secret"},
+        json={
+            "To": mailbox["address"],
+            "From": "alerts@bank.example",
+            "Subject": "Debit Alert",
+            "TextBody": "Your account was debited NGN 5,000.00 on 15/11/2026. Ref: CORRECT123",
+        },
+    )
+    job_id = inbound.json()["id"]
+    corrected = client.patch(
+        f"/api/v1/imports/{job_id}/review",
+        json={"amount": "4500.00", "description": "Corrected debit"},
+    )
+    assert corrected.status_code == 200, corrected.text
+    row = corrected.json()["result"]["rows"][0]
+    assert row["amount"] == "4500.00"
+    assert row["description"] == "Corrected debit"
+    assert corrected.json()["result"]["corrected"] is True
+    assert client.get("/api/v1/transactions").json() == []
+    assert Decimal(client.get("/api/v1/accounts").json()[0]["current_balance"]) == Decimal("50000.00")
+
+    approved = client.post(
+        f"/api/v1/imports/{job_id}/approve",
+        json={"account_id": account["id"]},
+    )
+    assert approved.status_code == 200, approved.text
+    assert Decimal(client.get("/api/v1/accounts").json()[0]["current_balance"]) == Decimal("45500.00")
