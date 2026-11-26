@@ -112,6 +112,8 @@ def test_get_rate_uses_stored_observation_only_on_exact_effective_date(monkeypat
             self.added.append(row)
         def flush(self):
             pass
+        def get(self, model, key):
+            return SimpleNamespace(timezone="Africa/Lagos")
 
     old = SimpleNamespace(
         rate=Decimal("1.25"), rate_date=date(2026, 11, 24), source="manual",
