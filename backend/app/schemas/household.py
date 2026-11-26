@@ -25,6 +25,7 @@ class HouseholdOut(BaseModel):
     name: str
     slug: str
     base_currency: str
+    reporting_currency: str = "NGN"
     timezone: str
     country: str
     fiscal_month_start_day: int
