@@ -13,6 +13,7 @@ function emailMessage(options: {
   from?: string;
   to?: string;
   authentication?: string;
+  cloudflareAuthentication?: string;
   body?: string;
 } = {}) {
   const raw = [
@@ -32,7 +33,7 @@ function emailMessage(options: {
   const message = {
     from: options.from ?? "alerts@bank.example",
     to: options.to ?? "bank-alert+abcdefghijklmnopqrstuvwxyz0123456789@inbox.example.test",
-    raw: new ReadableStream<Uint8Array>({
+    headers: new Headers({\n      "Authentication-Results": options.cloudflareAuthentication ?? "mx.cloudflare.net; spf=pass; dkim=pass; dmarc=pass",\n      "Date": "Sun, 15 Nov 2026 10:00:00 +0100",\n      "Message-ID": "<alert-001@bank.example>",\n    }),\n    raw: new ReadableStream<Uint8Array>({
       start(controller) {
         controller.enqueue(bytes);
         controller.close();
@@ -81,7 +82,7 @@ describe("Cloudflare inbound bank-alert Worker", () => {
   it("rejects messages without passing sender authentication", async () => {
     const fetchMock = vi.fn();
     vi.stubGlobal("fetch", fetchMock);
-    const { message, rejects } = emailMessage({ authentication: "mx.cloudflare.net; dmarc=fail; dkim=fail; spf=pass" });
+    const { message, rejects } = emailMessage({ cloudflareAuthentication: "mx.cloudflare.net; dmarc=fail; dkim=fail; spf=pass" });
 
     await worker.email(message, env as never);
 
