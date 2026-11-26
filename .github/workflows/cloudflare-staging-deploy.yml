@@ -111,13 +111,26 @@ jobs:
             -H "Cache-Control: no-cache" \
             "$STAGING_FRONTEND_URL/?deploy_sha=$GITHUB_SHA" -o /tmp/ipile-staging-home.html
           grep -qi "<html" /tmp/ipile-staging-home.html
-          grep -Fq "Your money. In harmony." /tmp/ipile-staging-home.html
-          if grep -Fqi "IPÌLẸ̀ brings your money, accounts, spending" /tmp/ipile-staging-home.html; then
-            echo "Staging homepage still contains the removed long hero paragraph."
+
+          # The homepage is a client-rendered experience: the initial HTML only contains
+          # the loading shell. Validate the actual landing component and compiled assets
+          # during the build instead of searching the loading-shell HTML for client copy.
+          grep -Fq "Your money. In harmony." frontend/components/landing/LandingMockup.tsx
+          if grep -Fq "IPÌLẸ̀ brings your money, accounts, spending" frontend/components/landing/LandingMockup.tsx; then
+            echo "Landing component still contains the removed long hero paragraph."
             exit 1
           fi
-          if grep -Fqi "Know what you have. Know what it is committed to." /tmp/ipile-staging-home.html; then
-            echo "Staging homepage still contains the removed hero proof statement."
+          if grep -Fq "Know what you have. Know what it is committed to." frontend/components/landing/LandingMockup.tsx; then
+            echo "Landing component still contains the removed hero proof statement."
+            exit 1
+          fi
+          grep -RFlq "Your money. In harmony." .open-next/assets/_next/static
+          if grep -RFlq "IPÌLẸ̀ brings your money, accounts, spending" .open-next/assets/_next/static; then
+            echo "Compiled frontend assets still contain the removed long hero paragraph."
+            exit 1
+          fi
+          if grep -RFlq "Know what you have. Know what it is committed to." .open-next/assets/_next/static; then
+            echo "Compiled frontend assets still contain the removed hero proof statement."
             exit 1
           fi
 
