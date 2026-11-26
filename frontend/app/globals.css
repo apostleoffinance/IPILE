@@ -899,3 +899,91 @@ button, a, input, select, textarea { transition-duration: 220ms; }
 .ipile-marketing-footer nav{display:flex;gap:25px;font-size:10px;color:#a7aea7}
 @media(max-width:800px){.ipile-marketing-nav{height:68px}.ipile-marketing-nav>nav,.ipile-marketing-nav-actions{display:none}.ipile-marketing-mobile-menu{display:block;position:relative}.ipile-marketing-mobile-menu summary{list-style:none;font-size:22px;cursor:pointer}.ipile-marketing-mobile-menu nav{position:absolute;right:0;top:34px;display:flex;flex-direction:column;gap:16px;min-width:210px;padding:20px;background:var(--m-cream);border:1px solid rgba(5,8,7,.1);box-shadow:0 12px 35px rgba(5,8,7,.12)}.ipile-marketing-hero{min-height:760px;height:92svh;padding-top:125px}.ipile-marketing-hero-copy{margin-top:-60px}.ipile-marketing-orbit{bottom:-240px}.ipile-marketing-section,.ipile-marketing-preview,.ipile-marketing-split{padding:82px 7vw}.ipile-marketing-intro,.ipile-marketing-split{grid-template-columns:1fr;gap:30px}.ipile-marketing-preview{padding:80px 5vw}.ipile-marketing-preview-head{display:block}.ipile-marketing-preview-head>p{margin-top:15px}.dashboard-body{grid-template-columns:1fr}.dashboard-body aside{display:none}.dashboard-main{padding:18px 8px}.dashboard-metrics{grid-template-columns:1fr 1fr}.dashboard-metrics article:first-child{grid-column:span 2}.dashboard-lower{grid-template-columns:1fr}.dashboard-lower article{min-height:180px}.ipile-marketing-features{grid-template-columns:1fr;gap:35px;margin-top:40px}.ipile-marketing-visual{min-height:340px;order:2}.ipile-marketing-split-copy{order:1}.ipile-marketing-footer{flex-direction:column;align-items:flex-start}.ipile-marketing-footer nav{flex-wrap:wrap}}
 @media(prefers-reduced-motion:reduce){.ipile-marketing-orbit .orbit-a,.ipile-marketing-orbit .orbit-b,.ipile-marketing-visual .visual-glow{animation:none!important}}
+
+
+/* Landing page polish — richer financial preview and composed closing CTA */
+.ipile-marketing-preview .ipile-marketing-kicker{color:#d5b56d!important;letter-spacing:.2em}
+.ipile-marketing-preview-head{margin-bottom:38px}
+.ipile-marketing-preview-head h2{max-width:760px}
+.ipile-marketing-dashboard{padding:clamp(14px,2vw,24px);transform:none}
+.dashboard-body{min-height:0;grid-template-columns:156px minmax(0,1fr)}
+.dashboard-main{min-width:0;padding:22px 20px}
+.dashboard-caption{margin-bottom:15px}
+.dashboard-overview-grid{display:grid;grid-template-columns:minmax(260px,.92fr) minmax(0,1.08fr);gap:14px}
+.dashboard-safe-spend{display:flex;flex-direction:column;justify-content:space-between;min-height:188px;padding:22px 24px;border-radius:10px;background:linear-gradient(135deg,#00483e,#00352e);color:#fff}
+.dashboard-safe-spend>small{font-size:9px;letter-spacing:.18em;color:rgba(255,255,255,.7)}
+.dashboard-safe-spend>strong{display:block;margin-top:10px;font-size:clamp(27px,3vw,38px);font-weight:600;letter-spacing:-.055em}
+.dashboard-safe-spend>p{margin-top:7px;font-size:10px;line-height:1.6;color:rgba(255,255,255,.72)}
+.dashboard-safe-meta{display:flex;align-items:center;gap:8px 12px;flex-wrap:wrap;margin-top:18px;padding-top:12px;border-top:1px solid rgba(255,255,255,.16);font-size:9px}
+.dashboard-safe-meta span{color:rgba(255,255,255,.62)}
+.dashboard-safe-meta b{margin-right:12px;font-weight:600;color:#fff}
+.dashboard-stat-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
+.dashboard-stat-grid article{display:flex;flex-direction:column;justify-content:center;min-height:88px;padding:14px 16px;border:1px solid #e5e2da;border-radius:9px;background:#fff}
+.dashboard-stat-grid small{font-size:9px;color:#747d75}
+.dashboard-stat-grid strong{margin-top:7px;font-size:clamp(17px,2vw,22px);font-weight:600;letter-spacing:-.045em;color:#101713}
+.dashboard-stat-grid span{margin-top:4px;font-size:9px;color:#0b6556}
+.dashboard-insights-grid{display:grid;grid-template-columns:minmax(0,1.35fr) minmax(260px,.9fr);gap:12px;margin-top:12px}
+.dashboard-panel,.dashboard-lower article{min-width:0;padding:17px 18px;border:1px solid #e8e4dc;border-radius:10px;background:#fff;color:#101713}
+.dashboard-panel-heading{display:flex;justify-content:space-between;align-items:flex-start;gap:12px;margin-bottom:14px}
+.dashboard-panel-heading h4,.dashboard-lower h4{font-size:11px;font-weight:650;color:#18211b}
+.dashboard-panel-heading p{margin-top:4px;font-size:9px;color:#8a9089}
+.dashboard-panel-heading>span{white-space:nowrap;font-size:9px;color:#0b6556}
+.dashboard-chart-wrap{display:grid;grid-template-columns:42px minmax(0,1fr);align-items:stretch;height:130px}
+.dashboard-y-labels{display:flex;flex-direction:column;justify-content:space-between;padding:3px 7px 2px 0;font-size:8px;color:#9a9f98}
+.dashboard-chart-wrap svg{width:100%;height:100%;overflow:visible;background:repeating-linear-gradient(to bottom,transparent 0,transparent 42px,#edf0eb 43px,#edf0eb 44px)}
+.dashboard-chart-months{display:flex;justify-content:space-between;margin:8px 0 0 42px;font-size:8px;color:#929890}
+.dashboard-chart-legend{display:flex;gap:16px;margin:13px 0 0 42px;font-size:9px;color:#727b73}
+.dashboard-chart-legend span{display:flex;align-items:center;gap:6px}
+.dashboard-chart-legend i{width:7px;height:7px;border-radius:50%;display:inline-block}
+.dashboard-chart-legend .income-dot{background:#0b6556}
+.dashboard-chart-legend .spend-dot{background:#c9a45c}
+.dashboard-spend-row{margin-top:13px}
+.dashboard-spend-row>div,.dashboard-goal>div{display:flex;justify-content:space-between;gap:10px;margin-bottom:6px;font-size:9px}
+.dashboard-spend-row>div span,.dashboard-goal>div span{color:#657068}
+.dashboard-spend-row>div b,.dashboard-goal>div b{font-weight:600;color:#18211b}
+.dashboard-spend-row>i,.dashboard-goal>i{display:block;height:6px;border-radius:99px;background:#edf0eb;overflow:hidden}
+.dashboard-spend-row>i span,.dashboard-goal>i span{display:block;height:100%;border-radius:99px;background:linear-gradient(90deg,#0b6556,#4c9b85)}
+.dashboard-lower{grid-template-columns:1.1fr .9fr;gap:12px;margin-top:12px}
+.dashboard-lower article{min-height:0;padding:17px 18px}
+.dashboard-obligation{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:10px 0;border-top:1px solid #eff0ec;font-size:9px}
+.dashboard-obligation>div{display:grid;gap:4px}
+.dashboard-obligation span{font-weight:600;color:#26332b}
+.dashboard-obligation small,.dashboard-goal small{font-size:8px;color:#8a9089}
+.dashboard-obligation>b{white-space:nowrap;font-weight:600;color:#26332b}
+.dashboard-goal{margin-top:14px}
+.dashboard-goal small{display:block;margin-top:5px}
+.ipile-marketing-cta{padding:clamp(88px,10vw,140px) 7vw}
+.ipile-marketing-cta-inner{position:relative;z-index:1;width:min(100%,900px);margin:0 auto;display:flex;flex-direction:column;align-items:center}
+.ipile-marketing-cta .ipile-marketing-kicker{margin:0 0 22px;color:var(--m-gold);font-size:10px;font-weight:650;letter-spacing:.22em;text-transform:uppercase}
+.ipile-marketing-cta h2{width:100%;max-width:850px;margin:0 auto;font-size:clamp(40px,5.4vw,72px);line-height:1.08;letter-spacing:-.065em;text-wrap:balance}
+.ipile-marketing-cta-actions{display:flex;align-items:center;justify-content:center;gap:22px;flex-wrap:wrap;margin-top:42px}
+.ipile-marketing-cta .ipile-marketing-pill{margin:0;min-height:50px;padding:0 24px;display:inline-flex;align-items:center;justify-content:center;gap:14px}
+.ipile-marketing-cta .ipile-marketing-cta-secondary{display:inline-flex;align-items:center;justify-content:center;gap:9px;min-height:48px;padding:0 12px;color:#fff!important;font-size:14px;font-weight:500;text-decoration:none;border-bottom:1px solid rgba(255,255,255,.38);transition:color .2s,border-color .2s}
+.ipile-marketing-cta .ipile-marketing-cta-secondary:hover{color:var(--m-gold)!important;border-color:var(--m-gold)}
+.ipile-marketing-cta .ipile-marketing-cta-brandline{margin:34px 0 0;color:rgba(255,255,255,.88)!important;font-size:11px;font-weight:500;letter-spacing:.2em}
+@media(max-width:900px){
+ .dashboard-body{grid-template-columns:1fr}
+ .dashboard-body aside{display:none}
+ .dashboard-main{padding:18px 10px}
+ .dashboard-overview-grid{grid-template-columns:1fr}
+ .dashboard-insights-grid{grid-template-columns:1fr}
+}
+@media(max-width:640px){
+ .ipile-marketing-preview{padding:72px 4vw 78px}
+ .ipile-marketing-preview-head{margin-bottom:28px}
+ .ipile-marketing-dashboard{padding:10px;border-radius:13px}
+ .dashboard-top{padding:6px 5px 13px}
+ .dashboard-top small{font-size:8px}
+ .dashboard-main{padding:16px 2px}
+ .dashboard-safe-spend{min-height:170px;padding:18px}
+ .dashboard-stat-grid article{min-height:82px;padding:12px}
+ .dashboard-lower{grid-template-columns:1fr}
+ .dashboard-lower article{padding:15px}
+ .ipile-marketing-cta{padding:82px 6vw 88px}
+ .ipile-marketing-cta .ipile-marketing-kicker{font-size:9px;letter-spacing:.16em}
+ .ipile-marketing-cta h2{font-size:clamp(37px,10vw,52px);line-height:1.1}
+ .ipile-marketing-cta-actions{width:100%;flex-direction:column;gap:12px;margin-top:30px}
+ .ipile-marketing-cta .ipile-marketing-pill,.ipile-marketing-cta .ipile-marketing-cta-secondary{width:min(100%,330px)}
+ .ipile-marketing-cta .ipile-marketing-cta-secondary{border-bottom:0}
+ .ipile-marketing-cta .ipile-marketing-cta-brandline{margin-top:27px;font-size:10px}
+}
