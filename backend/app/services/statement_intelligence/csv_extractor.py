@@ -90,6 +90,7 @@ def parse_universal_csv(content: str) -> list[ImportRow]:
                 date_value if time_value and time_value in date_value
                 else (date_value + " " + time_value).strip()
             )
+            row_cash_direction = None
             if debit_index is not None or credit_index is not None:
                 debit = abs(_amount_or_zero(cell(debit_index)))
                 credit = abs(_amount_or_zero(cell(credit_index)))
@@ -105,7 +106,6 @@ def parse_universal_csv(content: str) -> list[ImportRow]:
                 direction = cell(direction_index).lower()
                 declared_type = cell(transaction_type_index).lower()
                 marker = raw_amount.upper()
-                row_cash_direction = None
                 if declared_type == "transfer":
                     # A transfer is explicitly typed but its cash direction depends
                     # on the source/destination account. Preserve it without guessing;
