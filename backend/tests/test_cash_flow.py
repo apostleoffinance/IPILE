@@ -3,7 +3,6 @@ from datetime import date, timedelta
 from decimal import Decimal
 
 from app.services import cash_flow
-
 from fastapi.testclient import TestClient
 
 from tests.conftest import register
@@ -176,9 +175,6 @@ def test_cash_flow_historical_native_balance_uses_account_currency_snapshot(
 def test_cash_flow_reverses_foreign_transfer_using_destination_native_amount(
     client: TestClient, monkeypatch
 ) -> None:
-    from decimal import Decimal
-    from app.services import cash_flow
-
     register(client, "cashflow-cross-transfer@example.com")
     usd = client.post(
         "/api/v1/accounts",
