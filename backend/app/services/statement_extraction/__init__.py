@@ -1,11 +1,21 @@
 """Bank-agnostic statement extraction contracts and normalization primitives."""
 
 from app.services.statement_extraction.field_mapping import (
-    ColumnField, ColumnMapping, map_statement_columns, normalize_header,
+    ColumnField,
+    ColumnMapping,
+    map_statement_columns,
+    normalize_header,
 )
 from app.services.statement_extraction.models import (
-    ExtractionMethod, ExtractionResult, ExtractionStatus, ExtractedTransaction,
-    StatementMetadata, StatementSummary, TransactionDirection, ValidationIssue, ValidationReport,
+    ExtractedTransaction,
+    ExtractionMethod,
+    ExtractionResult,
+    ExtractionStatus,
+    StatementMetadata,
+    StatementSummary,
+    TransactionDirection,
+    ValidationIssue,
+    ValidationReport,
 )
 from app.services.statement_extraction.validation import validate_extraction
 
