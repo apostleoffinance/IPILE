@@ -1,5 +1,8 @@
 # ruff: noqa: I001
+from datetime import date
 from decimal import Decimal
+
+from app.services.import_adapters import ImportRow
 
 from fastapi.testclient import TestClient
 
@@ -45,3 +48,36 @@ def test_pdf_statement_upload_previews_before_commit(client: TestClient) -> None
     assert Decimal(client.get("/api/v1/accounts").json()[0]["current_balance"]) == Decimal(
         "238000.00"
     )
+
+
+
+def test_scanned_image_statement_is_staged_for_review(client: TestClient, monkeypatch) -> None:
+    register(client, "ocr-image-import@example.com")
+    account = client.post(
+        "/api/v1/accounts",
+        json={"name": "Current", "type": "bank", "current_balance": "5000.00"},
+    ).json()
+
+    def fake_parse(_content: bytes, suffix: str):
+        assert suffix == "png"
+        return [
+            ImportRow(
+                date=date(2026, 11, 26),
+                amount=Decimal("1500.00"),
+                type="expense",
+                description="ATM withdrawal",
+                external_id="ocr-image-1",
+            )
+        ], "image_ocr"
+
+    monkeypatch.setattr("app.api.v1.imports.parse_statement_document", fake_parse)
+    preview = client.post(
+        "/api/v1/imports/preview-upload",
+        data={"account_id": account["id"]},
+        files={"file": ("statement.png", b"image-bytes", "image/png")},
+    )
+    assert preview.status_code == 201, preview.text
+    assert preview.json()["status"] == "pending_review"
+    assert preview.json()["result"]["extraction_method"] == "image_ocr"
+    assert preview.json()["result"]["row_count"] == 1
+    assert client.get("/api/v1/transactions").json() == []
