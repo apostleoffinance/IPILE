@@ -203,10 +203,50 @@ def _parse_summary(text: str) -> StatementSummary:
                 if key.endswith("_count")
                 else _parse_amount(match.group(1))
             )
-    currency = "NGN" if "₦" in text or re.search(r"\bNGN\b", text, re.I) else None
+
+    # Some statements align summary labels on one line with values on the next.
+    labels = {
+        "opening_balance": re.compile(r"opening\\s+balance", re.I),
+        "closing_balance": re.compile(r"closing\\s+balance", re.I),
+        "total_debits": re.compile(r"total\\s+debits?", re.I),
+        "total_credits": re.compile(r"total\\s+credits?", re.I),
+        "debit_count": re.compile(r"debit\\s+count", re.I),
+        "credit_count": re.compile(r"credit\\s+count", re.I),
+    }
+    money_pattern = re.compile(
+        r"(?:₦|NGN|\\$|USD|€|EUR|£|GBP)?\\s*[\\d,]+\\.\\d{2}", re.I
+    )
+    lines = [line.strip() for line in text.splitlines() if line.strip()]
+    for line_index, label_line in enumerate(lines[:-1]):
+        ordered_labels = sorted(
+            (
+                (match.start(), key)
+                for key, pattern in labels.items()
+                for match in pattern.finditer(label_line)
+            ),
+            key=lambda item: item[0],
+        )
+        if not ordered_labels:
+            continue
+        value_line = lines[line_index + 1]
+        money_values = [match.group(0).strip() for match in money_pattern.finditer(value_line)]
+        remainder = money_pattern.sub(" ", value_line)
+        count_values = re.findall(r"(?<![\\d,])\\d+(?![\\d,])", remainder)
+        money_cursor = count_cursor = 0
+        for _, key in ordered_labels:
+            if key in values:
+                continue
+            if key.endswith("_count") and count_cursor < len(count_values):
+                values[key] = int(count_values[count_cursor])
+                count_cursor += 1
+            elif not key.endswith("_count") and money_cursor < len(money_values):
+                values[key] = _parse_amount(money_values[money_cursor])
+                money_cursor += 1
+
+    currency = "NGN" if "₦" in text or re.search(r"\\bNGN\\b", text, re.I) else None
     period = re.search(
-        r"(?:period|statement period)\s*:?\s*(\d{1,2}\s+[A-Za-z]{3,9}\s+\d{4})"
-        r"\s*(?:-|to|through)\s*(\d{1,2}\s+[A-Za-z]{3,9}\s+\d{4})",
+        r"(?:period|statement period)\\s*:?\\s*(\\d{1,2}\\s+[A-Za-z]{3,9}\\s+\\d{4})"
+        r"\\s*(?:-|to|through)\\s*(\\d{1,2}\\s+[A-Za-z]{3,9}\\s+\\d{4})",
         text,
         re.I,
     )
