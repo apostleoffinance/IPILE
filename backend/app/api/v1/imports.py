@@ -502,8 +502,14 @@ def correct_email_import(
         raise HTTPException(status_code=400, detail="Provide at least one field to correct.")
     row = dict(rows[0])
     for key, value in changes.items():
-        if value is not None:
-            row[key] = str(value) if key == "amount" else value.isoformat() if key == "date" else value
+        if value is None:
+            continue
+        if key == "amount":
+            row[key] = str(value)
+        elif key == "date":
+            row[key] = value.isoformat()
+        else:
+            row[key] = value
     rows[0] = row
     job.result = {**job.result, "rows": rows, "corrected": True}
     db.add(job)
