@@ -1,16 +1,4 @@
-# ruff: noqa: I001
-from datetime import date
 from decimal import Decimal
-
-from app.services.statement_extraction.models import (
-    ExtractionMethod,
-    ExtractionResult,
-    ExtractionStatus,
-    ExtractedTransaction,
-    StatementAccountSection,
-    StatementMetadata,
-    TransactionDirection,
-)
 
 from fastapi.testclient import TestClient
 
