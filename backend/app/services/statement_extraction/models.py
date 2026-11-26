@@ -19,6 +19,12 @@ class ExtractionMethod(StrEnum):
     PASTED_TEXT = "pasted_text"
 
 
+class TransactionDirection(StrEnum):
+    DEBIT = "debit"
+    CREDIT = "credit"
+    UNKNOWN = "unknown"
+
+
 class ExtractionStatus(StrEnum):
     VERIFIED = "verified"
     NEEDS_REVIEW = "needs_review"
@@ -60,7 +66,7 @@ class ExtractedTransaction:
 
     transaction_date: date | None
     amount: Decimal | None
-    direction: str
+    direction: TransactionDirection | str
     description: str | None = None
     reference: str | None = None
     currency: str | None = None
