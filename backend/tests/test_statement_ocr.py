@@ -121,7 +121,7 @@ def test_pdf_ocr_releases_page_resources_between_pages(monkeypatch) -> None:
 
     monkeypatch.setattr(statement_ocr.pdfium, "PdfDocument", lambda _content: FakeDocument())
     monkeypatch.setattr(statement_ocr, "_ocr_image", lambda _image: "page text")
-    assert statement_ocr.extract_pdf_ocr_text(b"pdf") == "page text\\npage text"
+    assert statement_ocr.extract_pdf_ocr_text(b"pdf") == "page text\npage text"
     assert released == {"images": 2, "bitmaps": 2, "pages": 2, "document": 1}
 
 
