@@ -18,7 +18,7 @@ ALIASES: dict[CanonicalField, frozenset[str]] = {
         "remarks", "reference details", "payment details", "transaction description",
     }),
     CanonicalField.AMOUNT: frozenset({
-        "amount", "transaction amount", "value", "debit credit", "amount ngn",
+        "amount", "transaction amount", "value", "amount ngn",
         "amount usd", "amount gbp", "amount eur",
     }),
     CanonicalField.DEBIT: frozenset({
