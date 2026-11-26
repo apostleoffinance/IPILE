@@ -35,6 +35,8 @@ class ImportRow:
     source_row: int | None = None
     account_section: str | None = None
     confidence: Decimal | None = None
+    extraction_confidence: float | None = None
+    cash_direction: str | None = None
     warnings: tuple[str, ...] = ()
 
 
