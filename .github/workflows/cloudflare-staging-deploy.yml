@@ -124,12 +124,12 @@ jobs:
             echo "Landing component still contains the removed hero proof statement."
             exit 1
           fi
-          grep -RFlq "Your money. In harmony." .open-next/assets/_next/static
-          if grep -RFlq "IPÌLẸ̀ brings your money, accounts, spending" .open-next/assets/_next/static; then
+          grep -RFlq "Your money. In harmony." frontend/.open-next/assets
+          if grep -RFlq "IPÌLẸ̀ brings your money, accounts, spending" frontend/.open-next/assets; then
             echo "Compiled frontend assets still contain the removed long hero paragraph."
             exit 1
           fi
-          if grep -RFlq "Know what you have. Know what it is committed to." .open-next/assets/_next/static; then
+          if grep -RFlq "Know what you have. Know what it is committed to." frontend/.open-next/assets; then
             echo "Compiled frontend assets still contain the removed hero proof statement."
             exit 1
           fi
