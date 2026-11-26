@@ -338,16 +338,16 @@ def extract_pdf_statement(content: bytes) -> ExtractionResult:
                             external_id=reference or None,
                             merchant=description or None,
                             row_index=(page_number * 100000) + row_index,
+                            currency=currency,
+                            value_date=(
+                                value_date_datetime.date() if value_date_datetime else None
+                            ),
+                            transaction_datetime=transaction_datetime,
+                            running_balance=running_balance,
+                            source_page=page_number,
+                            extraction_confidence=mapping.confidence if mapping else None,
                         )
                     )
-                    rows[-1].running_balance = running_balance
-                    rows[-1].transaction_datetime = transaction_datetime
-                    rows[-1].value_date = (
-                        value_date_datetime.date() if value_date_datetime else None
-                    )
-                    rows[-1].source_page = page_number
-                    rows[-1].currency = currency
-                    rows[-1].extraction_confidence = mapping.confidence if mapping else None
                 except ValueError as exc:
                     issues.append(
                         ExtractionIssue(
