@@ -6,6 +6,7 @@ interface Env {
   ALLOWED_BANK_SENDER_DOMAINS: string;
   MAX_EMAIL_BYTES?: string;
   MAX_ATTACHMENT_BYTES?: string;
+  GMAIL_SYNC_CRON_SECRET?: string;
 }
 
 interface ParsedHeader {
@@ -160,5 +161,15 @@ export default {
       return;
     }
     message.setReject("IPÌLẸ̀ is temporarily unavailable. Please try forwarding this alert again later.");
+  },
+  async scheduled(_controller: ScheduledController, env: Env, ctx: ExecutionContext): Promise<void> {
+    if (!env.BACKEND_URL || !env.GMAIL_SYNC_CRON_SECRET) return;
+    ctx.waitUntil(fetch(new URL("/api/v1/imports/gmail/sync/cron", env.BACKEND_URL), {
+      method: "POST",
+      headers: { "x-gmail-sync-secret": env.GMAIL_SYNC_CRON_SECRET },
+      signal: AbortSignal.timeout(55_000),
+    }).then((response) => {
+      if (!response.ok) throw new Error(`Gmail sync scheduler returned ${response.status}`);
+    }));
   },
 } satisfies ExportedHandler<Env>;
