@@ -1,6 +1,6 @@
 # Phase 2 — Financial Intelligence Engine
 
-**Status:** Implementation in progress  
+**Status:** Implementation complete — final CI verification in progress  
 **Predecessor:** Phase 1 — PR #70 (automatic bank-alert ingestion and user controls)
 
 ## Objective
@@ -48,3 +48,25 @@ Scores are capped at 100. High is 85–100, medium is 65–84, low is below 65. 
 - Currency mismatch cannot become an exact account match.
 - Confidence score exposes reasons and cannot be high when currency/account signals are missing.
 - Existing import, Gmail and Cloudflare tests remain green.
+
+## Additional Phase 2 completion — historical transaction intelligence
+
+- Detect likely recurring income and expenses from at least three dated observations with a consistent cadence; collapse same-day observations so duplicate deliveries cannot fabricate a pattern.
+- Identify upcoming expected recurring transactions and expose cadence, expected date, typical amount, observation count, amount stability and confidence in the existing Insights `patterns[]` payload.
+- Detect unusually large recent transactions only when at least four prior observations exist for the same household-shared account, payee, currency, transaction direction and category.
+- Compare amounts using a same-currency historical median; no FX conversion or cross-account comparisons are used.
+- Signals are advisory. They do not create recurring templates, alter transactions, change balances, block payments, or label activity as fraud.
+- Household-level insight analysis excludes personal-scope transactions.
+- No schema migration is required.
+
+### Additional acceptance tests
+
+- Three consistent monthly transactions produce an upcoming recurring signal with a calendar-based expected date.
+- Three annual observations can produce a detected annual pattern even when the next occurrence is not imminent.
+- A recurring payment overdue by 6–35 days produces a warning; older stale patterns are suppressed.
+- Two observations are insufficient to infer recurrence.
+- A recent transaction at least three times the same-payee historical median is flagged when the minimum history exists.
+- Large transactions without sufficient history are not flagged.
+- Generic bank sender domains and generic alert subjects do not become recurring payees.
+- The `/api/v1/insights` integration test verifies recurring signals reach the household workspace.
+- Existing insight and analytics responses continue to return the established `patterns[]` contract.
