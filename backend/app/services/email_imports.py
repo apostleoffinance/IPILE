@@ -10,10 +10,10 @@ from email.utils import parsedate_to_datetime
 from app.money import quantize_money
 from app.services.import_adapters import ImportRow
 
-_AMOUNT = re.compile(r"(?:NGN|N\\s?\\$|₦)\\s*([0-9][0-9,]*(?:\\.\\d{1,2})?)", re.IGNORECASE)
-_DATE = re.compile(r"\\b(\\d{1,2}[/-]\\d{1,2}[/-]\\d{2,4}|\\d{4}-\\d{2}-\\d{2})\\b")
+_AMOUNT = re.compile(r"(?:NGN|N\s?\$|₦)\s*([0-9][0-9,]*(?:\.\d{1,2})?)", re.IGNORECASE)
+_DATE = re.compile(r"\b(\d{1,2}[/-]\d{1,2}[/-]\d{2,4}|\d{4}-\d{2}-\d{2})\b")
 _REFERENCE = re.compile(
-    r"(?:reference|ref|session\\s?id|transaction\\s?id)\\s*[:#-]?\\s*([A-Z0-9/-]{5,})",
+    r"(?:reference|ref|session\s?id|transaction\s?id)\s*[:#-]?\s*([A-Z0-9/-]{5,})",
     re.IGNORECASE,
 )
 
