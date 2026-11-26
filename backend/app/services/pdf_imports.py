@@ -7,7 +7,7 @@ from io import BytesIO
 
 import pdfplumber
 
-from app.services.import_adapters import ImportRow, StatementImportAdapter, _make_row, _parse_amount
+from app.services.import_adapters import ImportRow, StatementImportAdapter, _make_row, _parse_amount\nfrom app.services.statement_ocr import extract_pdf_ocr_text, extract_image_ocr_text, parse_ocr_statement
 
 DATE_HEADERS = {"date", "transaction date", "txn date", "value date", "posting date"}
 AMOUNT_HEADERS = {"amount", "transaction amount"}
@@ -28,7 +28,7 @@ def _zero_or_amount(value: str | None) -> Decimal:
     return _parse_amount(text)
 
 
-def parse_pdf_statement(content: bytes) -> list[ImportRow]:
+def _parse_selectable_pdf(content: bytes) -> list[ImportRow]:
     table_rows: list[ImportRow] = []
     extracted_text: list[str] = []
     row_errors: list[str] = []
