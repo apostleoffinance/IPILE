@@ -209,3 +209,9 @@ def test_unusually_large_transaction_generates_proactive_alert(client: TestClien
     assert voided.status_code == 200, voided.text
     remaining = client.get("/api/v1/alerts").json()
     assert not any(row["type"] == "unusually_large_transaction" for row in remaining)
+    unread_after_void = client.get(
+        "/api/v1/notifications", params={"unread_only": "true"}
+    ).json()
+    assert not any(
+        row["title"] == "Transaction is larger than usual" for row in unread_after_void
+    )
