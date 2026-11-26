@@ -103,7 +103,10 @@ def parse_universal_csv(content: str) -> list[ImportRow]:
                 if debit and credit:
                     raise ValueError("Both debit and credit columns contain amounts.")
                 if not debit and not credit:
-                    raise ValueError("A transaction row must contain a debit or credit amount; neither column is populated.")
+                    raise ValueError(
+                        "A transaction row must contain a debit or credit amount; "
+                        "neither column is populated."
+                    )
                 cash_direction = "credit" if credit else "debit"
                 amount = credit if credit else -debit
                 tx_type = "income" if credit else "expense"
