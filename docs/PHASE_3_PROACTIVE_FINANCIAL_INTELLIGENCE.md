@@ -41,3 +41,6 @@ Turn verified Phase 2 transaction patterns into timely, explainable household al
 - Imported transactions invoke the same intelligence refresh path after they are committed.
 - The Insights page displays unread proactive notifications and routes to the Inbox.
 - Existing multi-household, backend, frontend, Worker and migration checks remain green.
+
+
+No database migration is required; Phase 3 reuses the existing household Alert and Notification records.
