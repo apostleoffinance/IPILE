@@ -1,7 +1,7 @@
 import uuid
 from datetime import datetime
 
-from sqlalchemy import Boolean, DateTime, ForeignKey, Integer, String, Uuid, func
+from sqlalchemy import Boolean, DateTime, ForeignKey, Integer, LargeBinary, String, Uuid, func
 from sqlalchemy.orm import Mapped, mapped_column
 from sqlalchemy.types import JSON
 
@@ -40,4 +40,28 @@ class ImportMailbox(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
     last_received_at: Mapped[datetime | None] = mapped_column(
         DateTime(timezone=True), nullable=True
+    )
+
+
+class StatementExtractionTask(Base):
+    __tablename__ = "statement_extraction_tasks"
+
+    id: Mapped[uuid.UUID] = mapped_column(Uuid, primary_key=True, default=uuid.uuid4)
+    import_job_id: Mapped[uuid.UUID] = mapped_column(
+        Uuid, ForeignKey("import_jobs.id", ondelete="CASCADE"), unique=True, index=True
+    )
+    household_id: Mapped[uuid.UUID] = mapped_column(
+        Uuid, ForeignKey("households.id", ondelete="CASCADE"), index=True
+    )
+    account_id: Mapped[uuid.UUID] = mapped_column(
+        Uuid, ForeignKey("accounts.id", ondelete="CASCADE"), index=True
+    )
+    filename: Mapped[str] = mapped_column(String(200))
+    suffix: Mapped[str] = mapped_column(String(10))
+    content: Mapped[bytes] = mapped_column(LargeBinary)
+    status: Mapped[str] = mapped_column(String(20), default="pending", index=True)
+    attempts: Mapped[int] = mapped_column(Integer, default=0)
+    claimed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now()
     )
