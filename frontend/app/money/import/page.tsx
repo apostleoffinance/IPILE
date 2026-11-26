@@ -249,7 +249,7 @@ export default function ImportPage() {
               {gmail?.connected ? (
                 <>
                   <p className="text-sm font-medium">Gmail connected · {gmail.email_address}</p>
-                  <p className="text-xs text-muted">Read-only access. IPÌLẸ̀ searches for supported bank alerts; it cannot send, modify or delete your emails.</p>
+                  <p className="text-xs text-muted">Google grants IPÌLẸ̀ read-only Gmail access. IPÌLẸ̀ only searches configured trusted bank-sender domains, stores extracted transaction fields rather than email bodies, and cannot send, modify or delete emails.</p>
                   <div className="flex flex-wrap gap-2">
                     <Button type="button" size="sm" variant="outline" disabled={gmailBusy} onClick={() => void onSyncGmail()}>{gmailBusy ? "Syncing..." : "Sync now"}</Button>
                     <Button type="button" size="sm" variant="ghost" disabled={gmailBusy} onClick={() => void onDisconnectGmail()}>Disconnect Gmail</Button>
@@ -260,7 +260,7 @@ export default function ImportPage() {
               ) : (
                 <>
                   <p className="text-sm font-medium">Gmail · Recommended</p>
-                  <p className="text-xs text-muted">Connect the inbox where your bank alerts already arrive. You approve access through Google.</p>
+                  <p className="text-xs text-muted">Connect the inbox where your bank alerts already arrive. Google grants read-only Gmail access; IPÌLẸ̀ processes only configured trusted bank-sender domains. You approve access through Google.</p>
                   <Button type="button" disabled={gmailBusy} onClick={() => void onConnectGmail()}>{gmailBusy ? "Connecting..." : "Connect Gmail"}</Button>
                 </>
               )}
