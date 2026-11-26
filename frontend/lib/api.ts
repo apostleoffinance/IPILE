@@ -447,6 +447,7 @@ let csrfToken: string | undefined;
 
 export function setHouseholdId(id?: string) {
   householdId = id;
+  currentHouseholdCache = undefined;
   if (typeof window !== "undefined") {
     window.dispatchEvent(new Event("ipile:household-changed"));
   }
@@ -1263,6 +1264,7 @@ export const api = {
   }) =>
     request<User>("/api/v1/auth/register", { method: "POST", body: JSON.stringify(body) }).then(
       (user) => {
+        invalidateCurrentUserCache();
         clearCsrfToken();
         return user;
       },
@@ -1276,6 +1278,7 @@ export const api = {
     ),
   logout: () =>
     request<void>("/api/v1/auth/logout", { method: "POST" }).then(() => {
+      invalidateCurrentUserCache();
       clearCsrfToken();
     }),
   changePassword: (body: { current_password: string; new_password: string }) =>
