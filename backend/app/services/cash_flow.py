@@ -109,15 +109,19 @@ def cash_as_of(
     """Cash pool balance at end of ``as_of`` (undo later activity)."""
     accounts = accounts if accounts is not None else _cash_accounts(db, household.id)
     later = _period_transactions(db, household.id, start=as_of + timedelta(days=1))
-    # Reconstruct every account in its native currency, then value that
-    # historical balance on the requested date. Future transactions must be
-    # reversed using the exact native side that changed each account.
-    total = ZERO
     account_map = {account.id: account for account in accounts}
+    later_account_ids = {
+        tx.account_id for tx in later
+    } | {
+        tx.counterparty_account_id for tx in later if tx.counterparty_account_id is not None
+    }
+    # Refuse to produce a fabricated historical rate for accounts whose
+    # transaction history cannot be reconstructed from retained rows.
     native_balances = {
         account.id: Decimal(str(account.current_balance))
         for account in accounts
     }
+    total = ZERO
     for tx in later:
         source = account_map.get(tx.account_id)
         if source is not None:
