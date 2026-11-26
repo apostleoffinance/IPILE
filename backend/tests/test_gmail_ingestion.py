@@ -179,3 +179,15 @@ def test_gmail_search_is_restricted_to_allowlisted_sender_domains(monkeypatch) -
     )
     assert "from:gtbank.com" in captured[0]["q"]
     assert "from:kuda.com" in captured[0]["q"]
+
+
+
+def test_gmail_sender_authentication_requires_aligned_dmarc() -> None:
+    from app.api.v1.gmail import _gmail_dmarc_passes_for_sender
+
+    passed = "mx.google.com; dmarc=pass header.from=gtbank.com"
+    mismatched = "mx.google.com; dmarc=pass header.from=attacker.example"
+    failed = "mx.google.com; dmarc=fail header.from=gtbank.com"
+    assert _gmail_dmarc_passes_for_sender("GTBank <alerts@gtbank.com>", passed)
+    assert not _gmail_dmarc_passes_for_sender("alerts@gtbank.com", mismatched)
+    assert not _gmail_dmarc_passes_for_sender("alerts@gtbank.com", failed)
