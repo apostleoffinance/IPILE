@@ -40,7 +40,7 @@ The staging Worker is separate from production. It must never reuse the producti
 
 ## Production deployment
 
-The GitHub Actions workflow **Deploy IPÌLẸ̀ Cloudflare production** deploys the Worker as `ipile-web` and sets `BACKEND_URL` to the existing production Render API.
+The GitHub Actions workflow **Deploy IPÌLẸ̀ Cloudflare production** is manually dispatched and requires the explicit `approve_production_frontend_deployment` boolean input. It deploys the existing Worker `ipile-web` and sets `BACKEND_URL` to `https://ipile-bmfz.onrender.com`. It runs the frontend checks and verifies the production backend before deployment, then smoke-tests the deployed Worker and same-origin API proxy. It does not run database migrations or seed data.
 
 Required GitHub Actions repository secrets:
 
