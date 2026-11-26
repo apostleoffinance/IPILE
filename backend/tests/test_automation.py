@@ -229,3 +229,64 @@ def test_unusually_large_transaction_generates_proactive_alert(client: TestClien
     assert not any(
         row["title"] == "Transaction is larger than usual" for row in unread_after_void
     )
+
+
+
+def test_same_period_income_refreshes_allocation_and_fund_top_up(client: TestClient) -> None:
+    register(client, "income-refresh@example.com")
+    account = client.post(
+        "/api/v1/accounts",
+        json={"name": "Current", "type": "bank", "current_balance": "0.00"},
+    ).json()
+    fund = client.post(
+        "/api/v1/funds",
+        json={
+            "name": "Emergency reserve",
+            "target_amount": "1000000.00",
+            "monthly_contribution": "0.00",
+        },
+    )
+    assert fund.status_code == 201, fund.text
+    rule = client.post(
+        "/api/v1/allocation-rules",
+        json={
+            "name": "Emergency reserve",
+            "type": "percentage",
+            "basis": "recognized_income",
+            "rate": "0.20",
+            "priority": 0,
+            "destination_type": "fund",
+            "destination_id": fund.json()["id"],
+        },
+    )
+    assert rule.status_code == 201, rule.text
+
+    first = client.post(
+        "/api/v1/transactions",
+        json={
+            "account_id": account["id"],
+            "amount": "500000.00",
+            "type": "income",
+            "date": date.today().isoformat(),
+            "status": "cleared",
+        },
+    )
+    assert first.status_code == 201, first.text
+    fund_after_first = client.get("/api/v1/funds").json()[0]
+    assert fund_after_first["current_amount"] == "100000.00"
+
+    second = client.post(
+        "/api/v1/transactions",
+        json={
+            "account_id": account["id"],
+            "amount": "250000.00",
+            "type": "income",
+            "date": date.today().isoformat(),
+            "status": "cleared",
+        },
+    )
+    assert second.status_code == 201, second.text
+    latest = client.get("/api/v1/allocations/latest").json()
+    assert latest["recognized_income"] == "750000.00"
+    fund_after_second = client.get("/api/v1/funds").json()[0]
+    assert fund_after_second["current_amount"] == "150000.00"
