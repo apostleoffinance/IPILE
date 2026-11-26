@@ -64,3 +64,26 @@ def test_foreign_transaction_without_historical_conversion_fails_closed():
     )
     with pytest.raises(CurrencyError):
         transaction_amount_in_base(transaction, "GBP")
+
+
+def test_transaction_amount_in_base_rejects_mismatched_snapshot_currency():
+    transaction = SimpleNamespace(
+        id="tx-3",
+        amount=Decimal("100.00"),
+        currency="USD",
+        base_amount=Decimal("78.25"),
+        base_currency="EUR",
+    )
+    with pytest.raises(CurrencyError):
+        transaction_amount_in_base(transaction, "GBP")
+
+
+def test_transaction_amount_in_base_uses_native_amount_for_identity_currency():
+    transaction = SimpleNamespace(
+        id="tx-4",
+        amount=Decimal("100.10"),
+        currency="GBP",
+        base_amount=None,
+        base_currency="GBP",
+    )
+    assert transaction_amount_in_base(transaction, "GBP") == Decimal("100.10")
