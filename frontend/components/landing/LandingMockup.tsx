@@ -139,7 +139,7 @@ export function LandingMockup() {
           <div className="dashboard-top"><strong>IPÌLẸ̀ <span>·</span></strong><small>Household workspace　⌄　　◉ Sample profile</small></div>
           <div className="dashboard-body"><aside><b>◫　Overview</b><span>▣　Money</span><span>▤　Planning</span><span>◇　Wealth</span><span>⌁　Insights</span><span>♧　Family</span><span className="settings">⚙　Settings</span></aside>
             <div className="dashboard-main">
-              <h3>Good morning.</h3><p className="dashboard-caption">Your financial overview · Illustrative product preview</p>
+              <h3>Good morning.</h3><p className="dashboard-caption">Your financial overview</p>
               <div className="dashboard-overview-grid">
                 <article className="dashboard-safe-spend"><small>SAFE TO SPEND</small><strong>₦548,000</strong><p>Available after planned commitments, protection and wealth allocations.</p><div className="dashboard-safe-meta"><span>Monthly income</span><b>₦2.0M</b><span>Committed</span><b>₦1.1M</b></div></article>
                 <div className="dashboard-stat-grid">
