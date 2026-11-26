@@ -895,7 +895,11 @@ export type ImportJob = {
     };
     errors?: string[];
     extraction_method?: string;
-    extraction?: StatementExtractionReview;
+    extraction_status?: string;
+    account_section?: string | null;
+    available_sections?: string[];
+    section_count?: number;
+    extraction_issues?: { code: string; message: string; severity: string }[];
     account_id?: string;
     row_count?: number;
     duplicate_count_at_preview?: number;
@@ -924,10 +928,11 @@ export function previewImport(body: { account_id: string; source: "csv" | "state
   });
 }
 
-export function previewStatementUpload(accountId: string, file: File) {
+export function previewStatementUpload(accountId: string, file: File, accountSection?: string) {
   const body = new FormData();
   body.append("account_id", accountId);
   body.append("file", file);
+  if (accountSection) body.append("account_section", accountSection);
   return request<ImportJob>("/api/v1/imports/preview-upload", { method: "POST", body, signal: AbortSignal.timeout(120_000) });
 }
 

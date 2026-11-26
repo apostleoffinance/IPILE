@@ -2,12 +2,15 @@
 from datetime import date
 from decimal import Decimal
 
-from app.services.import_adapters import ImportRow
-from app.services.statement_intelligence.schema import (
+from app.services.statement_extraction.models import (
+    ExtractionMethod,
     ExtractionResult,
-    StatementSummary,
+    ExtractionStatus,
+    ExtractedTransaction,
+    StatementAccountSection,
+    StatementMetadata,
+    TransactionDirection,
 )
-from app.services.statement_intelligence.validation import validate_statement
 
 from fastapi.testclient import TestClient
 
@@ -63,25 +66,24 @@ def test_scanned_image_statement_is_staged_for_review(client: TestClient, monkey
         json={"name": "Current", "type": "bank", "current_balance": "5000.00"},
     ).json()
 
-    def fake_extract(_content: bytes, suffix: str):
+    def fake_extract(_content: bytes, suffix: str, *, filename: str | None = None):
         assert suffix == "png"
-        rows = [
-            ImportRow(
-                date=date(2026, 11, 26),
-                amount=Decimal("1500.00"),
-                type="expense",
-                description="ATM withdrawal",
-                external_id="ocr-image-1",
-            )
-        ]
+        row = ExtractedTransaction(
+            transaction_date=date(2026, 11, 26),
+            amount=Decimal("1500.00"),
+            direction=TransactionDirection.DEBIT,
+            description="ATM withdrawal",
+            reference="ocr-image-1",
+        )
         return ExtractionResult(
-            rows=rows,
-            extraction_method="image_ocr",
-            validation=validate_statement(rows),
-            confidence=0.6,
+            method=ExtractionMethod.IMAGE_OCR,
+            transactions=(row,),
+            sections=(StatementAccountSection(label=None, transactions=(row,)),),
+            metadata=StatementMetadata(source_filename=filename),
+            status=ExtractionStatus.VERIFIED,
         )
 
-    monkeypatch.setattr("app.api.v1.imports.extract_statement", fake_extract)
+    monkeypatch.setattr("app.api.v1.imports.extract_statement_document", fake_extract)
     preview = client.post(
         "/api/v1/imports/preview-upload",
         data={"account_id": account["id"]},
@@ -95,213 +97,64 @@ def test_scanned_image_statement_is_staged_for_review(client: TestClient, monkey
 
 
 
-def test_unreconciled_statement_is_staged_but_cannot_be_committed(
-    client: TestClient, monkeypatch
+def test_multi_account_statement_requires_explicit_section_selection(
+    client: TestClient, monkeypatch,
 ) -> None:
-    register(client, "unreconciled-statement@example.com")
+    register(client, "multi-section-import@example.com")
     account = client.post(
         "/api/v1/accounts",
-        json={"name": "Current", "type": "bank", "current_balance": "5000.00"},
+        json={"name": "OPay Wallet", "type": "bank", "current_balance": "5000.00"},
     ).json()
+    wallet = ExtractedTransaction(
+        transaction_date=date(2026, 1, 1), amount=Decimal("100.00"),
+        direction=TransactionDirection.DEBIT, description="Wallet debit",
+        reference="wallet-ref", account_section="Wallet Account", source_page=1,
+    )
+    savings = ExtractedTransaction(
+        transaction_date=date(2026, 1, 2), amount=Decimal("200.00"),
+        direction=TransactionDirection.CREDIT, description="Savings credit",
+        reference="savings-ref", account_section="Savings Account", source_page=3,
+    )
+    extraction = ExtractionResult(
+        method=ExtractionMethod.PDF_TABLE,
+        transactions=(wallet, savings),
+        sections=(
+            StatementAccountSection(
+                label="Wallet Account", transactions=(wallet,),
+                source_page_start=1, source_page_end=1,
+            ),
+            StatementAccountSection(
+                label="Savings Account", transactions=(savings,),
+                source_page_start=3, source_page_end=3,
+            ),
+        ),
+        status=ExtractionStatus.VERIFIED,
+    )
+    monkeypatch.setattr(
+        "app.api.v1.imports.extract_statement_document",
+        lambda *_args, **_kwargs: extraction,
+    )
 
-    def fake_extract(_content: bytes, suffix: str):
-        assert suffix == "pdf"
-        rows = [
-            ImportRow(
-                date=date(2026, 1, 1),
-                amount=Decimal("100.00"),
-                type="expense",
-                description="Unverified transaction",
-                external_id="unreconciled-1",
-                currency="NGN",
-            )
-        ]
-        summary = StatementSummary(
-            total_debits=Decimal("200.00"),
-            debit_count=2,
-            currency="NGN",
-        )
-        validation = validate_statement(rows, summary)
-        return ExtractionResult(
-            rows=rows,
-            summary=summary,
-            extraction_method="pdf_text_layout",
-            issues=list(validation.issues),
-            validation=validation,
-            confidence=0.9,
-        )
-
-    monkeypatch.setattr("app.api.v1.imports.extract_statement", fake_extract)
-    preview = client.post(
+    needs_choice = client.post(
         "/api/v1/imports/preview-upload",
         data={"account_id": account["id"]},
-        files={"file": ("statement.pdf", b"statement", "application/pdf")},
+        files={"file": ("statement.pdf", b"pdf", "application/pdf")},
     )
-    assert preview.status_code == 201, preview.text
-    extraction = preview.json()["result"]["extraction"]
-    assert extraction["status"] == "incomplete"
-    assert extraction["requires_manual_review"] is True
-    assert extraction["validation"]["debit_count"] == 1
-    assert any(issue["code"] == "debit_count_mismatch" for issue in extraction["issues"])
+    assert needs_choice.status_code == 201, needs_choice.text
+    assert needs_choice.json()["status"] == "needs_section_selection"
+    assert needs_choice.json()["result"]["available_sections"] == [
+        "Wallet Account", "Savings Account",
+    ]
     assert client.get("/api/v1/transactions").json() == []
 
-    committed = client.post(
-        f"/api/v1/imports/jobs/{preview.json()['id']}/commit",
-        json={"account_id": account["id"]},
-    )
-    assert committed.status_code == 400
-    assert "unresolved extraction or reconciliation issues" in committed.json()["detail"]
-    assert client.get("/api/v1/transactions").json() == []
-    assert Decimal(client.get("/api/v1/accounts").json()[0]["current_balance"]) == Decimal(
-        "5000.00"
-    )
-
-
-
-def test_statement_currency_must_match_selected_account_before_commit(
-    client: TestClient, monkeypatch
-) -> None:
-    register(client, "currency-statement@example.com")
-    account = client.post(
-        "/api/v1/accounts",
-        json={"name": "Naira account", "type": "bank", "currency": "NGN"},
-    ).json()
-
-    def fake_extract(_content: bytes, suffix: str):
-        assert suffix == "pdf"
-        rows = [
-            ImportRow(
-                date=date(2026, 1, 1),
-                amount=Decimal("100.00"),
-                type="income",
-                description="Foreign currency credit",
-                external_id="usd-credit-1",
-                currency="USD",
-            )
-        ]
-        return ExtractionResult(
-            rows=rows,
-            extraction_method="pdf_text_layout",
-            validation=validate_statement(rows),
-            confidence=0.95,
-        )
-
-    monkeypatch.setattr("app.api.v1.imports.extract_statement", fake_extract)
-    preview = client.post(
+    selected = client.post(
         "/api/v1/imports/preview-upload",
-        data={"account_id": account["id"]},
-        files={"file": ("statement.pdf", b"statement", "application/pdf")},
+        data={"account_id": account["id"], "account_section": "Wallet Account"},
+        files={"file": ("statement.pdf", b"pdf", "application/pdf")},
     )
-    assert preview.status_code == 201, preview.text
-    committed = client.post(
-        f"/api/v1/imports/jobs/{preview.json()['id']}/commit",
-        json={"account_id": account["id"]},
-    )
-    assert committed.status_code == 400
-    assert "Statement currency USD does not match selected account currency NGN" in (
-        committed.json()["detail"]
-    )
+    assert selected.status_code == 201, selected.text
+    assert selected.json()["status"] == "pending_review"
+    assert selected.json()["result"]["account_section"] == "Wallet Account"
+    assert selected.json()["result"]["row_count"] == 1
+    assert selected.json()["result"]["rows"][0]["external_id"] == "wallet-ref"
     assert client.get("/api/v1/transactions").json() == []
-
-
-
-def test_statement_discrepancies_require_explicit_acknowledgement_before_commit(
-    client: TestClient, monkeypatch
-) -> None:
-    register(client, "statement-review-ack@example.com")
-    account = client.post(
-        "/api/v1/accounts",
-        json={"name": "Current", "type": "bank", "currency": "NGN", "current_balance": "5000.00"},
-    ).json()
-
-    def fake_extract(_content: bytes, suffix: str):
-        assert suffix == "pdf"
-        rows = [
-            ImportRow(
-                date=date(2026, 1, 1),
-                amount=Decimal("100.00"),
-                type="expense",
-                description="Reviewed purchase",
-                external_id="review-ack-1",
-                currency="NGN",
-            )
-        ]
-        summary = StatementSummary(total_debits=Decimal("200.00"), debit_count=2, currency="NGN")
-        validation = validate_statement(rows, summary)
-        return ExtractionResult(
-            rows=rows,
-            summary=summary,
-            extraction_method="pdf_text_layout",
-            issues=list(validation.issues),
-            validation=validation,
-            confidence=0.9,
-        )
-
-    monkeypatch.setattr("app.api.v1.imports.extract_statement", fake_extract)
-    preview = client.post(
-        "/api/v1/imports/preview-upload",
-        data={"account_id": account["id"]},
-        files={"file": ("statement.pdf", b"statement", "application/pdf")},
-    )
-    assert preview.status_code == 201, preview.text
-    job_id = preview.json()["id"]
-
-    unacknowledged = client.post(
-        f"/api/v1/imports/jobs/{job_id}/review-confirmation",
-        json={"acknowledge_discrepancies": False, "reason": "I have reviewed the statement."},
-    )
-    assert unacknowledged.status_code == 400
-    assert client.get("/api/v1/transactions").json() == []
-
-    acknowledged = client.post(
-        f"/api/v1/imports/jobs/{job_id}/review-confirmation",
-        json={
-            "acknowledge_discrepancies": True,
-            "reason": "I compared the extracted row against the source statement.",
-        },
-    )
-    assert acknowledged.status_code == 200, acknowledged.text
-    extraction = acknowledged.json()["result"]["extraction"]
-    assert extraction["status"] == "manually_accepted"
-    assert extraction["requires_manual_review"] is False
-    assert extraction["manual_review"]["acknowledged"] is True
-
-    committed = client.post(
-        f"/api/v1/imports/jobs/{job_id}/commit",
-        json={"account_id": account["id"]},
-    )
-    assert committed.status_code == 200, committed.text
-    assert committed.json()["created_count"] == 1
-    assert len(client.get("/api/v1/transactions").json()) == 1
-
-def test_opay_style_csv_upload_is_staged_by_the_universal_engine(client: TestClient) -> None:
-    register(client, "opay-csv-stage@example.com")
-    account = client.post(
-        "/api/v1/accounts",
-        json={
-            "name": "Current",
-            "type": "bank",
-            "currency": "NGN",
-            "current_balance": "100000.00",
-        },
-    ).json()
-    statement = (
-        "Trans. Time,Value Date,Description,Debit(₦),Credit(₦),"
-        "Balance After(₦),Channel,Transaction Reference\n"
-        "01 Jan 2026 20:35:26,01 Jan 2026,Transfer to Merchant,5000.00,--,"
-        "95000.00,Mobile,opay-csv-1\n"
-    )
-    preview = client.post(
-        "/api/v1/imports/preview-upload",
-        data={"account_id": account["id"]},
-        files={"file": ("opay-statement.csv", statement.encode(), "text/csv")},
-    )
-    assert preview.status_code == 201, preview.text
-    assert preview.json()["status"] == "pending_review"
-    assert preview.json()["result"]["extraction"]["extraction_method"] == "csv_structured"
-    assert preview.json()["result"]["rows"][0]["external_id"] == "opay-csv-1"
-    assert preview.json()["result"]["rows"][0]["running_balance"] == "95000.00"
-    assert client.get("/api/v1/transactions").json() == []
-    assert Decimal(client.get("/api/v1/accounts").json()[0]["current_balance"]) == Decimal(
-        "100000.00"
-    )

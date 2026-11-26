@@ -29,9 +29,10 @@ from app.services.imports import (
     stage_import,
     stage_import_rows,
 )
-from app.services.statement_intelligence.engine import extract_statement
-from app.services.statement_intelligence.schema import ExtractionResult
-from app.services.statement_intelligence.validation import validate_statement
+from app.services.pdf_imports import parse_statement_document
+from app.services.statement_extraction.extractor import extract_statement_document
+from app.services.statement_extraction.models import ExtractionStatus
+from app.services.statement_extraction.normalization import normalize_section_rows
 from app.services.transaction_intelligence import enrich_bank_alert
 
 router = APIRouter(prefix="/imports", tags=["imports"])
@@ -330,10 +331,11 @@ async def upload_statement(
 async def preview_statement_upload(
     account_id: UUID = Form(...),
     file: UploadFile = File(...),
+    account_section: str | None = Form(default=None),
     ctx: HouseholdContext = Depends(require_roles("owner", "partner")),
     db: Session = Depends(get_db),
 ):
-    """Upload and parse a supported statement into review without posting transactions."""
+    """Extract and stage a statement for review; no ledger write occurs here."""
     filename = (file.filename or "statement").strip()
     suffix = filename.lower().rsplit(".", 1)[-1] if "." in filename else ""
     if suffix not in {"csv", "pdf", "txt", "png", "jpg", "jpeg", "webp"}:
@@ -352,18 +354,58 @@ async def preview_statement_upload(
         )
     account = _scoped_account(db, ctx.household.id, account_id)
     try:
-        source = "csv" if suffix == "csv" else "statement"
-        extraction = await run_in_threadpool(extract_statement, raw, suffix)
-        extraction_payload = _extraction_payload(extraction)
-        job = stage_import_rows(
-            db,
-            ctx.household,
-            account,
-            extraction.rows,
-            source=source,
-            filename=filename,
-            extraction=extraction_payload,
+        extraction = await run_in_threadpool(
+            extract_statement_document, raw, suffix, filename=filename
         )
+        if extraction.status in {ExtractionStatus.FAILED, ExtractionStatus.INCOMPLETE}:
+            error = next(
+                (issue.message for issue in extraction.issues if issue.severity == "error"),
+                "The statement could not be extracted completely. No transactions were staged.",
+            )
+            raise ValueError(error)
+
+        available_sections = [
+            section.label or "Unlabelled account" for section in extraction.sections
+        ]
+        if len(extraction.sections) > 1 and account_section is None:
+            job = ImportJob(
+                household_id=ctx.household.id,
+                source="statement",
+                filename=filename,
+                status="needs_section_selection",
+                result={
+                    "account_id": str(account.id),
+                    "extraction_method": extraction.method.value,
+                    "extraction_status": extraction.status.value,
+                    "available_sections": available_sections,
+                    "section_count": len(extraction.sections),
+                    "row_count": len(extraction.transactions),
+                    "message": (
+                        "This statement contains multiple accounts. Select the account "
+                        "section you want to review before importing."
+                    ),
+                },
+            )
+            db.add(job)
+            db.commit()
+            db.refresh(job)
+            return job
+
+        rows, selected_section = normalize_section_rows(extraction, account_section)
+        job = stage_import_rows(
+            db, ctx.household, account, rows, source="statement", filename=filename
+        )
+        job.result = {
+            **(job.result or {}),
+            "extraction_method": extraction.method.value,
+            "extraction_status": extraction.status.value,
+            "extraction_issues": [
+                {"code": issue.code, "message": issue.message, "severity": issue.severity}
+                for issue in extraction.issues
+            ],
+            "account_section": selected_section.label,
+            "section_count": len(extraction.sections),
+        }
     except (ValueError, UnicodeDecodeError) as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
     except Exception as exc:

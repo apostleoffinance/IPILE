@@ -27,12 +27,15 @@ class ImportRow:
     merchant: str | None = None
     category_name: str | None = None
     currency: str | None = None
-    value_date: date | None = None
     transaction_datetime: datetime | None = None
+    value_date: date | None = None
     running_balance: Decimal | None = None
+    channel: str | None = None
     source_page: int | None = None
-    extraction_confidence: float | None = None
-    cash_direction: str | None = None
+    source_row: int | None = None
+    account_section: str | None = None
+    confidence: Decimal | None = None
+    warnings: tuple[str, ...] = ()
 
 
 class ImportAdapter(Protocol):

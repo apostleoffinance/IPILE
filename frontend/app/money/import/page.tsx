@@ -42,6 +42,7 @@ export default function ImportPage() {
   const [content, setContent] = useState("");
   const [filename, setFilename] = useState("");
   const [file, setFile] = useState<File | null>(null);
+  const [accountSection, setAccountSection] = useState("");
   const [pending, setPending] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [result, setResult] = useState<ImportJob | null>(null);
@@ -102,7 +103,7 @@ export default function ImportPage() {
     setResult(null);
     try {
       const job = file
-        ? await previewStatementUpload(accountId, file)
+        ? await previewStatementUpload(accountId, file, accountSection || undefined)
         : await previewImport({ account_id: accountId, source, content, filename: filename || undefined });
       setResult(job);
     } catch (err) {
@@ -452,7 +453,7 @@ export default function ImportPage() {
                   )}
                   <label className="block text-sm">
                     <span className="text-muted">Choose your bank statement file (CSV, PDF, PNG, JPEG or WebP · max 10 MB)</span>
-                    <input className="mt-1 block w-full text-sm" type="file" accept=".csv,.pdf,.txt,.png,.jpg,.jpeg,.webp,application/pdf,text/csv,text/plain,image/png,image/jpeg,image/webp" onChange={(event) => { setFile(event.target.files?.[0] ?? null); if (event.target.files?.[0]) setContent(""); }} />
+                    <input className="mt-1 block w-full text-sm" type="file" accept=".csv,.pdf,.txt,.png,.jpg,.jpeg,.webp,application/pdf,text/csv,text/plain,image/png,image/jpeg,image/webp" onChange={(event) => { setFile(event.target.files?.[0] ?? null); setAccountSection(""); setResult(null); if (event.target.files?.[0]) setContent(""); }} />
                   </label>
                   <p className="text-xs text-muted">PDFs with selectable text are read directly. Image-only or scanned PDFs are automatically scanned with OCR, as are PNG, JPEG and WebP images. Files are processed privately and are not added to your ledger during scanning. Maximum file size: 10 MB; scanned PDFs: up to 12 pages.</p>
                   <div className="text-center text-xs text-muted">or paste statement text instead of uploading a file</div>
@@ -471,106 +472,29 @@ export default function ImportPage() {
                   <Button type="submit" disabled={pending || (!file && !content.trim())}>{pending ? (file && /\.(pdf|png|jpe?g|webp)$/i.test(file.name) ? "Reading statement..." : "Preparing preview...") : "Preview import"}</Button>
                 </form>
                 {result ? (
-                  <div className="space-y-4 border border-line px-4 py-3 text-sm">
-                    <div className="flex flex-wrap items-center justify-between gap-2">
-                      <p className="font-medium">{result.source} · {result.status.replaceAll("_", " ")}</p>
-                      {result.result?.extraction ? (
-                        <span className="text-xs uppercase text-muted">
-                          {result.result.extraction.status.replaceAll("_", " ")}
-                        </span>
-                      ) : null}
-                    </div>
-                    {result.result?.extraction ? (
-                      <div className="space-y-3 border border-line bg-surface p-3">
-                        <div>
-                          <p className="font-medium">Statement extraction report</p>
-                          <p className="text-xs text-muted">
-                            {result.result.extraction.extraction_method.replaceAll("_", " ")} ·
-                            {Math.round(result.result.extraction.confidence * 100) + "% extraction confidence"}
-                            {result.result.extraction.metadata.page_count
-                              ? " · " + result.result.extraction.metadata.page_count + " pages"
-                              : ""}
-                          </p>
-                        </div>
-                        <div className="grid gap-2 sm:grid-cols-2">
-                          <p>Extracted rows: <strong>{result.result.extraction.row_count}</strong></p>
-                          <p>Currency: <strong>{result.result.extraction.summary.currency ?? "Not identified"}</strong></p>
-                          <p>Statement debits: <strong>{result.result.extraction.summary.total_debits ?? "Not provided"}</strong></p>
-                          <p>Extracted debits: <strong>{result.result.extraction.validation.debit_total}</strong></p>
-                          <p>Statement credits: <strong>{result.result.extraction.summary.total_credits ?? "Not provided"}</strong></p>
-                          <p>Extracted credits: <strong>{result.result.extraction.validation.credit_total}</strong></p>
-                          <p>Statement debit count: <strong>{result.result.extraction.summary.debit_count ?? "Not provided"}</strong></p>
-                          <p>Extracted debit count: <strong>{result.result.extraction.validation.debit_count}</strong></p>
-                          <p>Statement credit count: <strong>{result.result.extraction.summary.credit_count ?? "Not provided"}</strong></p>
-                          <p>Extracted credit count: <strong>{result.result.extraction.validation.credit_count}</strong></p>
-                          <p>Running balance checks: <strong>{result.result.extraction.validation.balance_check_count}</strong></p>
-                          <p>Possible duplicates: <strong>{result.result?.duplicate_count_at_preview ?? 0}</strong></p>
-                        </div>
-                        {result.result.extraction.issues.length ? (
-                          <div className="space-y-2">
-                            <p className="font-medium text-danger">
-                              {result.result.extraction.issues.length} validation issue(s) need attention
-                            </p>
-                            <ul className="max-h-48 list-disc space-y-1 overflow-auto pl-5 text-xs text-muted">
-                              {result.result.extraction.issues.slice(0, 12).map((issue, index) => (
-                                <li key={issue.code + String(issue.page) + String(issue.row) + index}>
-                                  {issue.message}{issue.page ? " (page " + issue.page + ")" : ""}
-                                </li>
-                              ))}
-                            </ul>
-                            {result.result.extraction.issues.length > 12 ? (
-                              <p className="text-xs text-muted">
-                                {result.result.extraction.issues.length - 12} additional issues are recorded in the extraction report.
-                              </p>
-                            ) : null}
-                          </div>
-                        ) : (
-                          <p className="text-xs text-muted">No extraction or reconciliation issues were detected.</p>
-                        )}
-                        {result.result.extraction.manual_review?.acknowledged ? (
-                          <p className="text-xs text-muted">
-                            Discrepancies manually acknowledged on {new Date(result.result.extraction.manual_review.reviewed_at).toLocaleString()}.
-                            {" "}{result.result.extraction.manual_review.reason}
-                          </p>
-                        ) : null}
-                      </div>
-                    ) : null}
-                    {result.status === "pending_review" ? (
+                  <div className="space-y-3 border border-line px-4 py-3 text-sm">
+                    <p className="font-medium">{result.source} · {result.status.replaceAll("_", " ")}</p>
+                    {result.result?.extraction_method ? <p className="text-xs text-muted">{result.result.extraction_method === "pdf_ocr" || result.result.extraction_method === "image_ocr" ? "Scanned document · OCR extraction" : result.result.extraction_method === "pdf_table" || result.result.extraction_method === "pdf_text" ? "PDF text and table extraction" : result.result.extraction_method === "csv" ? "CSV transaction extraction" : "Statement text extraction"}</p> : null}
+                    {result.status === "needs_section_selection" ? (
                       <>
-                        <p>
-                          {result.result?.row_count ?? result.result?.rows?.length ?? 0} transactions staged ·
-                          {" "}{result.result?.duplicate_count_at_preview ?? 0} possible duplicates
-                        </p>
-                        <div className="max-h-96 overflow-auto border border-line">
-                          <table className="w-full text-left text-xs">
-                            <thead className="sticky top-0 bg-surface">
-                              <tr>
-                                <th className="p-2">Date</th>
-                                <th className="p-2">Description</th>
-                                <th className="p-2 text-right">Amount</th>
-                                <th className="p-2">Balance</th>
-                                <th className="p-2">Source</th>
-                              </tr>
-                            </thead>
-                            <tbody>
-                              {result.result?.rows?.map((row, index) => (
-                                <tr key={row.external_id || index} className="border-t border-line">
-                                  <td className="whitespace-nowrap p-2">{row.date}</td>
-                                  <td className="min-w-40 p-2">
-                                    <p>{row.description || row.merchant || row.type}</p>
-                                    {row.external_id ? <p className="mt-1 text-muted">{row.external_id}</p> : null}
-                                  </td>
-                                  <td className="whitespace-nowrap p-2 text-right">
-                                    <span className={row.type === "income" ? "text-success" : ""}>
-                                      {row.type === "income" ? "+" : "−"}{row.amount} {row.currency ?? ""}
-                                    </span>
-                                  </td>
-                                  <td className="whitespace-nowrap p-2">{row.running_balance ?? "—"}</td>
-                                  <td className="whitespace-nowrap p-2">{row.source_page ? "p. " + row.source_page : "—"}</td>
-                                </tr>
-                              ))}
-                            </tbody>
-                          </table>
+                        <p>This statement contains more than one account. Choose which account section you want IPÌLẸ̀ to extract and review. This prevents transactions from different bank accounts being mixed together.</p>
+                        <label className="block text-sm">
+                          <span className="text-muted">Statement account section</span>
+                          <Select className="mt-1" value={accountSection} onChange={(event) => setAccountSection(event.target.value)}>
+                            <option value="">Choose an account section</option>
+                            {(result.result?.available_sections ?? []).map((section) => <option key={section} value={section}>{section}</option>)}
+                          </Select>
+                        </label>
+                        <p className="text-xs text-muted">{result.result?.row_count ?? 0} transaction rows detected across {result.result?.section_count ?? 0} account sections. No transactions have been staged or posted yet.</p>
+                        <Button type="submit" disabled={pending || !file || !accountSection}>{pending ? "Extracting..." : "Continue to transaction review"}</Button>
+                      </>
+                    ) : result.status === "pending_review" ? (
+                      <>
+                        {result.result?.account_section ? <p className="font-medium">Statement section: {result.result.account_section}</p> : null}
+                        <p>{result.result?.row_count ?? result.result?.rows?.length ?? 0} transactions parsed · {result.result?.duplicate_count_at_preview ?? 0} possible duplicates already found</p>
+                        {result.result?.extraction_issues?.length ? <ul className="list-disc pl-5 text-xs text-muted">{result.result.extraction_issues.map((issue) => <li key={issue.code}>{issue.message}</li>)}</ul> : null}
+                        <div className="max-h-80 space-y-2 overflow-auto">
+                          {result.result?.rows?.map((row, index) => <div key={row.external_id || index} className="flex flex-wrap justify-between gap-2 border-b border-line py-2"><span>{row.date} · {row.description || row.merchant || row.type}</span><span className="font-semibold">{row.amount}</span></div>)}
                         </div>
                         <p className="text-xs text-muted">
                           These transactions are staged for review. Nothing has entered your ledger and no account balance has changed.
