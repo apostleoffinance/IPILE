@@ -98,8 +98,18 @@ def _fund_from_allocation_lines(
         already_amount = quantize_money(
             sum(
                 (
-                    quantize_money(Decimal(str(row.base_amount or row.amount)))
+                    quantize_money(
+                        Decimal(
+                            str(
+                                row.base_amount
+                                if row.base_amount is not None
+                                else row.amount
+                            )
+                        )
+                    )
                     for row in already_rows
+                    if row.base_amount is not None
+                    or row.currency == household.base_currency
                 ),
                 Decimal("0.00"),
             )
