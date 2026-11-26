@@ -2,13 +2,13 @@ import hashlib
 import hmac
 import re
 import secrets
-from datetime import UTC, datetime
+from datetime import UTC, date, datetime
 from decimal import Decimal
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, File, Form, Header, HTTPException, UploadFile, status
 from fastapi.security import HTTPBasic, HTTPBasicCredentials
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
 
 from app.api.deps import HouseholdContext, get_db, require_roles
@@ -34,6 +34,13 @@ INBOUND_BASIC_AUTH = HTTPBasic(auto_error=False)
 
 class ImportApprovalBody(BaseModel):
     account_id: UUID
+
+
+class ImportCorrectionBody(BaseModel):
+    amount: Decimal | None = Field(default=None, gt=0)
+    date: date | None = None
+    type: str | None = Field(default=None, pattern="^(income|expense)$")
+    description: str | None = Field(default=None, max_length=500)
 
 
 def _mailbox_address(token: str) -> str:
@@ -465,6 +472,44 @@ def list_import_review(
         .limit(100)
         .all()
     )
+
+
+@router.patch("/{job_id}/review", response_model=ImportJobOut)
+def correct_email_import(
+    job_id: UUID,
+    payload: ImportCorrectionBody,
+    ctx: HouseholdContext = Depends(require_roles("owner", "partner")),
+    db: Session = Depends(get_db),
+):
+    """Correct extracted fields before approval; never changes the ledger."""
+    job = (
+        db.query(ImportJob)
+        .filter(
+            ImportJob.id == job_id,
+            ImportJob.household_id == ctx.household.id,
+            ImportJob.status == "pending_review",
+            ImportJob.source == "email",
+        )
+        .first()
+    )
+    if job is None:
+        raise HTTPException(status_code=404, detail="Pending email import not found.")
+    rows = list(job.result.get("rows", []))
+    if len(rows) != 1:
+        raise HTTPException(status_code=400, detail="This alert cannot be safely edited.")
+    changes = payload.model_dump(exclude_unset=True)
+    if not changes:
+        raise HTTPException(status_code=400, detail="Provide at least one field to correct.")
+    row = dict(rows[0])
+    for key, value in changes.items():
+        if value is not None:
+            row[key] = str(value) if key == "amount" else value.isoformat() if key == "date" else value
+    rows[0] = row
+    job.result = {**job.result, "rows": rows, "corrected": True}
+    db.add(job)
+    db.commit()
+    db.refresh(job)
+    return job
 
 
 @router.post("/{job_id}/approve", response_model=ImportJobOut)
