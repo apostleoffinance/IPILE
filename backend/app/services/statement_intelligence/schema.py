@@ -24,6 +24,8 @@ class CanonicalField(StrEnum):
     CURRENCY = "currency"
     TRANSACTION_TIME = "transaction_time"
     DIRECTION = "direction"
+    MERCHANT = "merchant"
+    CATEGORY = "category"
 
 
 @dataclass(frozen=True)
