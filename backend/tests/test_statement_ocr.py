@@ -76,3 +76,68 @@ def test_statement_image_runs_local_ocr(monkeypatch) -> None:
     assert method == "image_ocr"
     assert len(rows) == 1
     assert rows[0].type == "income"
+
+
+
+def test_pdf_ocr_releases_page_resources_between_pages(monkeypatch) -> None:
+    from app.services import statement_ocr
+
+    released = {"images": 0, "bitmaps": 0, "pages": 0, "document": 0}
+
+    class FakeImage:
+        width = 100
+        height = 100
+
+        def close(self):
+            released["images"] += 1
+
+    class FakeBitmap:
+        def to_pil(self):
+            return FakeImage()
+
+        def close(self):
+            released["bitmaps"] += 1
+
+    class FakePage:
+        def get_size(self):
+            return 100, 100
+
+        def render(self, *, scale):
+            assert scale == statement_ocr.OCR_DPI_SCALE
+            return FakeBitmap()
+
+        def close(self):
+            released["pages"] += 1
+
+    class FakeDocument:
+        def __len__(self):
+            return 2
+
+        def __getitem__(self, index):
+            return FakePage()
+
+        def close(self):
+            released["document"] += 1
+
+    monkeypatch.setattr(statement_ocr.pdfium, "PdfDocument", lambda _content: FakeDocument())
+    monkeypatch.setattr(statement_ocr, "_ocr_image", lambda _image: "page text")
+    assert statement_ocr.extract_pdf_ocr_text(b"pdf") == "page text\npage text"
+    assert released == {"images": 2, "bitmaps": 2, "pages": 2, "document": 1}
+
+
+def test_ocr_page_timeout_returns_actionable_message(monkeypatch) -> None:
+    from PIL import Image
+
+    from app.services import statement_ocr
+
+    monkeypatch.setattr(
+        statement_ocr.pytesseract,
+        "image_to_string",
+        lambda *_args, **_kwargs: (_ for _ in ()).throw(RuntimeError("timeout")),
+    )
+    image = Image.new("RGB", (20, 20), "white")
+    try:
+        with pytest.raises(ValueError, match="Scanning took too long"):
+            statement_ocr._ocr_image(image)
+    finally:
+        image.close()
