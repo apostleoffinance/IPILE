@@ -900,6 +900,7 @@ export type ImportJob = {
     available_sections?: string[];
     section_count?: number;
     extraction_issues?: { code: string; message: string; severity: string }[];
+    extraction?: StatementExtractionReview;
     account_id?: string;
     row_count?: number;
     duplicate_count_at_preview?: number;
