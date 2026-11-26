@@ -14,7 +14,17 @@ from typing import Iterable
 
 
 def _payee_key(transaction) -> str:
-    value = transaction.merchant or transaction.description or ""
+    merchant = (transaction.merchant or "").lower().strip()
+    bank_sender_markers = (
+        "gtbank", "gtco", "accessbank", "zenithbank", "firstbank",
+        "ubagroup", "fidelitybank", "stanbicibtc", "fcmb", "sterling",
+        "wemabank", "alat", "moniepoint", "kuda", "opay", "palmpay",
+    )
+    merchant_root = merchant.split(".", 1)[0]
+    if any(marker in merchant_root for marker in bank_sender_markers):
+        value = transaction.description or ""
+    else:
+        value = merchant or transaction.description or ""
     value = value.lower()
     value = re.sub(
         r"\b(?:ref|reference|transaction|session|auth|id)\s*[:#-]?\s*[a-z0-9/-]+",
@@ -23,7 +33,13 @@ def _payee_key(transaction) -> str:
     )
     value = re.sub(r"\b\d{4,}\b", " ", value)
     value = re.sub(r"[^a-z0-9]+", " ", value)
-    return " ".join(value.split())
+    normalized = " ".join(value.split())
+    if normalized in {
+        "bank alert", "credit alert", "debit alert", "transaction alert",
+        "payment alert", "transfer alert", "account alert",
+    }:
+        return ""
+    return normalized
 
 
 def _amount(transaction) -> Decimal:
