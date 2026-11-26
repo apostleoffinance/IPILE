@@ -965,9 +965,7 @@ export async function previewStatementUpload(
     job = await request<ImportJob>(`/api/v1/imports/jobs/${job.id}`);
   }
 
-  throw new Error(
-    "Statement processing is still queued. Please check the import again shortly.",
-  );
+  return job;
 }
 
 export function confirmStatementReview(jobId: string, reason: string) {
