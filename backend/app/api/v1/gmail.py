@@ -19,7 +19,6 @@ from app.models.household import Household
 from app.models.imports import ImportJob
 from app.models.transaction import Transaction
 from app.services.email_imports import apply_alert_automation, parse_bank_alert
-from app.services.transaction_intelligence import enrich_bank_alert
 from app.services.gmail import (
     authorization_url,
     decrypt_refresh_token,
@@ -32,6 +31,7 @@ from app.services.gmail import (
     refresh_access_token,
     revoke_refresh_token,
 )
+from app.services.transaction_intelligence import enrich_bank_alert
 
 router = APIRouter(prefix="/imports", tags=["imports"])
 

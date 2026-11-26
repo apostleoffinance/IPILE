@@ -20,7 +20,6 @@ from app.models.imports import ImportJob, ImportMailbox
 from app.models.transaction import Transaction
 from app.schemas.imports import ImportBody, ImportCommitBody, ImportJobOut, ImportPreviewBody
 from app.services.email_imports import apply_alert_automation, parse_bank_alert
-from app.services.transaction_intelligence import enrich_bank_alert
 from app.services.import_adapters import ImportRow
 from app.services.imports import (
     apply_import_rows,
@@ -30,6 +29,7 @@ from app.services.imports import (
     stage_import_rows,
 )
 from app.services.pdf_imports import parse_pdf_statement
+from app.services.transaction_intelligence import enrich_bank_alert
 
 router = APIRouter(prefix="/imports", tags=["imports"])
 INBOUND_BASIC_AUTH = HTTPBasic(auto_error=False)
