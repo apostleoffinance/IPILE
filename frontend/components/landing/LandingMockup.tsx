@@ -154,7 +154,6 @@ export function LandingMockup() {
           </div>
         </div>
         <p className="mx-auto mt-5 max-w-7xl text-xs text-[#737973]">Illustrative product preview — sample figures, not live account data.</p>
-        <p className="mx-auto mt-8 max-w-7xl text-center font-display text-2xl text-[#003d35]">One picture. Better awareness. More confident decisions.</p>
       </section>
 
       <section className="px-6 py-20 md:px-12 md:py-28" id="decision-support">
