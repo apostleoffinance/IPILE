@@ -176,6 +176,7 @@ def test_unusually_large_transaction_generates_proactive_alert(client: TestClien
         (date(2026, 9, 20), "90.00"),
         (date(2026, 10, 20), "100.00"),
     ]
+    anomaly_transaction_id = None
     for occurred_on, amount in history + [(date(2026, 11, 20), "500.00")]:
         response = client.post(
             "/api/v1/transactions",
@@ -190,6 +191,7 @@ def test_unusually_large_transaction_generates_proactive_alert(client: TestClien
             },
         )
         assert response.status_code == 201, response.text
+        anomaly_transaction_id = response.json()["id"]
 
     alerts = client.get("/api/v1/alerts").json()
     anomaly = [row for row in alerts if row["type"] == "unusually_large_transaction"]
@@ -198,3 +200,8 @@ def test_unusually_large_transaction_generates_proactive_alert(client: TestClien
 
     inbox = client.get("/api/v1/notifications", params={"unread_only": "true"}).json()
     assert any(row["title"] == "Transaction is larger than usual" for row in inbox)
+
+    voided = client.post(f"/api/v1/transactions/{anomaly_transaction_id}/void")
+    assert voided.status_code == 200, voided.text
+    remaining = client.get("/api/v1/alerts").json()
+    assert not any(row["type"] == "unusually_large_transaction" for row in remaining)
