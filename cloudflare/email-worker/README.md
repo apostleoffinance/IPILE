@@ -40,3 +40,17 @@ npx wrangler secret put ALLOWED_BANK_SENDER_DOMAINS --env production
 - The backend webhook requires the shared secret and deduplicates provider Message IDs per household.
 - Alerts enter the household review queue. No account balance or transaction ledger is changed until an authorized household owner/partner approves the alert.
 - The parser currently recognizes NGN alert amounts and common debit/credit wording. Extend and test bank-specific formats before enabling other currencies.
+
+
+## Scheduled Gmail polling
+
+This Worker also owns the five-minute scheduled trigger used for Gmail read-only
+sync. Configure `GMAIL_SYNC_CRON_SECRET` as a Worker secret in both environments.
+It must exactly match the corresponding backend `GMAIL_SYNC_SECRET`. The
+scheduled handler calls `POST /api/v1/imports/gmail/sync/cron`; the backend
+rejects requests without the matching secret. Never put this secret in
+`wrangler.toml` or commit it.
+
+The cron schedule is defined for the default (staging) Worker and the named
+`production` Worker environment. Deploy each environment separately only after
+its matching backend OAuth settings and secrets have been configured.
