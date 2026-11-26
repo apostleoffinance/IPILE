@@ -58,7 +58,10 @@ def member_financial_summary(
     liquid_cash = quantize_money(
         sum(
             (
-                Decimal(str(account.current_balance))
+                amount_in_base_currency(
+                    db, ctx.household, Decimal(str(account.current_balance)),
+                    account.currency, today
+                )
                 for account in visible_accounts
                 if account.type in {"bank", "cash", "wallet", "savings"}
             ),
@@ -99,7 +102,7 @@ def member_financial_summary(
     expenses = quantize_money(
         sum(
             (
-                Decimal(str(row.amount))
+                transaction_amount_in_base(row, ctx.household.base_currency)
                 for row in transactions
                 if row.type in {"expense", "giving", "debt_payment", "investment"}
             ),
