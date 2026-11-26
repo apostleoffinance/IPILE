@@ -120,6 +120,7 @@ def test_release_acceptance_health_readiness_requires_current_database_schema(
     assert ready.status_code == 200, ready.text
     assert ready.json()["database"] == "connected"
     assert ready.json()["migrations"] == "current"
+    assert "release" in ready.json()
     assert ready.headers.get("X-Request-Id")
 
     with TestingSessionLocal() as db:
