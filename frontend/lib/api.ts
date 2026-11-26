@@ -774,6 +774,8 @@ export type ImportJob = {
   skipped_count: number;
   error_count: number;
   result: {
+    sender?: string;
+    message_id?: string | null;
     errors?: string[];
     account_id?: string;
     row_count?: number;
