@@ -24,8 +24,8 @@ from app.services.allocations import (
 from app.services.balances import apply_transaction_effect
 from app.services.budgets import evaluate_budget_alerts
 from app.services.currencies import get_rate
-from app.services.funds import ensure_fund_account, record_contribution
 from app.services.financial_intelligence import run_financial_intelligence
+from app.services.funds import ensure_fund_account, record_contribution
 from app.services.notifications import sync_notifications_from_alerts
 from app.services.obligations import generate_occurrences
 from app.services.safe_to_spend import compute_safe_to_spend
