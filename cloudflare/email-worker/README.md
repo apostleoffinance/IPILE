@@ -39,7 +39,7 @@ npx wrangler secret put ALLOWED_BANK_SENDER_DOMAINS --env production
 - The Worker enforces a bounded raw email size and attachment size. Attachments are metadata only; they are never parsed as transaction content.
 - The backend webhook requires the shared secret and deduplicates provider Message IDs per household.
 - Alerts enter the household review queue. No account balance or transaction ledger is changed until an authorized household owner/partner approves the alert.
-- The parser currently recognizes NGN alert amounts and common debit/credit wording. Extend and test bank-specific formats before enabling other currencies.
+- The parser recognizes a defined set of ISO 4217 codes and unambiguous currency symbols. Ambiguous dollar symbols remain unassigned until the user confirms the destination account currency.
 
 
 ## Scheduled Gmail polling
