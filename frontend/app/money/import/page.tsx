@@ -104,7 +104,12 @@ export default function ImportPage() {
         : await previewImport({ account_id: accountId, source, content, filename: filename || undefined });
       setResult(job);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Could not prepare this import.");
+      const message = err instanceof Error ? err.message : "Could not prepare this import.";
+      setError(
+        /HTTP 502|HTTP 503|temporarily unavailable|upstream/i.test(message)
+          ? "We couldn't finish scanning your statement because the import service is temporarily unavailable. Your transactions and balances have not been changed. Please try again in a moment; if it continues, upload a smaller PDF or your bank's CSV export."
+          : message,
+      );
     } finally {
       setPending(false);
     }
@@ -390,7 +395,18 @@ export default function ImportPage() {
           </section>
 
           <section className="space-y-4 border border-line p-4">
-            <h2 className="font-semibold">4. Import a bank statement</h2>
+            <h2 className="font-semibold">4. Scan and import a bank statement</h2>
+            <div className="border border-line bg-surface p-3 text-sm">
+              <p className="font-medium">Your statement will be scanned before anything is added.</p>
+              <p className="mt-1 text-muted">Upload a bank statement PDF, CSV or image. IPÌLẸ̀ extracts transaction dates, descriptions and money in/out. Scanned PDFs are read with OCR. You will review the extracted transactions before confirming.</p>
+              <p className="mt-2 text-xs text-muted">Nothing is added to your transaction history and no account balance changes until you select “Confirm and import transactions”.</p>
+            </div>
+            <ol className="list-decimal space-y-1 pl-5 text-sm text-muted">
+              <li>Choose the household account that the statement belongs to.</li>
+              <li>Upload the original statement. IPÌLẸ̀ reads selectable PDF text or scans image-only pages with OCR.</li>
+              <li>Check the extracted rows, dates, amounts and duplicates.</li>
+              <li>Confirm only when the preview matches your bank statement.</li>
+            </ol>
             {accounts.length === 0 ? (
               <EmptyState title="Add an account first" body="Imports are reviewed and posted against a household bank or cash account." />
             ) : (
@@ -402,25 +418,39 @@ export default function ImportPage() {
                       {accounts.map((account) => <option key={account.id} value={account.id}>{account.name} · {account.currency}</option>)}
                     </Select>
                   </label>
-                  <fieldset className="flex gap-4 text-sm">
-                    <label className="flex items-center gap-2"><input type="radio" name="source" checked={source === "csv"} onChange={() => setSource("csv")} /> CSV</label>
-                    <label className="flex items-center gap-2"><input type="radio" name="source" checked={source === "statement"} onChange={() => setSource("statement")} /> Text statement</label>
-                  </fieldset>
-                  <p className="text-sm text-muted">{source === "csv" ? CSV_HINT : STATEMENT_HINT}</p>
+                  {!file ? (
+                    <>
+                      <fieldset className="flex gap-4 text-sm">
+                        <label className="flex items-center gap-2"><input type="radio" name="source" checked={source === "csv"} onChange={() => setSource("csv")} /> CSV text</label>
+                        <label className="flex items-center gap-2"><input type="radio" name="source" checked={source === "statement"} onChange={() => setSource("statement")} /> Paste statement text</label>
+                      </fieldset>
+                      <p className="text-sm text-muted">{source === "csv" ? CSV_HINT : STATEMENT_HINT}</p>
+                    </>
+                  ) : (
+                    <div className="border border-line bg-surface p-3 text-sm">
+                      <p className="font-medium">Statement selected: {file.name}</p>
+                      <p className="mt-1 text-xs text-muted">{/\.pdf$/i.test(file.name) ? "PDF selected. IPÌLẸ̀ will first read embedded text and automatically use OCR if the PDF is scanned." : /\.(png|jpe?g|webp)$/i.test(file.name) ? "Image selected. IPÌLẸ̀ will scan it with OCR." : "Structured file selected. IPÌLẸ̀ will extract its transaction rows."}</p>
+                      <button type="button" className="mt-2 text-xs underline" onClick={() => { setFile(null); setResult(null); }}>Choose a different input</button>
+                    </div>
+                  )}
                   <label className="block text-sm">
-                    <span className="text-muted">Upload a statement (CSV, PDF, PNG, JPEG or WebP · max 10 MB)</span>
+                    <span className="text-muted">Choose your bank statement file (CSV, PDF, PNG, JPEG or WebP · max 10 MB)</span>
                     <input className="mt-1 block w-full text-sm" type="file" accept=".csv,.pdf,.txt,.png,.jpg,.jpeg,.webp,application/pdf,text/csv,text/plain,image/png,image/jpeg,image/webp" onChange={(event) => { setFile(event.target.files?.[0] ?? null); if (event.target.files?.[0]) setContent(""); }} />
                   </label>
-                  <p className="text-xs text-muted">Supports bank-exported CSVs, text PDFs, scanned PDFs, and clear PNG, JPEG or WebP statement images. Scanned documents are processed privately with OCR. Maximum file size: 10 MB; scanned PDFs: up to 20 pages.</p>
-                  <div className="text-center text-xs text-muted">or paste statement text</div>
-                  <label className="block text-sm">
-                    <span className="text-muted">Filename (optional)</span>
-                    <Input className="mt-1" value={filename} onChange={(event) => setFilename(event.target.value)} placeholder="statement-september.csv" />
-                  </label>
-                  <label className="block text-sm">
-                    <span className="text-muted">Paste statement text</span>
-                    <textarea className="mt-1 min-h-40 w-full border border-line bg-surface px-3 py-2 font-mono text-xs" value={content} onChange={(event) => { setContent(event.target.value); if (event.target.value) setFile(null); }} />
-                  </label>
+                  <p className="text-xs text-muted">PDFs with selectable text are read directly. Image-only or scanned PDFs are automatically scanned with OCR, as are PNG, JPEG and WebP images. Files are processed privately and are not added to your ledger during scanning. Maximum file size: 10 MB; scanned PDFs: up to 12 pages.</p>
+                  <div className="text-center text-xs text-muted">or paste statement text instead of uploading a file</div>
+                  {!file ? (
+                    <label className="block text-sm">
+                      <span className="text-muted">Filename (optional)</span>
+                      <Input className="mt-1" value={filename} onChange={(event) => setFilename(event.target.value)} placeholder="statement-september.csv" />
+                    </label>
+                  ) : null}
+                  {!file ? (
+                    <label className="block text-sm">
+                      <span className="text-muted">Paste statement text</span>
+                      <textarea className="mt-1 min-h-40 w-full border border-line bg-surface px-3 py-2 font-mono text-xs" value={content} onChange={(event) => { setContent(event.target.value); if (event.target.value) setFile(null); }} />
+                    </label>
+                  ) : null}
                   <Button type="submit" disabled={pending || (!file && !content.trim())}>{pending ? (file && /\.(pdf|png|jpe?g|webp)$/i.test(file.name) ? "Reading statement..." : "Preparing preview...") : "Preview import"}</Button>
                 </form>
                 {result ? (
