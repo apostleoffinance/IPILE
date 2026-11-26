@@ -41,6 +41,7 @@ export default function ImportPage() {
   const [content, setContent] = useState("");
   const [filename, setFilename] = useState("");
   const [file, setFile] = useState<File | null>(null);
+  const [accountSection, setAccountSection] = useState("");
   const [pending, setPending] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [result, setResult] = useState<ImportJob | null>(null);
@@ -100,7 +101,7 @@ export default function ImportPage() {
     setResult(null);
     try {
       const job = file
-        ? await previewStatementUpload(accountId, file)
+        ? await previewStatementUpload(accountId, file, accountSection || undefined)
         : await previewImport({ account_id: accountId, source, content, filename: filename || undefined });
       setResult(job);
     } catch (err) {
@@ -457,9 +458,24 @@ export default function ImportPage() {
                   <div className="space-y-3 border border-line px-4 py-3 text-sm">
                     <p className="font-medium">{result.source} · {result.status.replaceAll("_", " ")}</p>
                     {result.result?.extraction_method ? <p className="text-xs text-muted">{result.result.extraction_method === "pdf_ocr" || result.result.extraction_method === "image_ocr" ? "Scanned document · OCR extraction" : result.result.extraction_method === "pdf_text" ? "PDF text extraction" : "Structured file extraction"}</p> : null}
-                    {result.status === "pending_review" ? (
+                    {result.status === "needs_section_selection" ? (
                       <>
+                        <p>This statement contains more than one account. Choose which account section you want IPÌLẸ̀ to extract and review. This prevents transactions from different bank accounts being mixed together.</p>
+                        <label className="block text-sm">
+                          <span className="text-muted">Statement account section</span>
+                          <Select className="mt-1" value={accountSection} onChange={(event) => setAccountSection(event.target.value)}>
+                            <option value="">Choose an account section</option>
+                            {(result.result?.available_sections ?? []).map((section) => <option key={section} value={section}>{section}</option>)}
+                          </Select>
+                        </label>
+                        <p className="text-xs text-muted">{result.result?.row_count ?? 0} transaction rows detected across {result.result?.section_count ?? 0} account sections. No transactions have been staged or posted yet.</p>
+                        <Button type="submit" disabled={pending || !file || !accountSection}>{pending ? "Extracting..." : "Continue to transaction review"}</Button>
+                      </>
+                    ) : result.status === "pending_review" ? (
+                      <>
+                        {result.result?.account_section ? <p className="font-medium">Statement section: {result.result.account_section}</p> : null}
                         <p>{result.result?.row_count ?? result.result?.rows?.length ?? 0} transactions parsed · {result.result?.duplicate_count_at_preview ?? 0} possible duplicates already found</p>
+                        {result.result?.extraction_issues?.length ? <ul className="list-disc pl-5 text-xs text-muted">{result.result.extraction_issues.map((issue) => <li key={issue.code}>{issue.message}</li>)}</ul> : null}
                         <div className="max-h-80 space-y-2 overflow-auto">
                           {result.result?.rows?.map((row, index) => <div key={row.external_id || index} className="flex flex-wrap justify-between gap-2 border-b border-line py-2"><span>{row.date} · {row.description || row.merchant || row.type}</span><span className="font-semibold">{row.amount}</span></div>)}
                         </div>
