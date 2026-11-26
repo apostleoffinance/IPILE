@@ -76,6 +76,7 @@ class ExtractedTransaction:
     channel: str | None = None
     source_page: int | None = None
     source_row: int | None = None
+    account_section: str | None = None
     original_text: str | None = None
     confidence: Decimal | None = None
     warnings: tuple[str, ...] = ()
