@@ -51,16 +51,16 @@ def test_pdf_layout_reconstructs_wrapped_descriptions_and_repeated_pages(monkeyp
     header = [
         word("Trans.", 10, 28, 10), word("Time", 29, 43, 10),
         word("Description", 70, 110, 10), word("Debit(₦)", 150, 185, 10),
-        word("Credit(₦)", 200, 240, 10),
-        word("Transaction", 260, 300, 10), word("Reference", 301, 330, 10),
+        word("Credit(₦)", 210, 250, 10),
+        word("Transaction", 270, 310, 10), word("Reference", 311, 340, 10),
     ]
     first_page_words = header + [
         word("Transfer", 70, 105, 20), word("from", 106, 125, 20),
         word("ALPHA", 126, 145, 20),
         word("01", 10, 18, 25), word("Jan", 19, 30, 25),
         word("2026", 31, 45, 25), word("09:15:00", 46, 65, 25),
-        word("--", 150, 160, 25), word("1,250.00", 200, 240, 25),
-        word("REF-001", 260, 310, 25),
+        word("--", 150, 160, 25), word("1,250.00", 210, 250, 25),
+        word("REF-001", 270, 320, 25),
         word("LIMITED", 70, 110, 30),
         word("02", 10, 18, 50), word("Jan", 19, 30, 50),
         word("2026", 31, 45, 50), word("10:00:00", 46, 65, 50),
@@ -84,7 +84,7 @@ def test_pdf_layout_reconstructs_wrapped_descriptions_and_repeated_pages(monkeyp
             word("03", 10, 18, 10), word("Jan", 19, 30, 10),
             word("2026", 31, 45, 10), word("11:00:00", 46, 65, 10),
             word("SECOND", 70, 110, 10), word("--", 150, 160, 10),
-            word("900.00", 200, 240, 10), word("REF-003", 260, 310, 10),
+            word("900.00", 210, 250, 10), word("REF-003", 270, 320, 10),
         ])]
 
         def __enter__(self):
