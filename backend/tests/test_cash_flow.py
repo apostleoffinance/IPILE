@@ -2,9 +2,9 @@ from calendar import monthrange
 from datetime import date, timedelta
 from decimal import Decimal
 
-from app.services import cash_flow
 from fastapi.testclient import TestClient
 
+from app.services import cash_flow
 from tests.conftest import register
 
 
