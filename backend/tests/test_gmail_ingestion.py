@@ -157,3 +157,25 @@ def test_gmail_oauth_flow_encrypts_refresh_token_and_consumes_state(
         follow_redirects=False,
     )
     assert "gmail=expired" in replay.headers["location"]
+
+
+
+def test_gmail_search_is_restricted_to_allowlisted_sender_domains(monkeypatch) -> None:
+    from app.services import gmail as gmail_service
+
+    captured: list[dict] = []
+
+    def fake_gmail_get(_token: str, _path: str, params: dict | None = None) -> dict:
+        captured.append(params or {})
+        return {"messages": []}
+
+    monkeypatch.setattr(gmail_service, "gmail_get", fake_gmail_get)
+    assert gmail_service.list_recent_messages("access-token", None, []) == []
+    assert captured == []
+    gmail_service.list_recent_messages(
+        "access-token",
+        None,
+        ["gtbank.com", "kuda.com"],
+    )
+    assert "from:gtbank.com" in captured[0]["q"]
+    assert "from:kuda.com" in captured[0]["q"]
