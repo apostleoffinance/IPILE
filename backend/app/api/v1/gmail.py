@@ -156,7 +156,7 @@ def _sync_connection(db: Session, row: GmailConnection) -> dict[str, int]:
     token = refresh_access_token(decrypt_refresh_token(row.refresh_token_encrypted))
     counts = {"scanned": 0, "queued": 0, "auto_posted": 0, "rejected": 0, "ignored": 0}
     latest = row.last_message_internal_date or int(datetime.now(UTC).timestamp() * 1000)
-    for item in list_recent_messages(token, row.last_message_internal_date):
+    for item in list_recent_messages(token, row.last_message_internal_date, get_settings().gmail_sender_domain_list):
         message = extract_message(fetch_message(token, str(item["id"])))
         counts["scanned"] += 1
         latest = max(latest, int(message.get("internal_date") or 0))
