@@ -1,11 +1,9 @@
 import type { Metadata } from "next";
-import { Sora } from "next/font/google";
 import { SkipLink } from "@/components/a11y/SkipLink";
 import { ThemeProvider } from "@/components/theme/ThemeProvider";
 import { ToastProvider } from "@/components/ui/toast";
 import "./globals.css";
 
-const sora = Sora({ subsets: ["latin"], weight: ["300", "400", "500", "600", "700"], display: "swap", variable: "--font-sora" });
 
 export const metadata: Metadata = {
   title: "IPÌLẸ̀",
@@ -29,7 +27,7 @@ const themeBootScript = `
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="en" className={sora.variable} suppressHydrationWarning>
+    <html lang="en" suppressHydrationWarning>
       <head>
         <script dangerouslySetInnerHTML={{ __html: themeBootScript }} />
       </head>
