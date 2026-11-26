@@ -28,6 +28,8 @@ from app.services.imports import (
     stage_import,
     stage_import_rows,
 )
+from app.services.statement_intelligence.schema import ExtractionResult
+from app.services.statement_intelligence.validation import validate_statement
 from app.services.statement_jobs import enqueue_statement_extraction
 from app.services.transaction_intelligence import enrich_bank_alert
 
