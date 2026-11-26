@@ -31,7 +31,13 @@ def validate_statement(
     credit_total = sum((row.amount for row in credit_rows), Decimal("0"))
 
     if not rows:
-        issues.append(ExtractionIssue("no_transactions", "No transaction rows were extracted.", "error"))
+        issues.append(
+            ExtractionIssue(
+                "no_transactions",
+                "No transaction rows were extracted.",
+                "error",
+            )
+        )
 
     if summary.debit_count is not None and len(debit_rows) != summary.debit_count:
         issues.append(ExtractionIssue(
@@ -45,21 +51,32 @@ def validate_statement(
             f"Statement reports {summary.credit_count} credits; {len(credit_rows)} were extracted.",
             "error",
         ))
-    if summary.total_debits is not None and abs(debit_total - summary.total_debits) > balance_tolerance:
+    if (
+        summary.total_debits is not None
+        and abs(debit_total - summary.total_debits) > balance_tolerance
+    ):
         issues.append(ExtractionIssue(
             "debit_total_mismatch",
-            f"Statement debit total {summary.total_debits} does not match extracted total {debit_total}.",
+            (
+                f"Statement debit total {summary.total_debits} does not match "
+                f"extracted total {debit_total}."
+            ),
             "error",
         ))
-    if summary.total_credits is not None and abs(credit_total - summary.total_credits) > balance_tolerance:
+    if (
+        summary.total_credits is not None
+        and abs(credit_total - summary.total_credits) > balance_tolerance
+    ):
         issues.append(ExtractionIssue(
             "credit_total_mismatch",
-            f"Statement credit total {summary.total_credits} does not match extracted total {credit_total}.",
+            (
+                f"Statement credit total {summary.total_credits} does not match "
+                f"extracted total {credit_total}."
+            ),
             "error",
         ))
 
     balance_checks = 0
-    ordered = sorted(rows, key=lambda row: (row.date, row.external_id))
     if summary.opening_balance is not None and summary.closing_balance is not None:
         expected = summary.opening_balance + credit_total - debit_total
         if abs(expected - summary.closing_balance) > balance_tolerance:
@@ -71,7 +88,11 @@ def validate_statement(
             ))
 
     if issues:
-        status = "incomplete" if any(issue.severity == "error" for issue in issues) else "needs_review"
+        status = (
+            "incomplete"
+            if any(issue.severity == "error" for issue in issues)
+            else "needs_review"
+        )
     else:
         status = "verified"
     return ValidationReport(
