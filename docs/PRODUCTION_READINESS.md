@@ -12,9 +12,9 @@ The legacy `ipile-staging-api` service (`srv-dc03n7uc6qcc73b299vg`) is not refer
 ## Automated release and runtime checks
 
 - `.github/workflows/ci.yml` runs backend lint/tests, frontend typecheck/unit/build, migration smoke, and multi-household release acceptance.
-- `.github/workflows/production-operations.yml` checks staging and production liveness, database connectivity, Alembic migration readiness, request IDs, and the production web Worker every 15 minutes.
+- `.github/workflows/production-operations.yml` checks staging and production liveness, database connectivity, Alembic migration readiness, request IDs, exact backend release-SHA parity, and the production web Worker every 15 minutes (and on pull requests).
 - `GET /api/v1/health/live` checks process liveness only.
-- `GET /api/v1/health` checks PostgreSQL connectivity and exact Alembic head parity. A 503 is a release blocker.
+- `GET /api/v1/health` checks PostgreSQL connectivity and exact Alembic head parity, and exposes the non-secret `RENDER_GIT_COMMIT` release SHA. A 503 or staging/production SHA mismatch is a release blocker.
 
 ## Daily household automation
 
