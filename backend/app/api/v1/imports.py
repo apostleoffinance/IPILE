@@ -192,7 +192,10 @@ async def upload_statement(
     filename = (file.filename or "statement").strip()
     suffix = filename.lower().rsplit(".", 1)[-1] if "." in filename else ""
     if suffix not in {"csv", "pdf", "txt", "png", "jpg", "jpeg", "webp"}:
-        raise HTTPException(status_code=415, detail="Upload a CSV, PDF, TXT, PNG, JPEG or WebP statement.")
+        raise HTTPException(
+            status_code=415,
+            detail="Upload a CSV, PDF, TXT, PNG, JPEG or WebP statement.",
+        )
     upload_limit = get_settings().max_import_upload_bytes
     if upload_limit < 1:
         raise HTTPException(status_code=503, detail="Statement uploads are not configured.")
