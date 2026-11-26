@@ -67,12 +67,10 @@ export function LandingMockup() {
         <div className="ipile-marketing-hero-copy">
           <p className="ipile-marketing-eyebrow">Your financial life, in one clear picture</p>
           <h1>Bring your financial life<br /><em>into focus.</em></h1>
-          <p className="ipile-marketing-lead max-w-3xl">IPÌLẸ̀ brings your money, accounts, spending, commitments, plans and wealth together in one considered space — helping individuals, households and families understand where they stand and make more confident financial decisions.</p>
           <div className="ipile-marketing-actions">
             <PrimaryLink />
             <a href="#how-it-works">See how it works <ArrowDown className="inline h-4 w-4" aria-hidden="true" /></a>
           </div>
-          <p className="ipile-marketing-hero-proof">Know what you have. Know what it is committed to. Know what you can safely spend. See what you are building towards.</p>
           <p className="ipile-marketing-note">Your money. In harmony.</p>
         </div>
         <div className="ipile-marketing-orbit" aria-hidden="true"><span className="orbit-a" /><span className="orbit-b" /><span className="orbit-line" /></div>
