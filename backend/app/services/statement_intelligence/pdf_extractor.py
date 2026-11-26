@@ -236,6 +236,7 @@ def extract_pdf_statement(content: bytes) -> ExtractionResult:
     header_top: float | None = None
     mapping: ColumnMapping | None = None
     page_count = 0
+    document_currency: str | None = None
 
     try:
         pdf = pdfplumber.open(BytesIO(content))
@@ -247,6 +248,8 @@ def extract_pdf_statement(content: bytes) -> ExtractionResult:
         for page_number, page in enumerate(pdf.pages, start=1):
             page_text = page.extract_text() or ""
             raw_page_text[page_number] = page_text
+            if page_number == 1:
+                document_currency = _parse_summary(page_text).currency
             if positions is None:
                 try:
                     mapping, positions, header_top = detect_column_mapping(page)
@@ -323,6 +326,7 @@ def extract_pdf_statement(content: bytes) -> ExtractionResult:
                     )
                     currency = (
                         cells.get(CanonicalField.CURRENCY)
+                        or document_currency
                         or ("NGN" if "₦" in page_text else None)
                     )
                     value_date_text = cells.get(CanonicalField.VALUE_DATE, "")
