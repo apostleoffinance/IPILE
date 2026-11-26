@@ -33,10 +33,18 @@ def extraction_payload(extraction) -> dict:
         "requires_manual_review": requires_review,
         "row_count": len(extraction.rows),
         "summary": {
-            "opening_balance": str(summary.opening_balance) if summary.opening_balance is not None else None,
-            "closing_balance": str(summary.closing_balance) if summary.closing_balance is not None else None,
-            "total_debits": str(summary.total_debits) if summary.total_debits is not None else None,
-            "total_credits": str(summary.total_credits) if summary.total_credits is not None else None,
+            "opening_balance": (
+                str(summary.opening_balance) if summary.opening_balance is not None else None
+            ),
+            "closing_balance": (
+                str(summary.closing_balance) if summary.closing_balance is not None else None
+            ),
+            "total_debits": (
+                str(summary.total_debits) if summary.total_debits is not None else None
+            ),
+            "total_credits": (
+                str(summary.total_credits) if summary.total_credits is not None else None
+            ),
             "debit_count": summary.debit_count,
             "credit_count": summary.credit_count,
             "currency": summary.currency or extraction.metadata.currency,
@@ -131,7 +139,9 @@ def process_next_statement_task() -> bool:
                 job.result = {
                     **(job.result or {}),
                     "processing_stage": "failed",
-                    "error": "Statement processing could not complete after several worker attempts.",
+                    "error": (
+                        "Statement processing could not complete after several worker attempts."
+                    ),
                 }
             db.commit()
             return True
