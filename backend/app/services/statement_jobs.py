@@ -22,10 +22,9 @@ logger = logging.getLogger(__name__)
 def extraction_payload(extraction) -> dict:
     validation = extraction.validation
     issues = list(extraction.issues or (validation.issues if validation else ()))
-    status = validation.status if validation else "incomplete"
-    requires_review = status != "verified" or any(
-        issue.severity == "error" for issue in issues
-    )
+    has_errors = any(issue.severity == "error" for issue in issues)
+    status = "incomplete" if has_errors or validation is None else validation.status
+    requires_review = status != "verified"
     summary = extraction.summary
     return {
         "extraction_method": extraction.extraction_method,
