@@ -287,9 +287,9 @@ def test_opay_style_csv_upload_is_staged_by_the_universal_engine(client: TestCli
     ).json()
     statement = (
         "Trans. Time,Value Date,Description,Debit(₦),Credit(₦),"
-        "Balance After(₦),Channel,Transaction Reference\\n"
+        "Balance After(₦),Channel,Transaction Reference\n"
         "01 Jan 2026 20:35:26,01 Jan 2026,Transfer to Merchant,5000.00,--,"
-        "95000.00,Mobile,opay-csv-1\\n"
+        "95000.00,Mobile,opay-csv-1\n"
     )
     preview = client.post(
         "/api/v1/imports/preview-upload",
