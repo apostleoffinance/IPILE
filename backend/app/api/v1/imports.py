@@ -2,7 +2,7 @@ import hashlib
 import hmac
 import re
 import secrets
-from datetime import UTC, date, datetime
+from datetime import UTC, date as date_type, datetime
 from decimal import Decimal
 from uuid import UUID
 
@@ -38,7 +38,7 @@ class ImportApprovalBody(BaseModel):
 
 class ImportCorrectionBody(BaseModel):
     amount: Decimal | None = Field(default=None, gt=0)
-    date: date | None = None
+    date: date_type | None = None
     type: str | None = Field(default=None, pattern="^(income|expense)$")
     description: str | None = Field(default=None, max_length=500)
 
