@@ -87,3 +87,65 @@ def test_transaction_amount_in_base_uses_native_amount_for_identity_currency():
         base_currency="GBP",
     )
     assert transaction_amount_in_base(transaction, "GBP") == Decimal("100.10")
+
+
+def test_get_rate_uses_stored_observation_only_on_exact_effective_date(monkeypatch):
+    import app.services.currencies as currencies
+
+    class Query:
+        def __init__(self, row):
+            self.row = row
+        def filter(self, *args, **kwargs):
+            return self
+        def order_by(self, *args, **kwargs):
+            return self
+        def first(self):
+            return self.row
+
+    class FakeDb:
+        def __init__(self, row):
+            self.row = row
+            self.added = []
+        def query(self, model):
+            return Query(self.row if model.__name__ == "ExchangeRate" else None)
+        def add(self, row):
+            self.added.append(row)
+        def flush(self):
+            pass
+
+    old = SimpleNamespace(
+        rate=Decimal("1.25"), rate_date=date(2026, 11, 24), source="manual",
+        fetched_at=None,
+    )
+    db = FakeDb(old)
+    def provider(*args, **kwargs):
+        raise currencies.httpx.ConnectError("offline")
+    monkeypatch.setattr(currencies.httpx, "get", provider)
+    with pytest.raises(CurrencyError):
+        currencies.get_rate(db, "household", "USD", "GBP", date(2026, 11, 26))
+
+
+def test_get_rate_accepts_exact_date_stored_manual_observation():
+    import app.services.currencies as currencies
+
+    class Query:
+        def filter(self, *args, **kwargs):
+            return self
+        def order_by(self, *args, **kwargs):
+            return self
+        def first(self):
+            return SimpleNamespace(
+                rate=Decimal("0.80"), rate_date=date(2026, 11, 26),
+                source="manual", fetched_at=None,
+            )
+
+    class FakeDb:
+        def query(self, model):
+            return Query()
+
+    rate, rate_date, source = currencies.get_rate(
+        FakeDb(), "household", "USD", "GBP", date(2026, 11, 26)
+    )
+    assert rate == Decimal("0.80")
+    assert rate_date == date(2026, 11, 26)
+    assert source == "manual"
