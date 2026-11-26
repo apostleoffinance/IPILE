@@ -304,11 +304,9 @@ def create_transaction(
 
         _, skipped = run_tick(db, ctx.household, tick_type="income_recognized")
         if skipped:
-            from app.services.financial_intelligence import run_financial_intelligence
-            from app.services.notifications import sync_notifications_from_alerts
+            from app.services.automation import run_income_recognized_chain
 
-            run_financial_intelligence(db, ctx.household)
-            sync_notifications_from_alerts(db, ctx.household.id)
+            run_income_recognized_chain(db, ctx.household)
     elif (
         transaction.access_scope == "shared"
         and transaction.type == "expense"
@@ -418,10 +416,11 @@ def update_transaction(
     db.add(transaction)
     db.flush()
     evaluate_budget_alerts(db, ctx.household.id)
-    if (
-        transaction.access_scope == "shared"
-        and transaction.type in {"income", "expense"}
-    ):
+    if transaction.access_scope == "shared" and transaction.type == "income":
+        from app.services.automation import run_income_recognized_chain
+
+        run_income_recognized_chain(db, ctx.household)
+    elif transaction.access_scope == "shared" and transaction.type == "expense":
         from app.services.financial_intelligence import run_financial_intelligence
         from app.services.notifications import sync_notifications_from_alerts
 
@@ -469,9 +468,11 @@ def void_transaction(
     db.add(transaction)
     db.flush()
     evaluate_budget_alerts(db, ctx.household.id)
-    if was_income:
-        ensure_period_allocation(db, ctx.household)
-    if transaction.access_scope == "shared":
+    if transaction.access_scope == "shared" and was_income:
+        from app.services.automation import run_income_recognized_chain
+
+        run_income_recognized_chain(db, ctx.household)
+    elif transaction.access_scope == "shared":
         from app.services.financial_intelligence import run_financial_intelligence
         from app.services.notifications import sync_notifications_from_alerts
 
