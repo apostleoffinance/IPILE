@@ -302,7 +302,13 @@ def extract_pdf_statement(content: bytes) -> ExtractionResult:
             for top, words in sorted(lines.items()):
                 cells = _cell_values(words, positions)
                 date_value = cells.get(CanonicalField.TRANSACTION_DATE, "")
-                parsed_datetime = _parse_datetime(date_value)
+                time_value = cells.get(CanonicalField.TRANSACTION_TIME, "")
+                combined_datetime = (
+                    date_value
+                    if time_value and time_value in date_value
+                    else (date_value + " " + time_value).strip()
+                )
+                parsed_datetime = _parse_datetime(combined_datetime)
                 if parsed_datetime is not None:
                     date_rows.append((top, cells, parsed_datetime))
 
