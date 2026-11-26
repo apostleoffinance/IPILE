@@ -42,7 +42,7 @@ export default function InsightsPage(){
    <Tabs defaultValue="overview" className="ipile-insights-tabs">
     <TabsList><TabsTrigger value="overview">Overview</TabsTrigger><TabsTrigger value="trends">Trends</TabsTrigger><TabsTrigger value="spending">Spending</TabsTrigger><TabsTrigger value="giving">Giving</TabsTrigger></TabsList>
     <TabsContent value="overview" className="space-y-7">
-     <section><SectionHeader title="New financial alerts" description="Proactive notifications from recurring-payment and transaction-pattern monitoring."/>
+     <section><SectionHeader title="New financial alerts" description="New notifications from your household's financial monitoring."/>
       {!notifications.length?<EmptyState title="You're up to date" body="New financial alerts will appear here when recorded activity needs your attention."/>:<div className="grid gap-3 lg:grid-cols-2">{notifications.slice(0,4).map(row=><DecisionCard key={row.id} title={row.title} body={row.body} href="/inbox" severity={severity(row.severity)}/>)}</div>}
      </section>
      <section><SectionHeader title="What needs attention" description="Signals produced from recorded household activity."/>
