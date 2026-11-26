@@ -47,7 +47,7 @@ export default function ImportPage() {
   const [mailboxAddress, setMailboxAddress] = useState<string | null>(null);
   const [emailJobs, setEmailJobs] = useState<ImportJob[]>([]);
   const [reviewAccounts, setReviewAccounts] = useState<Record<string, string>>({});
-  const [emailCorrections, setEmailCorrections] = useState<Record<string, { amount?: string; date?: string; type?: "income" | "expense"; description?: string }>>({});
+  const [emailCorrections, setEmailCorrections] = useState<Record<string, { amount?: string; date?: string; type?: "income" | "expense"; description?: string; currency?: string }>>({});
   const [mailboxBusy, setMailboxBusy] = useState(false);
   const [gmail, setGmail] = useState<GmailConnectionStatus | null>(null);
   const [gmailBusy, setGmailBusy] = useState(false);
@@ -198,7 +198,7 @@ export default function ImportPage() {
         date: correction.date ?? String(row.date),
         type: correction.type ?? (row.type as "income" | "expense"),
         description: correction.description ?? String(row.description ?? ""),
-        currency: correction.currency ?? row.currency ?? accounts.find((account) => account.id === reviewAccounts[job.id])?.currency ?? undefined,
+        currency: correction.currency ?? row.currency ?? accounts.find((account) => account.id === reviewAccounts[job.id])?.currency,
       });
       await refreshEmailReview();
       setEmailCorrections((current) => {
