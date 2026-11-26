@@ -44,7 +44,7 @@ def _line_text(words: list[dict]) -> str:
 def _header_cells(words: list[dict]) -> list[tuple[str, float, float]]:
     groups: list[list[dict]] = []
     for word in sorted(words, key=lambda item: item["x0"]):
-        if not groups or word["x0"] - groups[-1][-1]["x1"] > 18:
+        if not groups or word["x0"] - groups[-1][-1]["x1"] > 8:
             groups.append([word])
         else:
             groups[-1].append(word)
