@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import gc
 import re
 from io import BytesIO
 
@@ -11,9 +12,10 @@ from PIL import Image, ImageOps
 
 from app.services.import_adapters import ImportRow, _make_row, _parse_amount
 
-MAX_OCR_PAGES = 20
-MAX_IMAGE_PIXELS = 25_000_000
-OCR_DPI_SCALE = 2.2
+MAX_OCR_PAGES = 12
+MAX_IMAGE_PIXELS = 16_000_000
+OCR_DPI_SCALE = 1.8
+OCR_PAGE_TIMEOUT_SECONDS = 12
 DATE_PATTERN = re.compile(
     r"^\s*(\d{1,2}[/-]\d{1,2}[/-]\d{2,4}|\d{4}[/-]\d{1,2}[/-]\d{1,2}|"
     r"\d{1,2}\s+[A-Za-z]{3,9}\s+\d{4})\b"
@@ -25,11 +27,25 @@ NUMBER_PATTERN = re.compile(
 
 
 def _ocr_image(image: Image.Image) -> str:
-    if image.width * image.height > MAX_IMAGE_PIXELS:
+    if image.width < 1 or image.height < 1 or image.width * image.height > MAX_IMAGE_PIXELS:
         raise ValueError("This statement image is too large to process safely.")
-    image = ImageOps.grayscale(image)
-    image = ImageOps.autocontrast(image)
-    return pytesseract.image_to_string(image, config="--psm 6")
+    grayscale = ImageOps.grayscale(image)
+    try:
+        prepared = ImageOps.autocontrast(grayscale)
+        try:
+            return pytesseract.image_to_string(
+                prepared,
+                config="--psm 6",
+                timeout=OCR_PAGE_TIMEOUT_SECONDS,
+            )
+        except RuntimeError as exc:
+            raise ValueError(
+                "Scanning took too long on one page. Try a clearer or smaller PDF."
+            ) from exc
+        finally:
+            prepared.close()
+    finally:
+        grayscale.close()
 
 
 def extract_pdf_ocr_text(content: bytes) -> str:
@@ -42,12 +58,25 @@ def extract_pdf_ocr_text(content: bytes) -> str:
         raise ValueError(f"Scanned statements are limited to {MAX_OCR_PAGES} pages per upload.")
     pages: list[str] = []
     try:
-        for page in document:
-            width, height = page.get_size()
-            if width * height * OCR_DPI_SCALE * OCR_DPI_SCALE > MAX_IMAGE_PIXELS:
-                raise ValueError("A scanned PDF page is too large to process safely.")
-            bitmap = page.render(scale=OCR_DPI_SCALE)
-            pages.append(_ocr_image(bitmap.to_pil()))
+        for index in range(len(document)):
+            page = document[index]
+            bitmap = None
+            image = None
+            try:
+                width, height = page.get_size()
+                if width * height * OCR_DPI_SCALE * OCR_DPI_SCALE > MAX_IMAGE_PIXELS:
+                    raise ValueError("A scanned PDF page is too large to process safely.")
+                bitmap = page.render(scale=OCR_DPI_SCALE)
+                image = bitmap.to_pil()
+                pages.append(_ocr_image(image))
+            finally:
+                if image is not None:
+                    image.close()
+                if bitmap is not None:
+                    bitmap.close()
+                page.close()
+                # Release native PDF and image allocations between pages on small instances.
+                gc.collect()
     finally:
         document.close()
     return "\n".join(pages).strip()
