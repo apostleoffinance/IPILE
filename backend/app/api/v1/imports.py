@@ -18,7 +18,7 @@ from app.models.account import Account
 from app.models.imports import ImportJob, ImportMailbox
 from app.models.transaction import Transaction
 from app.schemas.imports import ImportBody, ImportCommitBody, ImportJobOut, ImportPreviewBody
-from app.services.email_imports import parse_bank_alert
+from app.services.email_imports import apply_alert_automation, parse_bank_alert
 from app.services.import_adapters import ImportRow
 from app.services.imports import (
     apply_import_rows,
@@ -75,6 +75,9 @@ def _reject_inbound_email(
             "errors": [reason],
         },
     )
+    household = db.query(Household).filter(Household.id == mailbox.household_id).first()
+    if household is not None:
+        apply_alert_automation(db, household, job, row, suggested_account)
     mailbox.last_received_at = datetime.now(UTC)
     db.add(job)
     db.add(mailbox)
