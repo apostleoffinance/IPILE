@@ -38,6 +38,7 @@ def extract_pdf_ocr_text(content: bytes) -> str:
     except Exception as exc:
         raise ValueError("This PDF could not be opened. Please upload a valid PDF.") from exc
     if len(document) > MAX_OCR_PAGES:
+        document.close()
         raise ValueError(f"Scanned statements are limited to {MAX_OCR_PAGES} pages per upload.")
     pages: list[str] = []
     try:
