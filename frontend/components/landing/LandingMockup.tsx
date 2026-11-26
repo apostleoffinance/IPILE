@@ -139,21 +139,41 @@ export function LandingMockup() {
           <div className="dashboard-top"><strong>IPÌLẸ̀ <span>·</span></strong><small>Household workspace　⌄　　◉ Sample profile</small></div>
           <div className="dashboard-body"><aside><b>◫　Overview</b><span>▣　Money</span><span>▤　Planning</span><span>◇　Wealth</span><span>⌁　Insights</span><span>♧　Family</span><span className="settings">⚙　Settings</span></aside>
             <div className="dashboard-main">
-              <h3>Good morning.</h3><p className="dashboard-caption">Your financial overview · Illustrative product preview</p>
-              <div className="grid gap-4 md:grid-cols-2">
-                <article className="rounded-sm bg-[#003d35] p-6 text-white"><small className="uppercase tracking-[.16em] text-white/65">Safe to Spend</small><strong className="mt-3 block text-4xl font-semibold">₦548,000</strong><p className="mt-3 text-xs leading-6 text-white/70">Available after planned commitments, protection and wealth allocations.</p></article>
-                <div className="grid grid-cols-2 gap-3">
-                  {[["Financial health","82 / 100"],["Net worth","₦4.8M"],["Emergency fund","₦900K"],["Investments","₦2.1M"]].map(([label,value]) => <article key={label} className="border border-[#e2e3de] p-4"><small className="text-[#737973]">{label}</small><strong className="mt-3 block text-xl text-[#050807]">{value}</strong></article>)}
+              <h3>Good morning.</h3><p className="dashboard-caption">Your financial overview</p>
+              <div className="dashboard-overview-grid">
+                <article className="dashboard-safe-spend"><small>SAFE TO SPEND</small><strong>₦548,000</strong><p>Available after planned commitments, protection and wealth allocations.</p><div className="dashboard-safe-meta"><span>Monthly income</span><b>₦2.0M</b><span>Committed</span><b>₦1.1M</b></div></article>
+                <div className="dashboard-stat-grid">
+                  {[["Financial health","82 / 100","On a strong track"],["Net worth","₦4.8M","+8.4% this year"],["Emergency fund","₦900K","3.2 months covered"],["Investments","₦2.1M","Across 4 assets"]].map(([label,value,note]) => <article key={label}><small>{label}</small><strong>{value}</strong><span>{note}</span></article>)}
                 </div>
               </div>
+              <div className="dashboard-insights-grid">
+                <article className="dashboard-panel dashboard-cashflow">
+                  <div className="dashboard-panel-heading"><div><h4>Cash flow</h4><p>Income and spending over 6 months</p></div><span>Last 6 months</span></div>
+                  <div className="dashboard-chart-wrap">
+                    <div className="dashboard-y-labels"><span>₦2.0M</span><span>₦1.0M</span><span>₦0</span></div>
+                    <svg viewBox="0 0 600 170" role="img" aria-label="Illustrative six-month cash flow trend showing income above spending" preserveAspectRatio="none">
+                      <defs><linearGradient id="cashflow-area" x1="0" x2="0" y1="0" y2="1"><stop offset="0%" stopColor="#0b6556" stopOpacity=".2"/><stop offset="100%" stopColor="#0b6556" stopOpacity="0"/></linearGradient></defs>
+                      <path d="M0 42 L120 35 L240 54 L360 28 L480 40 L600 18 L600 160 L0 160 Z" fill="url(#cashflow-area)"/>
+                      <path d="M0 42 L120 35 L240 54 L360 28 L480 40 L600 18" fill="none" stroke="#0b6556" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"/>
+                      <path d="M0 112 L120 103 L240 118 L360 95 L480 108 L600 88" fill="none" stroke="#c9a45c" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"/>
+                      {[0,120,240,360,480,600].map((x,i)=><g key={x}><circle cx={x} cy={[42,35,54,28,40,18][i]} r="4" fill="#0b6556"/><circle cx={x} cy={[112,103,118,95,108,88][i]} r="4" fill="#c9a45c"/></g>)}
+                    </svg>
+                  </div>
+                  <div className="dashboard-chart-months"><span>Jun</span><span>Jul</span><span>Aug</span><span>Sep</span><span>Oct</span><span>Nov</span></div>
+                  <div className="dashboard-chart-legend"><span><i className="income-dot"/>Income</span><span><i className="spend-dot"/>Spending</span></div>
+                </article>
+                <article className="dashboard-panel dashboard-spending">
+                  <div className="dashboard-panel-heading"><div><h4>Spending breakdown</h4><p>This month by category</p></div><span>₦620K total</span></div>
+                  {[["Housing","₦220K",82],["Food","₦145K",62],["Transport","₦90K",42],["Family","₦85K",38],["Lifestyle","₦80K",34]].map(([label,value,width])=><div className="dashboard-spend-row" key={label}><div><span>{label}</span><b>{value}</b></div><i><span style={{width:width+"%"}}/></i></div>)}
+                </article>
+              </div>
               <div className="dashboard-lower">
-                <article><h4>Upcoming obligations</h4>{[["University fees","Due in 18 days"],["Parents’ rent","Due in 42 days"]].map(([label,value]) => <div className="dashboard-budget" key={label}><div><span>{label}</span><b>{value}</b></div></div>)}</article>
-                <article><h4>What needs attention?</h4>{[["Food spending is approaching its budget","Review your plan"],["Relocation goal is on track","Keep building"]].map(([label,value]) => <div className="dashboard-budget" key={label}><div><span>{label}</span><b>{value}</b></div></div>)}</article>
+                <article><div className="dashboard-panel-heading"><div><h4>Upcoming obligations</h4><p>Plan ahead for what is due</p></div><span>View plan ↗</span></div>{[["University fees","Due in 18 days","₦450,000"],["Parents’ rent","Due in 42 days","₦320,000"],["Utilities","Due in 7 days","₦65,000"]].map(([label,value,amount])=><div className="dashboard-obligation" key={label}><div><span>{label}</span><small>{value}</small></div><b>{amount}</b></div>)}</article>
+                <article><div className="dashboard-panel-heading"><div><h4>Goals & attention</h4><p>What needs your attention</p></div><span>2 on track</span></div><div className="dashboard-goal"><div><span>Relocation fund</span><b>68%</b></div><i><span style={{width:"68%"}}/></i><small>₦1.36M of ₦2.0M target</small></div><div className="dashboard-goal"><div><span>Emergency fund</span><b>75%</b></div><i><span style={{width:"75%"}}/></i><small>Food spending is approaching its budget</small></div></article>
               </div>
             </div>
           </div>
         </div>
-        <p className="mx-auto mt-5 max-w-7xl text-xs text-[#737973]">Illustrative product preview — sample figures, not live account data.</p>
       </section>
 
       <section className="px-6 py-20 md:px-12 md:py-28" id="decision-support">
@@ -172,10 +192,12 @@ export function LandingMockup() {
       </section>
 
       <section className="ipile-marketing-cta">
-        <p className="ipile-marketing-kicker">Your next chapter starts with clarity</p>
-        <h2>A better understanding of your money starts here.</h2>
-        <div className="mt-9 flex flex-wrap justify-center gap-4"><PrimaryLink>Build your financial foundation</PrimaryLink><Link href="#how-it-works" className="ipile-marketing-cta-secondary px-4 py-3 text-sm underline underline-offset-4">See how IPÌLẸ̀ works</Link></div>
-        <p className="ipile-marketing-cta-brandline mt-8 text-xs tracking-[.18em]">Your money. In harmony.</p>
+        <div className="ipile-marketing-cta-inner">
+          <p className="ipile-marketing-kicker">Your next chapter starts with clarity</p>
+          <h2>A better understanding of your money starts here.</h2>
+          <div className="ipile-marketing-cta-actions"><PrimaryLink>Build your financial foundation</PrimaryLink><Link href="#how-it-works" className="ipile-marketing-cta-secondary">See how IPÌLẸ̀ works <ArrowUpRight size={15} aria-hidden="true" /></Link></div>
+          <p className="ipile-marketing-cta-brandline">Your money. In harmony.</p>
+        </div>
       </section>
       <footer className="ipile-marketing-footer">
         <div><Wordmark size="sm" /><small>Clarity for today. Confidence for tomorrow.</small></div>
