@@ -7,8 +7,8 @@ from sqlalchemy.orm import Session
 
 from app.models.analytics import FinancialScore, FinancialSnapshot, Report
 from app.models.household import Household
-from app.models.transaction import Transaction
 from app.models.obligation import Obligation, ObligationOccurrence
+from app.models.transaction import Transaction
 from app.money import format_money, quantize_money
 from app.services.allocations import latest_run, period_bounds, serialize_run
 from app.services.health import (
