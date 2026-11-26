@@ -10,7 +10,17 @@ from email.utils import parsedate_to_datetime
 from app.money import quantize_money
 from app.services.import_adapters import ImportRow
 
-_AMOUNT = re.compile(r"(?:NGN|N\s?\$|₦)\s*([0-9][0-9,]*(?:\.\d{1,2})?)", re.IGNORECASE)
+_CURRENCY_CODES = (
+    "AED|AUD|BRL|CAD|CHF|CNY|CZK|DKK|EUR|GBP|GHS|HKD|HUF|IDR|ILS|INR|ISK|JPY|KES|KRW|"
+    "MXN|MYR|NOK|NZD|PHP|PLN|RON|RWF|SAR|SEK|SGD|THB|TRY|TWD|UAH|USD|VND|ZAR|NGN"
+)
+_AMOUNT = re.compile(
+    rf"(?:(?P<code>\\b(?:{_CURRENCY_CODES})\\b)\\s*|"
+    r"(?P<symbol>₦|£|€|₹|₵|د.إ|R\\$)\\s*|(?P<dollar>\\$)\\s*)"
+    r"(?P<amount>[0-9][0-9,]*(?:\\.\\d{1,2})?)",
+    re.IGNORECASE,
+)
+_SYMBOL_CURRENCIES = {"₦": "NGN", "£": "GBP", "€": "EUR", "₹": "INR", "₵": "GHS", "R$": "BRL"}
 _DATE = re.compile(r"\b(\d{1,2}[/-]\d{1,2}[/-]\d{2,4}|\d{4}-\d{2}-\d{2})\b")
 _REFERENCE = re.compile(
     r"(?:reference|ref|session\s?id|transaction\s?id)\s*[:#-]?\s*([A-Z0-9/-]{5,})",
@@ -43,7 +53,12 @@ def parse_bank_alert(
     amount_matches = list(_AMOUNT.finditer(text))
     if len(amount_matches) != 1:
         raise ValueError("Bank alert must contain exactly one unambiguous currency amount.")
-    amount = quantize_money(Decimal(amount_matches[0].group(1).replace(",", "")))
+    amount_match = amount_matches[0]
+    amount = quantize_money(Decimal(amount_match.group("amount").replace(",", "")))
+    currency_code = (amount_match.group("code") or "").upper() or None
+    if not currency_code and amount_match.group("symbol"):
+        currency_code = _SYMBOL_CURRENCIES.get(amount_match.group("symbol"))
+    # "$" is deliberately unresolved: it is used by several currencies.
     if amount <= 0:
         raise ValueError("Bank alert transaction amount must be greater than zero.")
 
@@ -96,4 +111,5 @@ def parse_bank_alert(
         description=description[:500],
         external_id=external_id[:200],
         merchant=_sender_domain(sender)[:200],
+        currency=currency_code,
     )
