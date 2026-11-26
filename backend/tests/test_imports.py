@@ -105,7 +105,7 @@ def test_forwarded_bank_alert_is_reviewed_before_posting(client: TestClient, mon
     register(client, "import-email@example.com")
     account = client.post(
         "/api/v1/accounts",
-        json={"name": "Current", "type": "bank", "current_balance": "50000.00"},
+        json={"name": "Current", "type": "bank", "institution": "GTBank", "current_balance": "50000.00"},
     ).json()
     monkeypatch.setattr(
         imports_api,
@@ -123,7 +123,7 @@ def test_forwarded_bank_alert_is_reviewed_before_posting(client: TestClient, mon
         headers={"X-Inbound-Email-Secret": "test-secret"},
         json={
             "To": address,
-            "From": "alerts@bank.example",
+            "From": "alerts@gtbank.com",
             "Subject": "Debit Alert",
             "TextBody": "Your account was debited NGN 5,000.00 on 15/11/2026. Ref: ABC12345",
         },
@@ -133,6 +133,8 @@ def test_forwarded_bank_alert_is_reviewed_before_posting(client: TestClient, mon
     assert queue.status_code == 200
     assert len(queue.json()) == 1
     assert queue.json()[0]["status"] == "pending_review"
+    assert queue.json()[0]["result"]["suggested_account_id"] == account["id"]
+    assert queue.json()[0]["result"]["account_match"] == "exact_institution"
     before = Decimal(client.get("/api/v1/accounts").json()[0]["current_balance"])
     assert before == Decimal("50000.00")
     approved = client.post(
