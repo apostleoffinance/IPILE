@@ -207,15 +207,15 @@ def _parse_summary(text: str) -> StatementSummary:
 
     # Some statements align summary labels on one line with values on the next.
     labels = {
-        "opening_balance": re.compile(r"opening\\s+balance", re.I),
-        "closing_balance": re.compile(r"closing\\s+balance", re.I),
-        "total_debits": re.compile(r"total\\s+debits?", re.I),
-        "total_credits": re.compile(r"total\\s+credits?", re.I),
-        "debit_count": re.compile(r"debit\\s+count", re.I),
-        "credit_count": re.compile(r"credit\\s+count", re.I),
+        "opening_balance": re.compile(r"opening\s+balance", re.I),
+        "closing_balance": re.compile(r"closing\s+balance", re.I),
+        "total_debits": re.compile(r"total\s+debits?", re.I),
+        "total_credits": re.compile(r"total\s+credits?", re.I),
+        "debit_count": re.compile(r"debit\s+count", re.I),
+        "credit_count": re.compile(r"credit\s+count", re.I),
     }
     money_pattern = re.compile(
-        r"(?:₦|NGN|\\$|USD|€|EUR|£|GBP)?\\s*[\\d,]+\\.\\d{2}", re.I
+        r"(?:₦|NGN|\$|USD|€|EUR|£|GBP)?\s*[\d,]+\.\d{2}", re.I
     )
     lines = [line.strip() for line in text.splitlines() if line.strip()]
     for line_index, label_line in enumerate(lines[:-1]):
@@ -232,7 +232,7 @@ def _parse_summary(text: str) -> StatementSummary:
         value_line = lines[line_index + 1]
         money_values = [match.group(0).strip() for match in money_pattern.finditer(value_line)]
         remainder = money_pattern.sub(" ", value_line)
-        count_values = re.findall(r"(?<![\\d,])\\d+(?![\\d,])", remainder)
+        count_values = re.findall(r"(?<![\d,])\d+(?![\d,])", remainder)
         money_cursor = count_cursor = 0
         for _, key in ordered_labels:
             if key in values:
@@ -244,10 +244,10 @@ def _parse_summary(text: str) -> StatementSummary:
                 values[key] = _parse_amount(money_values[money_cursor])
                 money_cursor += 1
 
-    currency = "NGN" if "₦" in text or re.search(r"\\bNGN\\b", text, re.I) else None
+    currency = "NGN" if "₦" in text or re.search(r"\bNGN\b", text, re.I) else None
     period = re.search(
-        r"(?:period|statement period)\\s*:?\\s*(\\d{1,2}\\s+[A-Za-z]{3,9}\\s+\\d{4})"
-        r"\\s*(?:-|to|through)\\s*(\\d{1,2}\\s+[A-Za-z]{3,9}\\s+\\d{4})",
+        r"(?:period|statement period)\s*:?\s*(\d{1,2}\s+[A-Za-z]{3,9}\s+\d{4})"
+        r"\s*(?:-|to|through)\s*(\d{1,2}\s+[A-Za-z]{3,9}\s+\d{4})",
         text,
         re.I,
     )
@@ -406,7 +406,7 @@ def extract_pdf_statement(content: bytes) -> ExtractionResult:
 
     if not rows:
         bank_adapter_result = extract_with_bank_adapter(
-            content, "\\n".join(raw_page_text.values())
+            content, "\n".join(raw_page_text.values())
         )
         if bank_adapter_result is not None:
             return bank_adapter_result
