@@ -336,7 +336,9 @@ def extract_pdf_statement(content: bytes) -> ExtractionResult:
                 try:
                     mapping, positions, header_top = detect_column_mapping(page)
                 except ValueError:
-                    page.close()
+                    close_page = getattr(page, "close", None)
+                    if callable(close_page):
+                        close_page()
                     continue
 
             lines = _cluster_words(page.extract_words(x_tolerance=2, y_tolerance=3))
@@ -466,7 +468,9 @@ def extract_pdf_statement(content: bytes) -> ExtractionResult:
                             row=row_index,
                         )
                     )
-            page.close()
+            close_page = getattr(page, "close", None)
+            if callable(close_page):
+                close_page()
 
     if not rows:
         bank_adapter_result = extract_with_bank_adapter(
