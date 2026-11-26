@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 from collections import defaultdict
-from decimal import Decimal
 
 from app.services.import_adapters import CsvImportAdapter, ImportRow, StatementImportAdapter
 from app.services.pdf_imports import parse_statement_image
