@@ -142,3 +142,30 @@ def _parse_selectable_pdf(content: bytes) -> list[ImportRow]:
     if not text:
         raise ValueError("No selectable text or transaction tables found in this PDF.")
     return StatementImportAdapter().parse(text)
+
+
+
+def parse_pdf_statement(content: bytes) -> list[ImportRow]:
+    """Parse embedded PDF text first, then fall back to private OCR."""
+    try:
+        return _parse_selectable_pdf(content)
+    except ValueError as text_error:
+        try:
+            return parse_ocr_statement(extract_pdf_ocr_text(content))
+        except ValueError as ocr_error:
+            raise ValueError(str(ocr_error)) from text_error
+
+
+def parse_statement_image(content: bytes) -> list[ImportRow]:
+    return parse_ocr_statement(extract_image_ocr_text(content))
+
+
+def parse_statement_document(content: bytes, suffix: str) -> tuple[list[ImportRow], str]:
+    if suffix == "pdf":
+        try:
+            return _parse_selectable_pdf(content), "pdf_text"
+        except ValueError:
+            return parse_pdf_statement(content), "pdf_ocr"
+    if suffix in {"png", "jpg", "jpeg", "webp"}:
+        return parse_statement_image(content), "image_ocr"
+    raise ValueError("Unsupported statement document type.")
