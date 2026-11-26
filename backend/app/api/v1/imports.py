@@ -15,8 +15,8 @@ from sqlalchemy.orm import Session
 from app.api.deps import HouseholdContext, get_db, require_roles
 from app.core.config import get_settings
 from app.models.account import Account
-from app.models.imports import ImportJob, ImportMailbox
 from app.models.household import Household
+from app.models.imports import ImportJob, ImportMailbox
 from app.models.transaction import Transaction
 from app.schemas.imports import ImportBody, ImportCommitBody, ImportJobOut, ImportPreviewBody
 from app.services.email_imports import apply_alert_automation, parse_bank_alert
