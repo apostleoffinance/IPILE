@@ -5,10 +5,10 @@ changes balances, blocks transactions, or labels a transaction as fraud.
 """
 from __future__ import annotations
 
+import re
 from collections import defaultdict
 from datetime import date, timedelta
 from decimal import Decimal
-import re
 from statistics import median
 from typing import Iterable
 
@@ -16,7 +16,11 @@ from typing import Iterable
 def _payee_key(transaction) -> str:
     value = transaction.merchant or transaction.description or ""
     value = value.lower()
-    value = re.sub(r"\b(?:ref|reference|transaction|session|auth|id)\s*[:#-]?\s*[a-z0-9/-]+", " ", value)
+    value = re.sub(
+        r"\b(?:ref|reference|transaction|session|auth|id)\s*[:#-]?\s*[a-z0-9/-]+",
+        " ",
+        value,
+    )
     value = re.sub(r"\b\d{4,}\b", " ", value)
     value = re.sub(r"[^a-z0-9]+", " ", value)
     return " ".join(value.split())
@@ -78,7 +82,10 @@ def detect_recurring_payments(
         if frequency is None:
             continue
         expected = ordered[-1].date + timedelta(days=round(median(intervals)))
-        if expected < today - timedelta(days=5) or expected > today + timedelta(days=lookahead_days):
+        if (
+            expected < today - timedelta(days=5)
+            or expected > today + timedelta(days=lookahead_days)
+        ):
             continue
         amounts = [_amount(row) for row in ordered]
         typical_amount = Decimal(str(median(amounts)))
