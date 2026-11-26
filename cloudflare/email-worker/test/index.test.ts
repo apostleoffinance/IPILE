@@ -27,7 +27,7 @@ function emailMessage(options: {
     "Content-Type: text/plain; charset=utf-8",
     "",
     options.body ?? "Your account was debited NGN 5,000.00 on 15/11/2026. Ref: ABC12345",
-  ].join("\\r\\n");
+  ].join("\r\n");
   const bytes = new TextEncoder().encode(raw);
   const rejects: string[] = [];
   const message = {
