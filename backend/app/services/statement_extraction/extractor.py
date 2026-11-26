@@ -123,7 +123,10 @@ def extract_statement_document(
         if not transactions:
             # Use the existing generic text/table adapter as a secondary strategy.
             # It shares the canonical output contract and is not bank-specific.
-            legacy_rows, legacy_method = parse_statement_document(content, "pdf")
+            try:
+                legacy_rows, legacy_method = parse_statement_document(content, "pdf")
+            except ValueError:
+                legacy_rows, legacy_method = [], "pdf_text"
             transactions = tuple(
                 _candidate_from_import_row(row, source_row=index)
                 for index, row in enumerate(legacy_rows, start=1)
