@@ -16,7 +16,8 @@ class HouseholdUpdate(BaseModel):
     name: str | None = Field(default=None, min_length=1, max_length=200)
     minimum_buffer_amount: MoneySigned | None = None
     fiscal_month_start_day: int | None = Field(default=None, ge=1, le=28)
-    country: str | None = Field(default=None, min_length=2, max_length=2)\n    reporting_currency: str | None = Field(default=None, min_length=3, max_length=3)
+    country: str | None = Field(default=None, min_length=2, max_length=2)
+    reporting_currency: str | None = Field(default=None, min_length=3, max_length=3)
 
 
 class HouseholdOut(BaseModel):
