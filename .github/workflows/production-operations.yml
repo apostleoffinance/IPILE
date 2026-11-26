@@ -18,6 +18,7 @@ jobs:
     timeout-minutes: 5
     steps:
       - name: Check staging and production API liveness and readiness
+        id: api
         shell: bash
         run: |
           set -euo pipefail
@@ -38,7 +39,11 @@ jobs:
             jq -e '.status == "ok" and .database == "connected" and .migrations == "current"' "$body" >/dev/null
             grep -qi '^x-request-id:' "$headers"
 
-            echo "PASS: $label liveness, database readiness, migration head, request correlation"
+            release="$(jq -r '.release // "unknown"' "$body")"
+            [[ "$release" != "unknown" && -n "$release" ]] || { echo "$label API did not expose its Render release SHA."; exit 1; }
+            if [[ "$label" == "Staging" ]]; then echo "staging_release=$release" >> "$GITHUB_OUTPUT"; else echo "production_release=$release" >> "$GITHUB_OUTPUT"; fi
+
+            echo "PASS: $label liveness, database readiness, migration head, request correlation, release=$release"
             {
               echo "- **$label API:** liveness, database, migrations and request ID passed"
             } >> "$GITHUB_STEP_SUMMARY"
@@ -47,6 +52,11 @@ jobs:
 
           check_api "Staging" "https://ipile-staging-api-v2.onrender.com"
           check_api "Production" "https://ipile-bmfz.onrender.com"
+          [[ "${{ steps.api.outputs.staging_release }}" == "${{ steps.api.outputs.production_release }}" ]] || {
+            echo "Staging and production are running different backend commits."
+            exit 1
+          }
+          echo "- **Release parity:** staging and production run commit `${{ steps.api.outputs.production_release }}`" >> "$GITHUB_STEP_SUMMARY"
 
       - name: Check production web Worker
         shell: bash
