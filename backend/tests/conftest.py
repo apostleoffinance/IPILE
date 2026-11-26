@@ -40,6 +40,7 @@ from app.models import (  # noqa: F401
     HouseholdInvite,
     HouseholdMember,
     ImportJob,
+    StatementExtractionTask,
     IncomeSource,
     Investment,
     InvestmentTransaction,
