@@ -1,5 +1,5 @@
 from calendar import monthrange
-from datetime import date
+from datetime import date, timedelta
 from decimal import Decimal
 from uuid import UUID
 
@@ -7,6 +7,7 @@ from sqlalchemy.orm import Session
 
 from app.models.analytics import FinancialScore, FinancialSnapshot, Report
 from app.models.household import Household
+from app.models.transaction import Transaction
 from app.models.obligation import Obligation, ObligationOccurrence
 from app.money import format_money, quantize_money
 from app.services.allocations import latest_run, period_bounds, serialize_run
@@ -21,6 +22,7 @@ from app.services.health import (
 from app.services.health_engine import HealthResult
 from app.services.obligation_engine import coverage, coverage_label
 from app.services.safe_to_spend import compute_safe_to_spend
+from app.services.transaction_patterns import detect_transaction_patterns
 from app.services.wealth import household_net_worth
 
 
@@ -549,6 +551,21 @@ def insights_payload(db: Session, household: Household, today: date | None = Non
         snapshots=snapshots,
         today=today,
     )
+    recent_transactions = (
+        db.query(Transaction)
+        .filter(
+            Transaction.household_id == household.id,
+            Transaction.access_scope == "shared",
+            Transaction.status.in_(("cleared", "reconciled")),
+            Transaction.deleted_at.is_(None),
+            Transaction.date >= today - timedelta(days=210),
+            Transaction.date <= today,
+            Transaction.type.in_(("income", "expense")),
+        )
+        .order_by(Transaction.date.asc())
+        .all()
+    )
+    patterns.extend(detect_transaction_patterns(recent_transactions, today=today))
     return {
         "period_start": start.isoformat(),
         "period_end": end.isoformat(),
