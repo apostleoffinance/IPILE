@@ -1,62 +1,65 @@
-# IPÌLẸ̀ Connect — inbound bank-alert setup
+# IPÌLẸ̀ Connect — Cloudflare inbound bank-alert setup
 
-This runbook configures Postmark Inbound for household bank-alert forwarding. It uses a dedicated subdomain so existing website and mailbox MX records are not changed.
+This runbook configures Cloudflare Email Routing and the dedicated `ipile-inbound-email` Worker. It does not change the MX records for the root domain or the existing website Worker.
 
-## 1. Choose a domain you control
+## 1. Choose a dedicated inbound subdomain
 
-Choose a dedicated inbound subdomain, for example:
+Use a domain controlled by the IPÌLẸ̀ operator, for example `inbox.<your-owned-domain>`. Do not assume `ipile.app` or any example domain is available; verify ownership and Cloudflare zone access first.
 
-`inbox.<your-owned-domain>`
-
-Do not use the illustrative `ipile.app` or `inbox.ipile.app` values unless that domain is actually registered and controlled by the IPÌLẸ̀ operator.
-
-Set the Render backend environment variables:
+In the IPÌLẸ̀ backend environment (Render), configure:
 
 - `INBOUND_EMAIL_DOMAIN`: the exact inbound subdomain, e.g. `inbox.<your-owned-domain>`
-- `INBOUND_EMAIL_WEBHOOK_SECRET`: a unique random secret (at least 32 random bytes)
-- `MAX_IMPORT_UPLOAD_BYTES`: `10485760` for the 10 MiB statement upload limit
+- `INBOUND_EMAIL_WEBHOOK_SECRET`: a unique random secret of at least 32 random bytes
 
-Generate the secret in a trusted password manager or local shell. Never commit it, put it in a frontend variable, or paste it into a public issue.
+Keep the secret server-side. Never place it in a frontend variable or commit it to Git.
 
-## 2. Configure Postmark Inbound
+## 2. Configure and deploy the Email Worker
 
-1. Create or select a Postmark Server.
-2. Open its **Inbound Message Stream** and its **Settings**.
-3. Configure the inbound domain as the chosen subdomain.
-4. Set the inbound webhook URL to:
+From `cloudflare/email-worker`:
 
-   `https://ipile:<INBOUND_EMAIL_WEBHOOK_SECRET>@ipile-bmfz.onrender.com/api/v1/imports/inbound-email`
+1. Install dependencies with `npm ci`.
+2. Run `npm test` and `npm run typecheck`.
+3. Set the staging and production Worker secrets separately:
+   ```sh
+   npx wrangler secret put INBOUND_WEBHOOK_SECRET
+   npx wrangler secret put ALLOWED_BANK_SENDER_DOMAINS
+   npx wrangler secret put INBOUND_WEBHOOK_SECRET --env production
+   npx wrangler secret put ALLOWED_BANK_SENDER_DOMAINS --env production
+   ```
+4. `ALLOWED_BANK_SENDER_DOMAINS` must be a comma-separated list of exact bank-owned sender domains confirmed from real bank alert samples. Do not use broad wildcards or accept arbitrary senders.
+5. Deploy staging with `npx wrangler deploy`. Deploy production only after the backend production secret/domain and approved sender list have been configured: `npx wrangler deploy --env production`.
 
-   Replace the placeholder with the same secret configured in Render. The username must be `ipile`. Postmark Inbound supports HTTP Basic Authentication in the webhook URL; IPÌLẸ̀ also retains the `X-Inbound-Email-Secret` option for compatible providers. Postmark does not HMAC-sign inbound webhooks, so keep Basic Auth enabled and consider allowlisting Postmark's published webhook IP ranges at the network edge.
-5. Use Postmark's **Check** action to send a test webhook. The endpoint acknowledges accepted, duplicate, and permanently rejected messages with HTTP **200**; rejected messages are recorded in the household review queue and are never posted to the ledger. This prevents unnecessary retries for messages that cannot be parsed safely.
+The default Worker environment targets the IPÌLẸ̀ staging API. The named `production` environment targets the production API. Do not copy production secrets into staging or vice versa.
 
-## 3. Add the inbound MX record
+## 3. Configure Cloudflare Email Routing
 
-At the DNS provider for the chosen subdomain, add only this record:
+1. Open the Cloudflare dashboard for the dedicated inbound subdomain and enable Email Routing.
+2. Add a routing rule for the base recipient `bank-alert@inbox.<your-owned-domain>`.
+3. Choose **Send to a Worker** and select the matching `ipile-inbound-email` Worker environment.
+4. Ensure plus-address/subaddress delivery is enabled so recipients of the form `bank-alert+<opaque-token>@inbox.<your-owned-domain>` are delivered to the same Worker rule.
+5. Do not configure an apex-domain catch-all or alter the root domain's existing MX records.
 
-| Type | Name / Host | Priority | Value | TTL |
-|---|---|---:|---|---:|
-| MX | `inbox` | 10 | `inbound.postmarkapp.com` | 1800 seconds |
+The Worker validates the household alias, sender-domain allowlist and sender authentication result before forwarding a bounded, normalized payload to the backend over HTTPS.
 
-If you choose a different subdomain, use that label in the Name/Host field. Do not replace the root domain's existing MX records; that could interrupt normal business or personal email.
+## 4. Verify the household flow
 
-Wait for DNS propagation, then verify the domain in Postmark.
+1. Confirm the chosen backend environment has `INBOUND_EMAIL_DOMAIN` and `INBOUND_EMAIL_WEBHOOK_SECRET` set and is healthy.
+2. Sign in to a disposable IPÌLẸ̀ household and open **Money → Import transactions**.
+3. Generate the household's private bank-alert address.
+4. Forward an original bank transaction alert from an allowlisted bank sender.
+5. Confirm the alert appears in **Review incoming bank alerts**.
+6. Confirm duplicate delivery of the same provider `MessageID` does not create another review item.
+7. Approve the alert against the correct household account and verify the transaction and resulting account balance.
+8. Repeat with a second household and verify mailbox and review-queue isolation.
 
-## 4. Verify the application flow
+## 5. Security and behavior
 
-1. Confirm Render has the three environment variables and the latest deployment is Live.
-2. Sign in to a disposable IPÌLẸ̀ household and create its bank-alert import address from **Money → Import transactions**.
-3. Forward a real or provider-approved test bank alert to that exact address.
-4. Confirm the inbound event is accepted (HTTP 200) and appears in the household's review queue.
-5. Confirm duplicate delivery of the same Postmark `MessageID` does not create a second review item.
-6. Approve the alert against the correct household account and verify the posted amount/date and resulting account balance.
-7. Repeat with a second household and confirm the first household's mailbox and pending import are not visible or approvable from the second household.
-
-## 5. Important behavior and limitations
-
-- Inbound bank alerts are **pending review**. They do not change balances until an authorized household owner/partner approves them.
-- A bank transaction reference is used for transaction-level deduplication when present; Postmark `MessageID` is used to deduplicate webhook retries.
-- Alerts with ambiguous amounts or no usable transaction/provider date are rejected rather than guessed.
-- CSV, text statements and selectable-text PDFs are supported. Scanned/image-only PDFs still require OCR and are not supported by this flow.
-- The email intake currently parses plain-text bank alerts; it does not automatically ingest PDF attachments from inbound email.
-- Do not forward highly sensitive messages unrelated to transaction alerts to a household's import address.
+- Each household receives a random opaque alias. The backend stores only its SHA-256 hash. Regenerating the address invalidates the previous alias.
+- The Worker rejects senders outside the configured bank-domain allowlist and messages without a passing sender-authentication result.
+- The backend webhook requires the shared secret. Keep the Worker secret and backend secret identical within the same environment.
+- The backend deduplicates provider message IDs per household.
+- Incoming alerts are pending review. No transaction or balance is changed until an authorized household owner/partner approves the alert.
+- Ambiguous amounts, multiple currency amounts, unclear debit/credit direction or missing usable dates are rejected into the review queue rather than guessed.
+- Attachments are metadata only and are not parsed or executed. Statement attachments must be uploaded separately through the authenticated statement-import flow.
+- The parser currently supports NGN-denominated alert formats. Add and test bank-specific formats before enabling other currencies.
+- Avoid forwarding unrelated sensitive email to a household's import address.
