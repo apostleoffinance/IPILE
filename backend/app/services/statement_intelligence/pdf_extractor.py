@@ -12,7 +12,6 @@ from typing import Any
 import pdfplumber
 
 from app.services.import_adapters import ImportRow, _make_row, _parse_amount
-from app.services.statement_extraction.pdf_layout import _detect_account_section
 from app.services.statement_intelligence.bank_adapters import extract_with_bank_adapter
 from app.services.statement_intelligence.field_mapping import (
     _NORMALIZED_ALIASES,
@@ -29,6 +28,29 @@ from app.services.statement_intelligence.schema import (
 from app.services.statement_intelligence.validation import validate_statement
 
 MAX_PDF_PAGES = 150
+
+
+def _detect_account_section(text: str) -> str | None:
+    """Detect explicit account-section headings without importing legacy parser modules."""
+    for line in text.splitlines():
+        candidate = " ".join(line.split()).strip(" :-")
+        if not candidate or len(candidate) > 90:
+            continue
+        normalized = normalize_header(candidate)
+        if normalized in {"account statement", "account name account number"}:
+            continue
+        if "account" not in normalized:
+            continue
+        period_index = normalized.find(" period ")
+        if period_index >= 0:
+            original_period = re.search(r"\\bperiod\\s*:", candidate, re.IGNORECASE)
+            if original_period:
+                label = candidate[:original_period.start()].strip(" :-")
+                if label and normalize_header(label) not in {"account name", "account number"}:
+                    return label
+        if re.fullmatch(r"[a-z][a-z /&-]{1,55} account", normalized):
+            return candidate
+    return None
 
 DATE_TIME_FORMATS = (
     "%d %b %Y %H:%M:%S",
