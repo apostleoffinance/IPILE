@@ -18,7 +18,9 @@ API_ROOT = "https://gmail.googleapis.com/gmail/v1/users/me"
 def _fernet() -> Fernet:
     key = get_settings().gmail_token_encryption_key
     if not key:
-        raise RuntimeError("Gmail token encryption is not configured. Set GMAIL_TOKEN_ENCRYPTION_KEY.")
+        raise RuntimeError(
+            "Gmail token encryption is not configured. Set GMAIL_TOKEN_ENCRYPTION_KEY."
+        )
     return Fernet(key.encode("ascii"))
 
 
@@ -130,7 +132,11 @@ def extract_message(message: dict[str, Any]) -> dict[str, str]:
     if not body:
         body = _decode_body((payload.get("body") or {}).get("data"))
     internal_ms = int(message.get("internalDate") or 0)
-    email_date = formatdate(internal_ms / 1000, usegmt=True) if internal_ms else headers.get("date", "")
+    email_date = (
+        formatdate(internal_ms / 1000, usegmt=True)
+        if internal_ms
+        else headers.get("date", "")
+    )
     return {
         "from": headers.get("from", ""),
         "subject": headers.get("subject", "Bank transaction alert"),
