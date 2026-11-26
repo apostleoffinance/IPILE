@@ -228,7 +228,10 @@ def test_provider_neutral_intelligence_enriches_forwarded_alert_review(
             "To": mailbox["address"],
             "From": "no-reply@opayweb.com",
             "Subject": "Debit Alert",
-            "TextBody": "Your wallet was debited NGN 2,500.00 for fuel on 26/11/2026. Ref: OPY123456",
+            "TextBody": (
+                "Your wallet was debited NGN 2,500.00 for fuel on "
+                "26/11/2026. Ref: OPY123456"
+            ),
             "MessageID": "forwarding-event-001",
         },
     )
