@@ -16,9 +16,9 @@ API_ROOT = "https://gmail.googleapis.com/gmail/v1/users/me"
 
 
 def _fernet() -> Fernet:
-    key = get_settings().bank_data_encryption_key
+    key = get_settings().gmail_token_encryption_key
     if not key:
-        raise RuntimeError("Gmail token encryption is not configured.")
+        raise RuntimeError("Gmail token encryption is not configured. Set GMAIL_TOKEN_ENCRYPTION_KEY.")
     return Fernet(key.encode("ascii"))
 
 
