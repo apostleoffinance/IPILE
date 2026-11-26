@@ -142,17 +142,18 @@ def _save_alert(db: Session, connection: GmailConnection, message: dict[str, str
         },
     )
     household = db.query(Household).filter(Household.id == connection.household_id).first()
+    auto_posted = False
     if household is not None:
-        apply_alert_automation(db, household, job, row, suggested)
+        auto_posted = apply_alert_automation(db, household, job, row, suggested)
     db.add(job)
-    return "queued"
+    return "auto_posted" if auto_posted else "queued"
 
 
 def _sync_connection(db: Session, row: GmailConnection) -> dict[str, int]:
     if not row.enabled or not row.refresh_token_encrypted:
         return {"scanned": 0, "queued": 0, "rejected": 0, "ignored": 0}
     token = refresh_access_token(decrypt_refresh_token(row.refresh_token_encrypted))
-    counts = {"scanned": 0, "queued": 0, "rejected": 0, "ignored": 0}
+    counts = {"scanned": 0, "queued": 0, "auto_posted": 0, "rejected": 0, "ignored": 0}
     latest = row.last_message_internal_date or 0
     for item in list_recent_messages(token, row.last_message_internal_date):
         message = extract_message(fetch_message(token, str(item["id"])))
@@ -301,11 +302,18 @@ def gmail_sync_cron(
     if not secret or not x_gmail_sync_secret or not hmac.compare_digest(secret, x_gmail_sync_secret):
         raise HTTPException(status_code=401, detail="Invalid Gmail sync credentials.")
     rows = db.query(GmailConnection).filter(GmailConnection.enabled.is_(True)).all()
-    total = {"connections": len(rows), "scanned": 0, "queued": 0, "rejected": 0, "failed": 0}
+    total = {
+        "connections": len(rows),
+        "scanned": 0,
+        "queued": 0,
+        "auto_posted": 0,
+        "rejected": 0,
+        "failed": 0,
+    }
     for row in rows:
         try:
             result = _sync_connection(db, row)
-            for key in ("scanned", "queued", "rejected"):
+            for key in ("scanned", "queued", "auto_posted", "rejected"):
                 total[key] += result[key]
         except Exception:
             db.rollback()
