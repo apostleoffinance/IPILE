@@ -155,3 +155,50 @@ def test_unreconciled_statement_is_staged_but_cannot_be_committed(
     assert Decimal(client.get("/api/v1/accounts").json()[0]["current_balance"]) == Decimal(
         "5000.00"
     )
+
+
+
+def test_statement_currency_must_match_selected_account_before_commit(
+    client: TestClient, monkeypatch
+) -> None:
+    register(client, "currency-statement@example.com")
+    account = client.post(
+        "/api/v1/accounts",
+        json={"name": "Naira account", "type": "bank", "currency": "NGN"},
+    ).json()
+
+    def fake_extract(_content: bytes, suffix: str):
+        assert suffix == "pdf"
+        rows = [
+            ImportRow(
+                date=date(2026, 1, 1),
+                amount=Decimal("100.00"),
+                type="income",
+                description="Foreign currency credit",
+                external_id="usd-credit-1",
+                currency="USD",
+            )
+        ]
+        return ExtractionResult(
+            rows=rows,
+            extraction_method="pdf_text_layout",
+            validation=validate_statement(rows),
+            confidence=0.95,
+        )
+
+    monkeypatch.setattr("app.api.v1.imports.extract_statement_document", fake_extract)
+    preview = client.post(
+        "/api/v1/imports/preview-upload",
+        data={"account_id": account["id"]},
+        files={"file": ("statement.pdf", b"statement", "application/pdf")},
+    )
+    assert preview.status_code == 201, preview.text
+    committed = client.post(
+        f"/api/v1/imports/jobs/{preview.json()['id']}/commit",
+        json={"account_id": account["id"]},
+    )
+    assert committed.status_code == 400
+    assert "Statement currency USD does not match selected account currency NGN" in (
+        committed.json()["detail"]
+    )
+    assert client.get("/api/v1/transactions").json() == []
