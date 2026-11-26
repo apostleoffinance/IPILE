@@ -35,6 +35,7 @@ from app.models import (  # noqa: F401
     GivingRecord,
     Goal,
     GoalContribution,
+    GmailConnection,
     Household,
     HouseholdInvite,
     HouseholdMember,
