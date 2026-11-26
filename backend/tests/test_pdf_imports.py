@@ -119,8 +119,14 @@ def test_multi_account_statement_requires_explicit_section_selection(
         method=ExtractionMethod.PDF_TABLE,
         transactions=(wallet, savings),
         sections=(
-            StatementAccountSection(label="Wallet Account", transactions=(wallet,), source_page_start=1, source_page_end=1),
-            StatementAccountSection(label="Savings Account", transactions=(savings,), source_page_start=3, source_page_end=3),
+            StatementAccountSection(
+                label="Wallet Account", transactions=(wallet,),
+                source_page_start=1, source_page_end=1,
+            ),
+            StatementAccountSection(
+                label="Savings Account", transactions=(savings,),
+                source_page_start=3, source_page_end=3,
+            ),
         ),
         status=ExtractionStatus.VERIFIED,
     )
