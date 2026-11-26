@@ -142,3 +142,24 @@ jobs:
           path: backend/release-acceptance.xml
           if-no-files-found: warn
           retention-days: 30
+
+  inbound-email-worker:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: cloudflare/email-worker
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: cloudflare/email-worker/package-lock.json
+      - name: Install
+        run: npm ci
+      - name: Typecheck
+        run: npm run typecheck
+      - name: Test inbound email Worker
+        run: npm test
+      - name: Worker dry-run build
+        run: npx wrangler deploy --dry-run
