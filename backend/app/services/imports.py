@@ -52,6 +52,7 @@ def apply_import_rows(
     filename: str | None = None,
 ) -> ImportJob:
     created = 0
+    created_income = False
     skipped = 0
     errors: list[str] = []
     for row in rows:
@@ -103,9 +104,21 @@ def apply_import_rows(
                 db.add(account)
                 db.flush()
             created += 1
+            created_income = created_income or tx.type == "income"
         except Exception as exc:  # noqa: BLE001 — collect row errors into job result
             errors.append(f"{row.external_id}: {exc}")
     evaluate_budget_alerts(db, household.id)
+    if created:
+        if created_income:
+            from app.services.automation import run_tick
+
+            run_tick(db, household, tick_type="income_recognized")
+        else:
+            from app.services.financial_intelligence import run_financial_intelligence
+            from app.services.notifications import sync_notifications_from_alerts
+
+            run_financial_intelligence(db, household)
+            sync_notifications_from_alerts(db, household.id)
     job = ImportJob(
         household_id=household.id,
         source=source,
