@@ -78,6 +78,17 @@ def validate_statement(
 
     balance_checks = 0
     previous_balance = summary.opening_balance
+    if previous_balance is None:
+        first_balanced_row = next((row for row in rows if row.running_balance is not None), None)
+        if first_balanced_row is not None:
+            first_delta = (
+                first_balanced_row.amount
+                if first_balanced_row.type in {"income", "refund"}
+                else -first_balanced_row.amount
+            )
+            # Derive a provisional starting point solely to test subsequent
+            # running-balance continuity; this is not reported as an opening balance.
+            previous_balance = first_balanced_row.running_balance - first_delta
     for row in rows:
         if row.running_balance is None or previous_balance is None:
             continue
