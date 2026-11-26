@@ -665,3 +665,37 @@ def test_email_alert_currency_must_match_destination_account(
     )
     assert approved.status_code == 409
     assert client.get("/api/v1/transactions").json() == []
+
+
+
+def test_imported_transactions_trigger_proactive_recurring_detection(
+    client: TestClient,
+) -> None:
+    from datetime import date
+
+    from app.services.recurring import add_months
+
+    register(client, "import-proactive@example.com")
+    account = client.post(
+        "/api/v1/accounts",
+        json={"name": "Current", "type": "bank", "current_balance": "100000.00"},
+    ).json()
+    anchor = date.today().replace(day=5)
+    rows = ["date,amount,type,description,merchant,external_id"]
+    for months_ago in (2, 1, 0):
+        occurred_on = add_months(anchor, -months_ago)
+        rows.append(
+            f"{occurred_on.isoformat()},1000.00,expense,Subscription,Netflix,netflix-{months_ago}"
+        )
+    response = client.post(
+        "/api/v1/imports/csv",
+        json={"account_id": account["id"], "content": "\\n".join(rows)},
+    )
+    assert response.status_code == 201, response.text
+    assert response.json()["created_count"] == 3
+    alerts = client.get("/api/v1/alerts").json()
+    assert any(row["type"] == "recurring_payment_upcoming" for row in alerts)
+    notifications = client.get(
+        "/api/v1/notifications", params={"unread_only": "true"}
+    ).json()
+    assert any(row["title"] == "Expected recurring transaction" for row in notifications)
