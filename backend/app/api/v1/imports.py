@@ -21,7 +21,7 @@ from app.models.imports import ImportJob, ImportMailbox
 from app.models.transaction import Transaction
 from app.schemas.imports import ImportBody, ImportCommitBody, ImportJobOut, ImportPreviewBody
 from app.services.email_imports import apply_alert_automation, parse_bank_alert
-from app.services.import_adapters import ImportRow
+from app.services.import_adapters import ImportRow, get_adapter
 from app.services.imports import (
     apply_import_rows,
     commit_staged_import,
@@ -29,7 +29,6 @@ from app.services.imports import (
     stage_import,
     stage_import_rows,
 )
-from app.services.import_adapters import get_adapter
 from app.services.pdf_imports import extract_statement_document
 from app.services.statement_intelligence.schema import ExtractionResult
 from app.services.statement_intelligence.validation import validate_statement
@@ -97,9 +96,10 @@ def _extraction_payload(extraction: ExtractionResult) -> dict:
     validation = extraction.validation or validate_statement(extraction.rows)
     summary = extraction.summary
     has_errors = any(issue.severity == "error" for issue in extraction.issues)
-    extraction_status = (
-        validation.status if extraction.is_importable else "incomplete" if has_errors else "needs_review"
-    )
+    if extraction.is_importable:
+        extraction_status = validation.status
+    else:
+        extraction_status = "incomplete" if has_errors else "needs_review"
     return {
         "extraction_method": extraction.extraction_method,
         "status": extraction_status,
