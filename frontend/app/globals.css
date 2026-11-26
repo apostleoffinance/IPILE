@@ -889,6 +889,9 @@ button, a, input, select, textarea { transition-duration: 220ms; }
 .ipile-marketing-cta h2{font-size:clamp(38px,5.5vw,68px);font-weight:400;line-height:1.06;letter-spacing:-.07em;max-width:800px;margin:20px auto;color:var(--m-cream)}
 .ipile-marketing-cta>p:not(.ipile-marketing-kicker){font-size:13px;color:#a3aaa2;line-height:1.8;max-width:450px;margin:0 auto}
 .ipile-marketing-cta .ipile-marketing-pill{margin-top:28px;background:var(--m-gold);color:var(--m-ink)!important}
+.ipile-marketing-cta .ipile-marketing-cta-secondary{color:#fff!important;font-weight:500;text-decoration-color:rgba(255,255,255,.7)}
+.ipile-marketing-cta .ipile-marketing-cta-secondary:hover{color:var(--m-gold)!important}
+.ipile-marketing-cta .ipile-marketing-cta-brandline{color:#fff!important;font-weight:500;opacity:1}
 .ipile-marketing-footer{padding:45px 7vw;background:#030605;color:#c9cec8;display:flex;justify-content:space-between;align-items:center;gap:30px}
 .ipile-marketing-footer>div{display:grid;gap:6px}
 .ipile-marketing-footer>div a{color:var(--m-cream)}
