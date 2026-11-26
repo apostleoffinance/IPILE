@@ -169,8 +169,12 @@ def parse_statement_document(content: bytes, suffix: str) -> tuple[list[ImportRo
     if suffix == "pdf":
         try:
             return _parse_selectable_pdf(content), "pdf_text"
-        except ValueError:
-            return parse_pdf_statement(content), "pdf_ocr"
+        except ValueError as text_error:
+            try:
+                rows = parse_ocr_statement(extract_pdf_ocr_text(content))
+            except ValueError as ocr_error:
+                raise ValueError(str(ocr_error)) from text_error
+            return rows, "pdf_ocr"
     if suffix in {"png", "jpg", "jpeg", "webp"}:
         return parse_statement_image(content), "image_ocr"
     raise ValueError("Unsupported statement document type.")
