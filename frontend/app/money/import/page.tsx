@@ -196,7 +196,7 @@ export default function ImportPage() {
                     <div className="space-y-2">
                       <label className="block text-sm">
                         <span className="text-muted">Post to account</span>
-                        <Select className="mt-1" value={reviewAccounts[job.id] ?? accounts[0]?.id ?? ""} onChange={(event) => setReviewAccounts((current) => ({ ...current, [job.id]: event.target.value }))}>
+                        <Select className="mt-1" value={reviewAccounts[job.id] ?? (accounts.some((account) => account.id === job.result?.suggested_account_id) ? String(job.result?.suggested_account_id) : accounts[0]?.id) ?? ""} onChange={(event) => setReviewAccounts((current) => ({ ...current, [job.id]: event.target.value }))}>
                           {accounts.map((account) => <option key={account.id} value={account.id}>{account.name} · {account.currency}</option>)}
                         </Select>
                       </label>
