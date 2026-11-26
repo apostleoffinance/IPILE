@@ -47,6 +47,9 @@ def _parse_date(raw: str) -> date:
     for fmt in (
         "%Y-%m-%d", "%d/%m/%Y", "%m/%d/%Y", "%Y/%m/%d",
         "%d-%m-%Y", "%d %b %Y", "%d %B %Y", "%d-%b-%Y",
+        "%d %b %Y %H:%M:%S", "%d %B %Y %H:%M:%S",
+        "%Y-%m-%d %H:%M:%S", "%d/%m/%Y %H:%M:%S",
+        "%m/%d/%Y %H:%M:%S", "%d-%m-%Y %H:%M:%S",
     ):
         try:
             return datetime.strptime(text, fmt).date()
@@ -126,7 +129,9 @@ class CsvImportAdapter:
             None,
         )
         if not date_col or not (amount_col or debit_col or credit_col):
-            raise ValueError("CSV needs a date and amount, debit, or credit column.")
+            from app.services.statement_intelligence.csv_extractor import parse_universal_csv
+
+            return parse_universal_csv(content)
         rows: list[ImportRow] = []
         for index, raw in enumerate(reader, start=2):
             try:
