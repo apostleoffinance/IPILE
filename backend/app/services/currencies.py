@@ -90,7 +90,10 @@ def get_rate(db: Session, household_id, base: str, quote: str, on_date: date):
     if base == quote:
         return Decimal("1"), on_date, "identity"
     stored = _stored_rate(db, household_id, base, quote, on_date)
-    if stored and (on_date - stored[1]).days <= 4:
+    # An observation may only be reused when its effective date is exact.
+    # Weekends/holidays are handled by the historical provider response,
+    # whose returned effective date is persisted explicitly.
+    if stored and stored[1] == on_date:
         return stored
     # Frankfurter publishes reference rates from central-bank data. Fetch the
     # requested historical date; never substitute today's rate for a past date.
