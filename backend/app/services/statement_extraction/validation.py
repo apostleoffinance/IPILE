@@ -6,7 +6,10 @@ from collections import Counter
 from decimal import Decimal
 
 from app.services.statement_extraction.models import (
-    ExtractionStatus, ExtractedTransaction, StatementSummary, ValidationIssue,
+    ExtractedTransaction,
+    ExtractionStatus,
+    StatementSummary,
+    ValidationIssue,
     ValidationReport,
 )
 
@@ -95,7 +98,10 @@ def validate_extraction(
                 message="Extracted debit total does not match the statement summary.",
                 severity="warning",
             ))
-        if summary.total_credits is not None and abs(credit_total - summary.total_credits) > TOLERANCE:
+        if (
+            summary.total_credits is not None
+            and abs(credit_total - summary.total_credits) > TOLERANCE
+        ):
             issues.append(ValidationIssue(
                 code="credit_total_mismatch",
                 message="Extracted credit total does not match the statement summary.",
@@ -107,7 +113,10 @@ def validate_extraction(
         if abs(expected - closing_balance) > TOLERANCE:
             issues.append(ValidationIssue(
                 code="balance_reconciliation_mismatch",
-                message="Opening balance plus credits less debits does not match the closing balance.",
+                message=(
+                    "Opening balance plus credits less debits does not match "
+                    "the closing balance."
+                ),
                 severity="warning",
             ))
 
