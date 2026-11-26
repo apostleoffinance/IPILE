@@ -47,6 +47,7 @@ class Settings(BaseSettings):
             self.gmail_oauth_redirect_uri,
             self.gmail_sync_secret,
             self.gmail_token_encryption_key,
+            self.gmail_allowed_sender_domains,
         ))
 
     @property
@@ -149,13 +150,15 @@ class Settings(BaseSettings):
             self.gmail_oauth_redirect_uri,
             self.gmail_sync_secret,
             self.gmail_token_encryption_key,
+            self.gmail_allowed_sender_domains,
         )
         if any(value.strip() for value in gmail_values) and not all(
             value.strip() for value in gmail_values
         ):
             problems.append(
                 "Gmail integration requires GMAIL_OAUTH_CLIENT_ID, "
-                "GMAIL_OAUTH_CLIENT_SECRET, GMAIL_OAUTH_REDIRECT_URI and GMAIL_SYNC_SECRET"
+                "GMAIL_OAUTH_CLIENT_SECRET, GMAIL_OAUTH_REDIRECT_URI, GMAIL_SYNC_SECRET, "
+                "GMAIL_TOKEN_ENCRYPTION_KEY and GMAIL_ALLOWED_SENDER_DOMAINS"
             )
         if self.gmail_oauth_redirect_uri:
             gmail_redirect = urlsplit(self.gmail_oauth_redirect_uri)
