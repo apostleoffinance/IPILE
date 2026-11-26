@@ -102,9 +102,18 @@ class ValidationReport:
 
 
 @dataclass(frozen=True, slots=True)
+class StatementAccountSection:
+    label: str | None
+    transactions: tuple[ExtractedTransaction, ...]
+    source_page_start: int | None = None
+    source_page_end: int | None = None
+
+
+@dataclass(frozen=True, slots=True)
 class ExtractionResult:
     method: ExtractionMethod
     transactions: tuple[ExtractedTransaction, ...]
+    sections: tuple[StatementAccountSection, ...] = ()
     metadata: StatementMetadata = field(default_factory=StatementMetadata)
     summary: StatementSummary = field(default_factory=StatementSummary)
     status: ExtractionStatus = ExtractionStatus.NEEDS_REVIEW
