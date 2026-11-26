@@ -295,10 +295,20 @@ def create_transaction(
     )
     db.flush()
     evaluate_budget_alerts(db, ctx.household.id)
-    if transaction.type == "income" and transaction.status in {"cleared", "reconciled"}:
+    if (
+        transaction.access_scope == "shared"
+        and transaction.type == "income"
+        and transaction.status in {"cleared", "reconciled"}
+    ):
         from app.services.automation import run_tick
 
-        run_tick(db, ctx.household, tick_type="income_recognized")
+        _, skipped = run_tick(db, ctx.household, tick_type="income_recognized")
+        if skipped:
+            from app.services.financial_intelligence import run_financial_intelligence
+            from app.services.notifications import sync_notifications_from_alerts
+
+            run_financial_intelligence(db, ctx.household)
+            sync_notifications_from_alerts(db, ctx.household.id)
     elif (
         transaction.access_scope == "shared"
         and transaction.type == "expense"
