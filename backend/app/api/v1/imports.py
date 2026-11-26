@@ -29,10 +29,11 @@ from app.services.imports import (
     stage_import,
     stage_import_rows,
 )
-from app.services.pdf_imports import parse_statement_document
 from app.services.statement_extraction.extractor import extract_statement_document
 from app.services.statement_extraction.models import ExtractionStatus
 from app.services.statement_extraction.normalization import normalize_section_rows
+from app.services.statement_intelligence.schema import ExtractionResult
+from app.services.statement_intelligence.validation import validate_statement
 from app.services.transaction_intelligence import enrich_bank_alert
 
 router = APIRouter(prefix="/imports", tags=["imports"])
