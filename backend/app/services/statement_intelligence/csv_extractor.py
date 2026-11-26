@@ -184,7 +184,6 @@ def parse_universal_csv(content: str) -> list[ImportRow]:
                     transaction_datetime=transaction_datetime,
                     running_balance=running_balance,
                     cash_direction=cash_direction,
-                    cash_direction=(cash_direction if tx_type == "transfer" else cash_direction),
                 )
             )
         except (ValueError, IndexError) as exc:
