@@ -17,8 +17,8 @@ from app.models.contribution import ContributionAgreement, ContributionRecord
 from app.models.currency import ExchangeRate
 from app.models.fund import FundContribution, SinkingFund
 from app.models.giving import GivingPolicy, GivingRecord
-from app.models.goal import Goal, GoalContribution
 from app.models.gmail import GmailConnection
+from app.models.goal import Goal, GoalContribution
 from app.models.household import Household
 from app.models.imports import ImportJob, ImportMailbox
 from app.models.income import IncomeSource
