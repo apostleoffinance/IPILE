@@ -320,7 +320,7 @@ export default function ImportPage() {
                   <p className="text-xs text-muted">From: {String(job.result?.sender ?? "Unknown sender")}</p>
                   {row ? (
                     <div className="grid gap-1 text-sm sm:grid-cols-2">
-                      <p>{row.date} · {row.type}</p>
+                      <p>{row.date} · {row.type} · {row.currency ?? "Currency not detected"}</p>
                       <p className="font-semibold">{row.amount}</p>
                       <p className="text-muted sm:col-span-2">{row.description || row.merchant || "Bank transaction"}</p>
                       {row.external_id ? <p className="text-xs text-muted sm:col-span-2">Reference: {row.external_id}</p> : null}
