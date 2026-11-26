@@ -111,104 +111,11 @@ class CsvImportAdapter:
     source = "csv"
 
     def parse(self, content: str) -> list[ImportRow]:
-        reader = csv.DictReader(io.StringIO(content))
-        if not reader.fieldnames:
-            raise ValueError("CSV requires a header row.")
-        fields = {name.lower().strip(): name for name in reader.fieldnames if name}
-        date_col = next(
-            (fields[k] for k in ("date", "transaction date", "value date") if k in fields),
-            None,
-        )
-        amount_col = fields.get("amount")
-        debit_col = next(
-            (fields[k] for k in ("debit", "withdrawal", "money out") if k in fields),
-            None,
-        )
-        credit_col = next(
-            (fields[k] for k in ("credit", "deposit", "money in") if k in fields),
-            None,
-        )
-        if not date_col or not (amount_col or debit_col or credit_col):
-            from app.services.statement_intelligence.csv_extractor import parse_universal_csv
+        # One semantic mapper serves CSV exports from every bank. It refuses to
+        # infer transaction direction from an unsigned amount-only column.
+        from app.services.statement_intelligence.csv_extractor import parse_universal_csv
 
-            return parse_universal_csv(content)
-        rows: list[ImportRow] = []
-        for index, raw in enumerate(reader, start=2):
-            try:
-                if debit_col or credit_col:
-                    debit_raw = raw.get(debit_col, "") if debit_col else "0"
-                    credit_raw = raw.get(credit_col, "") if credit_col else ""
-                    if not (debit_raw or "").strip() and not (credit_raw or "").strip():
-                        raise ValueError("A row must contain a debit or credit amount.")
-                    debit = (
-                        _parse_amount(debit_raw)
-                        if debit_col and (debit_raw or "").strip()
-                        else Decimal("0")
-                    )
-                    credit = (
-                        _parse_amount(credit_raw)
-                        if credit_col and (credit_raw or "").strip()
-                        else Decimal("0")
-                    )
-                    if debit and credit:
-                        raise ValueError("A row cannot contain both debit and credit amounts.")
-                    amount = credit if credit else -abs(debit)
-                    inferred_type = "income" if credit else "expense"
-                else:
-                    amount = _parse_amount(raw.get(amount_col, "") or "")
-                    inferred_type = "income" if amount < 0 else "expense"
-                type_col = fields.get("type") or fields.get("transaction type", "")
-                tx_type = (raw.get(type_col, "") or inferred_type) if type_col else inferred_type
-                description_col = (
-                    fields.get("description")
-                    or fields.get("narration")
-                    or fields.get("details")
-                )
-                merchant_col = fields.get("merchant") or fields.get("payee")
-                category_col = fields.get("category")
-                row = _make_row(
-                    raw_date=raw.get(date_col, ""),
-                    amount=amount,
-                    tx_type=tx_type,
-                    description=raw.get(description_col, "") if description_col else None,
-                    external_id=(
-                        raw.get(
-                            next(
-                                (
-                                    fields[key]
-                                    for key in (
-                                        "external_id",
-                                        "reference",
-                                        "transaction id",
-                                        "transaction reference",
-                                        "ref",
-                                    )
-                                    if key in fields
-                                ),
-                                "",
-                            ),
-                            "",
-                        )
-                        if any(
-                            key in fields
-                            for key in (
-                                "external_id",
-                                "reference",
-                                "transaction id",
-                                "transaction reference",
-                                "ref",
-                            )
-                        )
-                        else None
-                    ),
-                    merchant=raw.get(merchant_col, "") if merchant_col else None,
-                    category=raw.get(category_col, "") if category_col else None,
-                    row_index=index,
-                )
-                rows.append(row)
-            except (ValueError, InvalidOperation) as exc:
-                raise ValueError(f"CSV row {index}: {exc}") from exc
-        return rows
+        return parse_universal_csv(content)
 
 
 class StatementImportAdapter:
