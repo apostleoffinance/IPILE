@@ -28,7 +28,7 @@ from app.services.imports import (
     stage_import,
     stage_import_rows,
 )
-from app.services.pdf_imports import parse_pdf_statement, parse_statement_document
+from app.services.pdf_imports import parse_statement_document
 from app.services.transaction_intelligence import enrich_bank_alert
 
 router = APIRouter(prefix="/imports", tags=["imports"])
