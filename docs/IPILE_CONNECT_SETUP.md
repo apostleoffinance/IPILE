@@ -19,10 +19,10 @@ Keep the secret server-side. Never place it in a frontend variable or commit it 
 
 ## 2. Initial supported sender domains
 
-The following 16 trusted root domains are sourced from the operator-provided bank sender CSV. Configure the Worker secret `ALLOWED_BANK_SENDER_DOMAINS` with this comma-separated value:
+The following 17 trusted root domains are sourced from the operator-provided bank sender CSV. Configure the Worker secret `ALLOWED_BANK_SENDER_DOMAINS` with this comma-separated value:
 
 ```text
-gtbank.com,accessbankplc.com,zenithbank.com,firstbanknigeria.com,ubagroup.com,fidelitybank.ng,stanbicibtc.com,fcmb.com,sterling.ng,wemabank.com,alat.ng,moniepoint.com,kuda.com,opayweb.com,opay-inc.com,palmpay.com
+gtbank.com,accessbankplc.com,zenithbank.com,firstbanknigeria.com,ubagroup.com,fidelitybank.ng,stanbicibtc.com,fcmb.com,sterling.ng,wemabank.com,alat.ng,moniepoint.com,kuda.com,opayweb.com,opay-inc.com,opay-nigeria.com,palmpay.com
 ```
 
 This covers the 14 institutions in the CSV:
@@ -41,7 +41,7 @@ This covers the 14 institutions in the CSV:
 | Wema Bank / ALAT | `wemabank.com`, `alat.ng` | `alerts@wemabank.com`, `no-reply@alat.ng` |
 | Moniepoint | `moniepoint.com` | `no-reply@moniepoint.com` |
 | Kuda Bank | `kuda.com` | `no-reply@kuda.com` |
-| OPay | `opayweb.com`, `opay-inc.com` | `no-reply@opayweb.com`, `alerts@opay-inc.com` |
+| OPay | `opayweb.com`, `opay-inc.com`, `opay-nigeria.com` | `no-reply@opayweb.com`, `alerts@opay-inc.com`, `no-reply@opay-nigeria.com` (observed by operator) |
 | PalmPay | `palmpay.com` | `no-reply@palmpay.com` |
 
 **Important:** the Worker currently enforces the trusted root-domain allowlist (not a per-address sender allowlist). It also requires Cloudflare's trusted DMARC result to pass. The sender addresses above are reference formats from the supplied CSV, not a guarantee that every institution always uses only those addresses. Verify real original alert samples before tightening to exact sender addresses or changing a bank's parser. This initial list is an NGN bank-alert intake allowlist; it does not imply multi-currency parsing is complete.
