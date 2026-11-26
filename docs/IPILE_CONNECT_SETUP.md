@@ -19,7 +19,7 @@ Keep the secret server-side. Never place it in a frontend variable or commit it 
 
 ## 2. Initial supported sender domains
 
-The following 17 trusted root domains are sourced from the operator-provided bank sender CSV. Configure the Worker secret `ALLOWED_BANK_SENDER_DOMAINS` with this comma-separated value:
+The following 16 trusted root domains are sourced from the operator-provided bank sender CSV. Configure the Worker secret `ALLOWED_BANK_SENDER_DOMAINS` with this comma-separated value:
 
 ```text
 gtbank.com,accessbankplc.com,zenithbank.com,firstbanknigeria.com,ubagroup.com,fidelitybank.ng,stanbicibtc.com,fcmb.com,sterling.ng,wemabank.com,alat.ng,moniepoint.com,kuda.com,opayweb.com,opay-inc.com,palmpay.com
