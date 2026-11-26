@@ -18,7 +18,10 @@ DATE_PATTERN = re.compile(
     r"^\s*(\d{1,2}[/-]\d{1,2}[/-]\d{2,4}|\d{4}[/-]\d{1,2}[/-]\d{1,2}|"
     r"\d{1,2}\s+[A-Za-z]{3,9}\s+\d{4})\b"
 )
-NUMBER_PATTERN = re.compile(r"(?<![A-Za-z])(?:₦|NGN\s*)?\(?-?\d[\d,]*\.\d{2}\)?(?:\s*(?:CR|DR))?", re.I)
+NUMBER_PATTERN = re.compile(
+    r"(?<![A-Za-z])(?:₦|NGN\s*)?\(?-?\d[\d,]*\.\d{2}\)?(?:\s*(?:CR|DR))?",
+    re.I,
+)
 
 
 def _ocr_image(image: Image.Image) -> str:
@@ -53,11 +56,13 @@ def extract_image_ocr_text(content: bytes) -> str:
     try:
         with Image.open(BytesIO(content)) as image:
             image.load()
-            return _ocr_image(image)
+            return _ocr_image(ImageOps.exif_transpose(image))
     except ValueError:
         raise
     except Exception as exc:
-        raise ValueError(\n            "This image could not be opened. Please upload a clear PNG, JPEG or WebP."\n        ) from exc
+        raise ValueError(
+            "This image could not be opened. Please upload a clear PNG, JPEG or WebP."
+        ) from exc
 
 
 def parse_ocr_statement(text: str) -> list[ImportRow]:
