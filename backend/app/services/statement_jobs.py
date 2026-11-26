@@ -6,7 +6,7 @@ import logging
 import time
 from datetime import UTC, datetime, timedelta
 
-from sqlalchemy import or_, select
+from sqlalchemy import func, or_, select
 from sqlalchemy.orm import Session
 
 from app.core.db import SessionLocal
@@ -17,6 +17,11 @@ from app.services.imports import stage_import_rows
 from app.services.statement_intelligence.engine import extract_statement
 
 logger = logging.getLogger(__name__)
+
+
+class StatementQueueFullError(RuntimeError):
+    """Raised when accepting another raw statement would exceed queue bounds."""
+
 
 
 def extraction_payload(extraction) -> dict:
@@ -89,6 +94,25 @@ def enqueue_statement_extraction(
     content: bytes,
     account_section: str | None = None,
 ) -> ImportJob:
+    active_states = ("pending", "processing")
+    household_active = db.scalar(
+        select(func.count())
+        .select_from(StatementExtractionTask)
+        .where(
+            StatementExtractionTask.household_id == household_id,
+            StatementExtractionTask.status.in_(active_states),
+        )
+    ) or 0
+    global_active = db.scalar(
+        select(func.count())
+        .select_from(StatementExtractionTask)
+        .where(StatementExtractionTask.status.in_(active_states))
+    ) or 0
+    if household_active >= 2 or global_active >= 10:
+        raise StatementQueueFullError(
+            "Statement processing is busy. Please wait for an existing import to finish."
+        )
+
     job = ImportJob(
         household_id=household_id,
         source="statement",
