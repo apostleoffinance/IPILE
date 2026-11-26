@@ -31,7 +31,7 @@ ALIASES: dict[CanonicalField, frozenset[str]] = {
     }),
     CanonicalField.BALANCE: frozenset({
         "balance", "running balance", "balance after", "available balance",
-        "ledger balance", "closing balance", "balance ngn",
+        "ledger balance", "closing balance", "balance ngn", "balance after ngn",
     }),
     CanonicalField.REFERENCE: frozenset({
         "reference", "transaction reference", "transaction id", "transaction no",
@@ -40,7 +40,7 @@ ALIASES: dict[CanonicalField, frozenset[str]] = {
     }),
     CanonicalField.CHANNEL: frozenset({"channel", "payment channel", "transaction channel", "mode"}),
     CanonicalField.CURRENCY: frozenset({"currency", "ccy", "currency code"}),
-    CanonicalField.TRANSACTION_TIME: frozenset({"time", "transaction time", "trans time"}),
+    CanonicalField.TRANSACTION_TIME: frozenset({"time", "time of transaction"}),
 }
 
 
