@@ -421,7 +421,6 @@ def update_transaction(
     if (
         transaction.access_scope == "shared"
         and transaction.type in {"income", "expense"}
-        and transaction.status in {"cleared", "reconciled"}
     ):
         from app.services.financial_intelligence import run_financial_intelligence
         from app.services.notifications import sync_notifications_from_alerts
