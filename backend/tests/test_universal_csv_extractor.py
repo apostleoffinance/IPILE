@@ -60,7 +60,8 @@ def test_universal_csv_rejects_ambiguous_duplicate_date_headers() -> None:
     ("content", "expected_type", "expected_currency", "expected_reference"),
     [
         (
-            "Transaction Date,Value Date,Narration,Debit,Credit,Available Balance,Reference Number,Currency\n"
+            "Transaction Date,Value Date,Narration,Debit,Credit,Available Balance,"
+            "Reference Number,Currency\n"
             "2026-02-01,2026-02-01,Groceries,12500.00,,87500.00,ACC-001,NGN\n",
             "expense", "NGN", "ACC-001",
         ),
