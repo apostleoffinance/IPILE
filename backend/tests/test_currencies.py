@@ -149,3 +149,43 @@ def test_get_rate_accepts_exact_date_stored_manual_observation():
     assert rate == Decimal("0.80")
     assert rate_date == date(2026, 11, 26)
     assert source == "manual"
+
+
+def test_get_rate_rejects_old_observation_instead_of_relabeling_it():
+    import app.services.currencies as currencies
+
+    old = SimpleNamespace(
+        rate=Decimal("1.25"),
+        rate_date=date(2026, 11, 24),
+        source="manual",
+        fetched_at=None,
+    )
+
+    class Query:
+        def __init__(self, row):
+            self.row = row
+        def filter(self, *args, **kwargs):
+            return self
+        def order_by(self, *args, **kwargs):
+            return self
+        def first(self):
+            return self.row
+
+    class FakeDb:
+        def query(self, model):
+            return Query(old if model.__name__ == "ExchangeRate" else None)
+        def get(self, model, key):
+            return SimpleNamespace(timezone="Africa/Lagos")
+
+    def offline(*args, **kwargs):
+        raise currencies.httpx.ConnectError("offline")
+
+    original_get = currencies.httpx.get
+    currencies.httpx.get = offline
+    try:
+        with pytest.raises(CurrencyError):
+            currencies.get_rate(
+                FakeDb(), "household", "USD", "GBP", date(2026, 11, 26)
+            )
+    finally:
+        currencies.httpx.get = original_get
