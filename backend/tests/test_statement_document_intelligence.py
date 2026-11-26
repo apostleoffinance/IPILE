@@ -26,7 +26,7 @@ def test_pdf_header_detection_uses_header_geometry_not_bank_name() -> None:
         {"text": "Time", "x0": 31, "x1": 45, "top": 100},
         {"text": "Description", "x0": 70, "x1": 110, "top": 100},
         {"text": "Debit(₦)", "x0": 150, "x1": 185, "top": 100},
-        {"text": "Credit(₦)", "x0": 200, "x1": 240, "top": 100},
+        {"text": "Credit(₦)", "x0": 210, "x1": 250, "top": 100},
         {"text": "Transaction", "x0": 260, "x1": 300, "top": 100},
         {"text": "Reference", "x0": 301, "x1": 330, "top": 100},
     ]
@@ -65,8 +65,8 @@ def test_pdf_layout_reconstructs_wrapped_descriptions_and_repeated_pages(monkeyp
         word("02", 10, 18, 50), word("Jan", 19, 30, 50),
         word("2026", 31, 45, 50), word("10:00:00", 46, 65, 50),
         word("SHOP", 70, 100, 50),
-        word("500.00", 150, 185, 50), word("--", 200, 210, 50),
-        word("REF-002", 260, 310, 50),
+        word("500.00", 150, 185, 50), word("--", 210, 220, 50),
+        word("REF-002", 270, 320, 50),
     ]
 
     class FakePage:
