@@ -15,7 +15,9 @@ class GmailConnection(Base):
         Uuid, ForeignKey("households.id", ondelete="CASCADE"), unique=True
     )
     state_hash: Mapped[str | None] = mapped_column(String(64), nullable=True, index=True)
-    state_expires_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    state_expires_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True
+    )
     email_address: Mapped[str | None] = mapped_column(String(320), nullable=True)
     google_subject: Mapped[str | None] = mapped_column(String(200), nullable=True)
     refresh_token_encrypted: Mapped[str | None] = mapped_column(Text, nullable=True)
