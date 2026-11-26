@@ -1,6 +1,6 @@
 # Phase 2 — Financial Intelligence Engine
 
-**Status:** Completion candidate — awaiting CI and acceptance review  
+**Status:** Implementation complete — final CI verification in progress  
 **Predecessor:** Phase 1 — PR #70 (automatic bank-alert ingestion and user controls)
 
 ## Objective
@@ -61,8 +61,12 @@ Scores are capped at 100. High is 85–100, medium is 65–84, low is below 65. 
 
 ### Additional acceptance tests
 
-- Three consistent monthly transactions produce an upcoming recurring signal with a calculated expected date.
+- Three consistent monthly transactions produce an upcoming recurring signal with a calendar-based expected date.
+- Three annual observations can produce a detected annual pattern even when the next occurrence is not imminent.
+- A recurring payment overdue by 6–35 days produces a warning; older stale patterns are suppressed.
 - Two observations are insufficient to infer recurrence.
 - A recent transaction at least three times the same-payee historical median is flagged when the minimum history exists.
 - Large transactions without sufficient history are not flagged.
+- Generic bank sender domains and generic alert subjects do not become recurring payees.
+- The `/api/v1/insights` integration test verifies recurring signals reach the household workspace.
 - Existing insight and analytics responses continue to return the established `patterns[]` contract.
