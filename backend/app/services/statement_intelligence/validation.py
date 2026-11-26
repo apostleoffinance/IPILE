@@ -77,6 +77,26 @@ def validate_statement(
         ))
 
     balance_checks = 0
+    previous_balance = summary.opening_balance
+    for row in rows:
+        if row.running_balance is None or previous_balance is None:
+            continue
+        delta = row.amount if row.type in {"income", "refund"} else -row.amount
+        expected_balance = previous_balance + delta
+        balance_checks += 1
+        if abs(expected_balance - row.running_balance) > balance_tolerance:
+            issues.append(ExtractionIssue(
+                "running_balance_mismatch",
+                (
+                    f"Running balance on {row.date.isoformat()} does not match "
+                    "the preceding balance and transaction amount."
+                ),
+                "error",
+                page=row.source_page,
+                field="running_balance",
+            ))
+        previous_balance = row.running_balance
+
     if summary.opening_balance is not None and summary.closing_balance is not None:
         expected = summary.opening_balance + credit_total - debit_total
         if abs(expected - summary.closing_balance) > balance_tolerance:
