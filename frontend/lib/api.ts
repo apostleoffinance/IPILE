@@ -823,6 +823,16 @@ export function approveEmailImport(jobId: string, accountId: string) {
   });
 }
 
+export function correctEmailImport(
+  jobId: string,
+  correction: { amount?: string; date?: string; type?: "income" | "expense"; description?: string },
+) {
+  return request<ImportJob>(`/api/v1/imports/${jobId}/review`, {
+    method: "PATCH",
+    body: JSON.stringify(correction),
+  });
+}
+
 export function exportHousehold() {
   return request<Record<string, unknown>>("/api/v1/export");
 }
