@@ -102,4 +102,5 @@ class ExtractionResult:
             bool(self.rows)
             and self.validation is not None
             and self.validation.status == "verified"
+            and not any(issue.severity == "error" for issue in self.issues)
         )
