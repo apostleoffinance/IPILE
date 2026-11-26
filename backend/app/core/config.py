@@ -36,6 +36,7 @@ class Settings(BaseSettings):
     gmail_oauth_client_secret: str = ""
     gmail_oauth_redirect_uri: str = ""
     gmail_sync_secret: str = ""
+    gmail_token_encryption_key: str = ""
     gmail_allowed_sender_domains: str = ""
 
     @property
@@ -45,7 +46,7 @@ class Settings(BaseSettings):
             self.gmail_oauth_client_secret,
             self.gmail_oauth_redirect_uri,
             self.gmail_sync_secret,
-            self.bank_data_encryption_key,
+            self.gmail_token_encryption_key,
         ))
 
     @property
@@ -147,6 +148,7 @@ class Settings(BaseSettings):
             self.gmail_oauth_client_secret,
             self.gmail_oauth_redirect_uri,
             self.gmail_sync_secret,
+            self.gmail_token_encryption_key,
         )
         if any(value.strip() for value in gmail_values) and not all(
             value.strip() for value in gmail_values
@@ -164,6 +166,15 @@ class Settings(BaseSettings):
                 or gmail_redirect.password
             ):
                 problems.append("GMAIL_OAUTH_REDIRECT_URI must be an absolute HTTPS URL")
+
+        if self.gmail_token_encryption_key:
+            try:
+                Fernet(self.gmail_token_encryption_key.encode("ascii"))
+            except (ValueError, UnicodeEncodeError):
+                problems.append(
+                    "GMAIL_TOKEN_ENCRYPTION_KEY must be a valid URL-safe base64-encoded "
+                    "32-byte Fernet key"
+                )
 
         if problems:
             raise ValueError("Invalid production configuration: " + "; ".join(problems))
