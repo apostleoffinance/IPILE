@@ -776,6 +776,9 @@ export type ImportJob = {
   result: {
     sender?: string;
     message_id?: string | null;
+    suggested_account_id?: string | null;
+    account_match?: string;
+    corrected?: boolean;
     errors?: string[];
     account_id?: string;
     row_count?: number;
