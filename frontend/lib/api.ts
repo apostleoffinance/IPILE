@@ -815,6 +815,48 @@ export function explainWithAi() {
   return request<AiExplain>("/api/v1/ai/explain", { method: "POST" });
 }
 
+export type StatementExtractionReview = {
+  extraction_method: string;
+  status: "verified" | "incomplete" | "needs_review" | "manually_accepted";
+  confidence: number;
+  requires_manual_review: boolean;
+  row_count: number;
+  summary: {
+    opening_balance: string | null;
+    closing_balance: string | null;
+    total_debits: string | null;
+    total_credits: string | null;
+    debit_count: number | null;
+    credit_count: number | null;
+    currency: string | null;
+    period_start: string | null;
+    period_end: string | null;
+  };
+  validation: {
+    status: string;
+    debit_total: string;
+    credit_total: string;
+    debit_count: number;
+    credit_count: number;
+    balance_check_count: number;
+  };
+  issues: {
+    code: string;
+    message: string;
+    severity: string;
+    page: number | null;
+    row: number | null;
+    field: string | null;
+  }[];
+  metadata: {
+    institution: string | null;
+    currency: string | null;
+    page_count: number;
+    transaction_pages: number[];
+  };
+  manual_review?: { acknowledged: boolean; reason: string; reviewed_at: string };
+};
+
 export type ImportJob = {
   id: string;
   household_id: string;
@@ -853,10 +895,25 @@ export type ImportJob = {
     };
     errors?: string[];
     extraction_method?: string;
+    extraction?: StatementExtractionReview;
     account_id?: string;
     row_count?: number;
     duplicate_count_at_preview?: number;
-    rows?: { date: string; amount: string; currency?: string | null; type: string; description: string | null; external_id?: string; merchant?: string | null; category_name?: string | null }[];
+    rows?: {
+      date: string;
+      amount: string;
+      currency?: string | null;
+      type: string;
+      description: string | null;
+      external_id?: string;
+      merchant?: string | null;
+      category_name?: string | null;
+      value_date?: string | null;
+      transaction_datetime?: string | null;
+      running_balance?: string | null;
+      source_page?: number | null;
+      extraction_confidence?: number | null;
+    }[];
   };
 };
 
@@ -872,6 +929,13 @@ export function previewStatementUpload(accountId: string, file: File) {
   body.append("account_id", accountId);
   body.append("file", file);
   return request<ImportJob>("/api/v1/imports/preview-upload", { method: "POST", body, signal: AbortSignal.timeout(120_000) });
+}
+
+export function confirmStatementReview(jobId: string, reason: string) {
+  return request<ImportJob>(`/api/v1/imports/jobs/${jobId}/review-confirmation`, {
+    method: "POST",
+    body: JSON.stringify({ acknowledge_discrepancies: true, reason }),
+  });
 }
 
 export function commitStagedImport(jobId: string, accountId: string) {
