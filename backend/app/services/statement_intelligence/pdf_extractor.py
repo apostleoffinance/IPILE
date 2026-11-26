@@ -12,6 +12,7 @@ from typing import Any
 import pdfplumber
 
 from app.services.import_adapters import ImportRow, _make_row, _parse_amount
+from app.services.statement_extraction.pdf_layout import _detect_account_section
 from app.services.statement_intelligence.bank_adapters import extract_with_bank_adapter
 from app.services.statement_intelligence.field_mapping import (
     _NORMALIZED_ALIASES,
@@ -26,7 +27,6 @@ from app.services.statement_intelligence.schema import (
     StatementSummary,
 )
 from app.services.statement_intelligence.validation import validate_statement
-from app.services.statement_extraction.pdf_layout import _detect_account_section
 
 MAX_PDF_PAGES = 150
 
@@ -299,7 +299,8 @@ def extract_pdf_statement(content: bytes) -> ExtractionResult:
         page_count = len(pdf.pages)
         if page_count > MAX_PDF_PAGES:
             raise ValueError(
-                f"This PDF has {page_count} pages. The current safe limit is {MAX_PDF_PAGES} pages per upload."
+                f"This PDF has {page_count} pages. The safe limit is "
+                f"{MAX_PDF_PAGES} pages per upload."
             )
         for page_number, page in enumerate(pdf.pages, start=1):
             page_text = page.extract_text() or ""
