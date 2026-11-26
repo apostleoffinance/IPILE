@@ -112,8 +112,8 @@ def test_universal_csv_combines_separate_transaction_date_and_time_columns() -> 
 
 def test_universal_csv_uses_explicit_negative_sign_as_debit_direction() -> None:
     content = (
-        "Transaction Date,Description,Amount,Reference\\n"
-        "2026-01-01,Card purchase,-100.00,ref-negative\\n"
+        "Transaction Date,Description,Amount,Reference\n"
+        "2026-01-01,Card purchase,-100.00,ref-negative\n"
     )
     rows = parse_universal_csv(content)
     assert rows[0].type == "expense"
