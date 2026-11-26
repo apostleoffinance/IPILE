@@ -360,6 +360,7 @@ async def preview_statement_upload(
             filename=filename,
             suffix=suffix,
             content=raw,
+            account_section=account_section,
         )
     except Exception as exc:
         db.rollback()
