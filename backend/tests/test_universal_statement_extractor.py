@@ -62,7 +62,12 @@ def test_universal_pdf_extractor_fails_closed_when_table_is_unrecognized(monkeyp
         ),
     )
     monkeypatch.setattr(extractor, "extract_pdf_layout_transactions", lambda _content: ())
-    result = extract_statement_document(b"pdf", "pdf")
+
+    def reject_legacy_fallback(*_args):
+        raise ValueError("The legacy parser could not identify transaction rows.")
+
+    monkeypatch.setattr(extractor, "parse_statement_document", reject_legacy_fallback)
+    result = extract_statement_document(b"synthetic-pdf-bytes", "pdf")
     assert result.status == ExtractionStatus.INCOMPLETE
     assert result.transactions == ()
     assert "no_recognized_transaction_table" in {issue.code for issue in result.issues}
