@@ -49,7 +49,7 @@ export default function ImportPage() {
     setReviewAccounts((current) => {
       const next = { ...current };
       for (const job of pendingEmailJobs) {
-        if (!next[job.id] && accounts?.[0]) next[job.id] = accounts[0].id;
+        if (!next[job.id] && accounts?.length) next[job.id] = accounts.find((account) => account.id === job.result?.suggested_account_id)?.id ?? accounts[0].id;
       }
       return next;
     });
