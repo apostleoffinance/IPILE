@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import re
-from decimal import Decimal
 from io import BytesIO
 
 import pypdfium2 as pdfium
@@ -58,7 +57,7 @@ def extract_image_ocr_text(content: bytes) -> str:
     except ValueError:
         raise
     except Exception as exc:
-        raise ValueError("This image could not be opened. Please upload a clear PNG, JPEG or WebP.") from exc
+        raise ValueError(\n            "This image could not be opened. Please upload a clear PNG, JPEG or WebP."\n        ) from exc
 
 
 def parse_ocr_statement(text: str) -> list[ImportRow]:
