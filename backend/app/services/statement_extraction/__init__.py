@@ -19,6 +19,7 @@ from app.services.statement_extraction.models import (
     ValidationReport,
 )
 from app.services.statement_extraction.validation import validate_extraction
+from app.services.statement_extraction.extractor import extract_statement_document
 
 __all__ = [
     "ColumnField", "ColumnMapping", "ExtractionMethod", "ExtractionResult",
@@ -27,4 +28,3 @@ __all__ = [
     "extract_statement_document", "map_statement_columns", "normalize_header", "validate_extraction",
 ]
 
-from app.services.statement_extraction.extractor import extract_statement_document
