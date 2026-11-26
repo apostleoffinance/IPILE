@@ -117,3 +117,84 @@ def test_underfunded_obligation_alert_and_seed_inbox(client: TestClient) -> None
     inbox = client.get("/api/v1/notifications").json()
     assert len(inbox) >= 1
     assert any(row["severity"] in {"warning", "critical"} for row in inbox)
+
+
+
+def test_recurring_payment_generates_one_proactive_alert_and_notification(
+    client: TestClient,
+) -> None:
+    from app.services.recurring import add_months
+
+    register(client, "proactive-recurring@example.com")
+    account = client.post(
+        "/api/v1/accounts",
+        json={"name": "Current", "type": "bank", "current_balance": "100000.00"},
+    ).json()
+    anchor = date.today().replace(day=5)
+    for months_ago in (2, 1, 0):
+        occurred_on = add_months(anchor, -months_ago)
+        response = client.post(
+            "/api/v1/transactions",
+            json={
+                "account_id": account["id"],
+                "amount": "1000.00",
+                "type": "expense",
+                "date": occurred_on.isoformat(),
+                "merchant": "Netflix",
+                "description": "Monthly subscription",
+                "status": "cleared",
+            },
+        )
+        assert response.status_code == 201, response.text
+
+    alerts = client.get("/api/v1/alerts").json()
+    recurring = [row for row in alerts if row["type"] == "recurring_payment_upcoming"]
+    assert len(recurring) == 1
+    assert recurring[0]["related_entity_id"] == account["id"]
+
+    inbox = client.get("/api/v1/notifications", params={"unread_only": "true"}).json()
+    proactive = [row for row in inbox if row["title"] == "Expected recurring transaction"]
+    assert len(proactive) == 1
+
+    tick = client.post("/api/v1/automation/tick", json={"tick_type": "daily"})
+    assert tick.status_code == 200, tick.text
+    inbox_after_tick = client.get(
+        "/api/v1/notifications", params={"unread_only": "true"}
+    ).json()
+    assert len([row for row in inbox_after_tick if row["title"] == "Expected recurring transaction"]) == 1
+
+
+def test_unusually_large_transaction_generates_proactive_alert(client: TestClient) -> None:
+    register(client, "proactive-anomaly@example.com")
+    account = client.post(
+        "/api/v1/accounts",
+        json={"name": "Current", "type": "bank", "current_balance": "100000.00"},
+    ).json()
+    history = [
+        (date(2026, 7, 20), "100.00"),
+        (date(2026, 8, 20), "110.00"),
+        (date(2026, 9, 20), "90.00"),
+        (date(2026, 10, 20), "100.00"),
+    ]
+    for occurred_on, amount in history + [(date(2026, 11, 20), "500.00")]:
+        response = client.post(
+            "/api/v1/transactions",
+            json={
+                "account_id": account["id"],
+                "amount": amount,
+                "type": "expense",
+                "date": occurred_on.isoformat(),
+                "merchant": "PowerCo",
+                "description": "Utility payment",
+                "status": "cleared",
+            },
+        )
+        assert response.status_code == 201, response.text
+
+    alerts = client.get("/api/v1/alerts").json()
+    anomaly = [row for row in alerts if row["type"] == "unusually_large_transaction"]
+    assert len(anomaly) == 1
+    assert anomaly[0]["severity"] == "warning"
+
+    inbox = client.get("/api/v1/notifications", params={"unread_only": "true"}).json()
+    assert any(row["title"] == "Transaction is larger than usual" for row in inbox)
