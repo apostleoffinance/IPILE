@@ -147,7 +147,7 @@ def giving_summary(
     ).with_entities(func.coalesce(func.sum(GivingRecord.base_amount), 0)).scalar()
     year_total = posted_records(db, ctx.household.id).filter(
         extract("year", GivingRecord.date) == today.year,
-    ).with_entities(func.coalesce(func.sum(GivingRecord.amount), 0)).scalar()
+    ).with_entities(func.coalesce(func.sum(GivingRecord.base_amount), 0)).scalar()
     return GivingSummaryOut(
         period_month=today.strftime("%Y-%m"),
         policies=policies,
