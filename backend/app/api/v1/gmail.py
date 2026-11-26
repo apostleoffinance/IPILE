@@ -4,9 +4,6 @@ import hashlib
 import hmac
 import secrets
 from datetime import UTC, datetime, timedelta
-from decimal import Decimal
-from email.utils import parsedate_to_datetime
-from uuid import UUID
 
 from fastapi import APIRouter, Depends, Header, HTTPException
 from fastapi.responses import RedirectResponse
