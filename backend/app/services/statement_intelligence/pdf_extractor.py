@@ -48,7 +48,12 @@ DATE_PREFIX = re.compile(
     r"\d{4}-\d{1,2}-\d{1,2}(?:\s+\d{2}:\d{2}:\d{2})?|"
     r"\d{1,2}[/-]\d{1,2}[/-]\d{2,4}(?:\s+\d{2}:\d{2}:\d{2})?)"
 )
-AMOUNT_TOKEN = re.compile(r"^\s*(?:₦|NGN|\$|USD|€|EUR|£|GBP)?\s*([\d,]+(?:\.\d{1,4})?|\([\d,]+(?:\.\d{1,4})?\))\s*(CR|DR)?\s*$", re.I)
+AMOUNT_TOKEN = re.compile(
+    r"^\s*(?:₦|NGN|\$|USD|€|EUR|£|GBP)?\s*"
+    r"([\d,]+(?:\.\d{1,4})?|\([\d,]+(?:\.\d{1,4})?\))\s*"
+    r"(CR|DR)?\s*$",
+    re.I,
+)
 SUMMARY_PATTERNS = {
     "opening_balance": re.compile(r"opening\s+balance\s*[:\n ]*[^\d\n]*([\d,]+\.\d{2})", re.I),
     "closing_balance": re.compile(r"closing\s+balance\s*[:\n ]*[^\d\n]*([\d,]+\.\d{2})", re.I),
@@ -59,7 +64,9 @@ SUMMARY_PATTERNS = {
 }
 
 
-def _cluster_words(words: list[dict[str, Any]], tolerance: float = 2.0) -> dict[float, list[dict[str, Any]]]:
+def _cluster_words(
+    words: list[dict[str, Any]], tolerance: float = 2.0
+) -> dict[float, list[dict[str, Any]]]:
     """Group words into visual text lines without depending on a bank's font size."""
     lines: dict[float, list[dict[str, Any]]] = {}
     for word in sorted(words, key=lambda item: (float(item["top"]), float(item["x0"]))):
@@ -275,9 +282,18 @@ def extract_pdf_statement(content: bytes) -> ExtractionResult:
                         if amount == 0:
                             raise ValueError("Transaction amount is missing.")
                         marker = amount_text.upper()
-                        if amount < 0 or "DR" in marker or direction_text in {"debit", "dr", "out", "outgoing"}:
+                        is_debit = (
+                            amount < 0
+                            or "DR" in marker
+                            or direction_text in {"debit", "dr", "out", "outgoing"}
+                        )
+                        is_credit = (
+                            "CR" in marker
+                            or direction_text in {"credit", "cr", "in", "incoming"}
+                        )
+                        if is_debit:
                             amount, tx_type = -abs(amount), "expense"
-                        elif "CR" in marker or direction_text in {"credit", "cr", "in", "incoming"}:
+                        elif is_credit:
                             amount, tx_type = abs(amount), "income"
                         else:
                             raise ValueError(
@@ -310,7 +326,9 @@ def extract_pdf_statement(content: bytes) -> ExtractionResult:
                         or ("NGN" if "₦" in page_text else None)
                     )
                     value_date_text = cells.get(CanonicalField.VALUE_DATE, "")
-                    value_date_datetime = _parse_datetime(value_date_text) if value_date_text else None
+                    value_date_datetime = (
+                        _parse_datetime(value_date_text) if value_date_text else None
+                    )
                     rows.append(
                         _make_row(
                             raw_date=transaction_datetime.date().isoformat(),
