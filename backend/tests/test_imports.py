@@ -689,7 +689,7 @@ def test_imported_transactions_trigger_proactive_recurring_detection(
         )
     response = client.post(
         "/api/v1/imports/csv",
-        json={"account_id": account["id"], "content": "\\n".join(rows)},
+        json={"account_id": account["id"], "content": "\n".join(rows)},
     )
     assert response.status_code == 201, response.text
     assert response.json()["created_count"] == 3
