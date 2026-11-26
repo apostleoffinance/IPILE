@@ -6,9 +6,9 @@ changes balances, blocks transactions, or labels a transaction as fraud.
 from __future__ import annotations
 
 import re
+from calendar import monthrange
 from collections import defaultdict
 from collections.abc import Iterable
-from calendar import monthrange
 from datetime import date, timedelta
 from decimal import Decimal
 from statistics import median
