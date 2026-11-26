@@ -224,9 +224,13 @@ def stage_import_rows(
             "merchant": row.merchant,
             "category_name": row.category_name,
             "currency": row.currency,
-            "transaction_datetime": row.transaction_datetime.isoformat() if row.transaction_datetime else None,
+            "transaction_datetime": (
+                row.transaction_datetime.isoformat() if row.transaction_datetime else None
+            ),
             "value_date": row.value_date.isoformat() if row.value_date else None,
-            "running_balance": str(row.running_balance) if row.running_balance is not None else None,
+            "running_balance": (
+                str(row.running_balance) if row.running_balance is not None else None
+            ),
             "channel": row.channel,
             "source_page": row.source_page,
             "source_row": row.source_row,
@@ -295,8 +299,12 @@ def commit_staged_import(
                 datetime.fromisoformat(item["transaction_datetime"])
                 if item.get("transaction_datetime") else None
             ),
-            value_date=date.fromisoformat(item["value_date"]) if item.get("value_date") else None,
-            running_balance=Decimal(item["running_balance"]) if item.get("running_balance") else None,
+            value_date=(
+                date.fromisoformat(item["value_date"]) if item.get("value_date") else None
+            ),
+            running_balance=(
+                Decimal(item["running_balance"]) if item.get("running_balance") else None
+            ),
             channel=item.get("channel"),
             source_page=item.get("source_page"),
             source_row=item.get("source_row"),
