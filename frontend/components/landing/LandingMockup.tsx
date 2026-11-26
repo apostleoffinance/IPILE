@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { ArrowDown, ArrowUpRight, Check, ShieldCheck } from "lucide-react";
+import { ArrowDown, ArrowUpRight, Check } from "lucide-react";
 import { Wordmark } from "@/components/brand/Wordmark";
 
 const audiences = [
