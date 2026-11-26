@@ -72,7 +72,7 @@ export function LandingMockup() {
             <PrimaryLink />
             <a href="#how-it-works">See how it works <ArrowDown className="inline h-4 w-4" aria-hidden="true" /></a>
           </div>
-          <p className="mx-auto mt-7 max-w-2xl text-sm leading-7 text-[#737973]">Know what you have. Know what it is committed to. Know what you can safely spend. See what you are building towards.</p>
+          <p className="ipile-marketing-hero-proof">Know what you have. Know what it is committed to. Know what you can safely spend. See what you are building towards.</p>
           <p className="ipile-marketing-note">Your money. In harmony.</p>
         </div>
         <div className="ipile-marketing-orbit" aria-hidden="true"><span className="orbit-a" /><span className="orbit-b" /><span className="orbit-line" /></div>
@@ -82,11 +82,7 @@ export function LandingMockup() {
       <section className="ipile-marketing-section" id="how-it-works">
         <div className="ipile-marketing-intro">
           <div><SectionLabel>The whole picture</SectionLabel><h2>Your financial life is connected.<br />Your money shouldn&apos;t feel scattered.</h2></div>
-          <div className="space-y-4 text-base leading-8 text-[#737973]">
-            <p>Income arrives in one account. Bills leave another. Savings sit somewhere else. Family obligations compete with personal priorities. Goals get postponed because it is difficult to see the whole picture.</p>
-            <p>Whether you manage your finances independently or share responsibilities with others, financial clarity starts with seeing everything together.</p>
-            <p className="font-medium text-[#003d35]">IPÌLẸ̀ gives your financial life one place to come together.</p>
-          </div>
+
         </div>
         <div className="ipile-marketing-features" id="whole-picture">
           {["Accounts", "Income", "Spending", "Commitments", "Savings", "Investments", "Family", "Goals"].map((item, index) => <article key={item}><span>0{index + 1}</span><h3>{item}</h3></article>)}
@@ -95,7 +91,7 @@ export function LandingMockup() {
 
       <section className="px-6 py-20 md:px-12 md:py-28" id="foundation">
         <div className="mx-auto max-w-7xl">
-          <SectionHeading label="One financial foundation" title="Everything you need to understand, plan and build your financial future." body="Your money has different responsibilities. IPÌLẸ̀ helps you see them, organise them and understand what comes next." />
+          <SectionHeading label="One financial foundation" title="Everything you need to understand, plan and build your financial future." />
           <div className="mt-14 grid gap-px border border-[#dcded8] bg-[#dcded8] md:grid-cols-2">
             {[
               ["01", "Know your money", "Accounts, income, transactions and cash flow. Understand where your money lives, where it goes and how it moves."],
@@ -113,7 +109,7 @@ export function LandingMockup() {
       <section className="ipile-marketing-section" id="who-its-for">
         <div className="ipile-marketing-intro">
           <div><SectionLabel>Built around real financial life</SectionLabel><h2>Your finances are personal. Your financial responsibilities are unique.</h2></div>
-          <p>IPÌLẸ̀ works around the way you actually manage money — whether that means managing it alone or coordinating it with others.</p>
+
         </div>
         <div className="grid gap-5 md:grid-cols-3">
           {audiences.map((item, index) => <article key={item.title} className="border-t-2 border-[#003d35] bg-white/60 p-6 md:p-8"><span className="text-xs tracking-[.2em] text-[#b28c4b]">0{index + 1}</span><h3 className="mt-7 font-display text-3xl text-[#050807]">{item.title}</h3><p className="mt-4 text-sm leading-7 text-[#737973]">{item.body}</p></article>)}
@@ -126,10 +122,7 @@ export function LandingMockup() {
         <div className="ipile-marketing-split-copy">
           <SectionLabel>The people behind the numbers</SectionLabel>
           <h2>Money is personal.<br />Financial life can be shared.</h2>
-          <p>Your finances aren&apos;t just about what you spend. They&apos;re also about the people you support, the responsibilities you carry, the goals you share and the future you are preparing for.</p>
-          <p>IPÌLẸ̀ helps you bring those responsibilities into the bigger financial picture.</p>
           <ul className="mt-6 space-y-3 text-sm text-[#505750]">{responsibilities.map((item) => <li key={item} className="flex items-center gap-3"><Check size={16} className="text-[#003d35]" aria-hidden="true" />{item}</li>)}</ul>
-          <p className="mt-6 text-sm leading-7 text-[#737973]">Whether you manage these responsibilities independently or together, IPÌLẸ̀ helps you see how they fit into your financial life.</p>
         </div>
       </section>
 
@@ -141,7 +134,7 @@ export function LandingMockup() {
       </section>
 
       <section className="ipile-marketing-preview" id="preview">
-        <div className="ipile-marketing-preview-head"><div><SectionLabel>A window into IPÌLẸ̀</SectionLabel><h2>See your financial picture clearly.</h2></div><p>Not just a collection of accounts and transactions. A considered view of what you have, what is committed, what needs attention and what is getting stronger.</p></div>
+        <div className="ipile-marketing-preview-head"><div><SectionLabel>A window into IPÌLẸ̀</SectionLabel><h2>See your financial picture clearly.</h2></div></div>
         <div className="ipile-marketing-dashboard">
           <div className="dashboard-top"><strong>IPÌLẸ̀ <span>·</span></strong><small>Household workspace　⌄　　◉ Sample profile</small></div>
           <div className="dashboard-body"><aside><b>◫　Overview</b><span>▣　Money</span><span>▤　Planning</span><span>◇　Wealth</span><span>⌁　Insights</span><span>♧　Family</span><span className="settings">⚙　Settings</span></aside>
@@ -167,8 +160,7 @@ export function LandingMockup() {
       <section className="px-6 py-20 md:px-12 md:py-28" id="decision-support">
         <div className="mx-auto grid max-w-7xl gap-14 lg:grid-cols-[1fr_.9fr] lg:items-center">
           <div><SectionLabel>Decision support</SectionLabel><h2 className="mt-4 max-w-xl font-display text-4xl leading-tight text-[#050807] md:text-5xl">Before you make a financial decision, understand what it changes.</h2>
-            <p className="mt-6 max-w-xl text-base leading-8 text-[#737973]">IPÌLẸ̀ goes beyond recording what has happened. Its financial simulator helps you explore possible outcomes and understand how decisions could affect your plans.</p>
-            <p className="mt-4 max-w-xl text-base leading-8 text-[#737973]">What happens if your income changes? What if you take on a new obligation? What happens to your savings, commitments and financial goals?</p>
+            <p className="mt-6 max-w-xl text-base leading-8 text-[#737973]">Explore how changes in income and commitments could affect your plans before you decide.</p>
             <p className="mt-5 font-medium text-[#003d35]">Explore the possibilities before making the decision.</p>
           </div>
           <div className="border border-[#dcded8] bg-white p-6 md:p-8"><div className="flex items-center justify-between"><SectionLabel>Illustrative scenario</SectionLabel><span className="text-xs text-[#b28c4b]">What if?</span></div>
@@ -183,8 +175,6 @@ export function LandingMockup() {
       <section className="ipile-marketing-cta">
         <p className="ipile-marketing-kicker">Your next chapter starts with clarity</p>
         <h2>A better understanding of your money starts here.</h2>
-        <p>Whether you are organising your personal finances, managing a household or planning for your family&apos;s future, IPÌLẸ̀ gives you a clearer place to begin.</p>
-        <p className="mx-auto mt-4 max-w-xl text-sm leading-7 text-white/70">Bring everything together. Understand where you stand. Make your next financial decision with confidence.</p>
         <div className="mt-9 flex flex-wrap justify-center gap-4"><PrimaryLink>Build your financial foundation</PrimaryLink><Link href="#how-it-works" className="px-4 py-3 text-sm text-white/80 underline underline-offset-4">See how IPÌLẸ̀ works</Link></div>
         <p className="mt-8 text-xs tracking-[.18em] text-white/60">Your money. In harmony.</p>
       </section>
