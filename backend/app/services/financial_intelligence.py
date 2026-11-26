@@ -1,5 +1,5 @@
 """Persist proactive, explainable financial signals as household alerts."""
-from __future__ import annotations
+from __future__ import annotations  # noqa: I001
 
 from datetime import UTC, date, datetime, timedelta
 from hashlib import sha256
