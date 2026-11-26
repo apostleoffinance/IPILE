@@ -38,7 +38,9 @@ ALIASES: dict[CanonicalField, frozenset[str]] = {
         "transaction number", "session id", "session reference", "external id",
         "rrn", "narration reference",
     }),
-    CanonicalField.CHANNEL: frozenset({"channel", "payment channel", "transaction channel", "mode"}),
+    CanonicalField.CHANNEL: frozenset({
+        "channel", "payment channel", "transaction channel", "mode",
+    }),
     CanonicalField.CURRENCY: frozenset({"currency", "ccy", "currency code"}),
     CanonicalField.TRANSACTION_TIME: frozenset({"time", "time of transaction"}),
 }
@@ -73,13 +75,12 @@ def map_statement_headers(headers: list[str] | tuple[str, ...]) -> ColumnMapping
         if len(positions) == 1
     }
     recognized = sum(len(positions) == 1 for positions in candidates.values())
-    confidence = min(1.0, recognized / 7)
     unmapped = tuple(headers[i] for i, header in enumerate(normalized) if not any(
         header in aliases for aliases in _NORMALIZED_ALIASES.values()
     ))
     return ColumnMapping(
         indexes=indexes,
         headers=tuple(headers),
-        confidence=min(1.0, recognized / 5),
+        confidence=min(1.0, recognized / 7),
         unmapped_headers=unmapped,
     )
