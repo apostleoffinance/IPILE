@@ -12,6 +12,7 @@ from typing import Any
 import pdfplumber
 
 from app.services.import_adapters import ImportRow, _make_row, _parse_amount
+from app.services.statement_intelligence.bank_adapters import extract_with_bank_adapter
 from app.services.statement_intelligence.field_mapping import (
     _NORMALIZED_ALIASES,
     normalize_header,
@@ -404,6 +405,11 @@ def extract_pdf_statement(content: bytes) -> ExtractionResult:
                     )
 
     if not rows:
+        bank_adapter_result = extract_with_bank_adapter(
+            content, "\\n".join(raw_page_text.values())
+        )
+        if bank_adapter_result is not None:
+            return bank_adapter_result
         raise ValueError(
             "We couldn't identify transaction rows in this statement. "
             "Try a clearer PDF or upload the bank's CSV export."
