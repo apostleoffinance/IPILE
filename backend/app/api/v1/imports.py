@@ -259,7 +259,7 @@ async def preview_statement_upload(
     try:
         extraction_method = "csv" if suffix == "csv" else "text"
         if suffix in {"pdf", "png", "jpg", "jpeg", "webp"}:
-            rows, extraction_method = parse_statement_document(raw, suffix)
+            rows, extraction_method = await run_in_threadpool(parse_statement_document, raw, suffix)
             source = "statement"
         else:
             content = raw.decode("utf-8-sig")
