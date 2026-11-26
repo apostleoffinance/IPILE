@@ -845,7 +845,7 @@ export type GmailConnectionStatus = {
 export const getGmailConnection = () => request<GmailConnectionStatus>("/api/v1/imports/gmail/connection");
 export const connectGmail = () => request<{ authorization_url: string }>("/api/v1/imports/gmail/connect", { method: "POST" });
 export const disconnectGmail = () => request<{ connected: boolean }>("/api/v1/imports/gmail/disconnect", { method: "POST" });
-export const syncGmail = () => request<{ scanned: number; queued: number; rejected: number; ignored: number }>("/api/v1/imports/gmail/sync", { method: "POST" });
+export const syncGmail = () => request<{ scanned: number; queued: number; auto_posted: number; rejected: number; ignored: number }>("/api/v1/imports/gmail/sync", { method: "POST" });
 export type ImportAutomationMode = "review_everything" | "auto_trusted" | "full_automation";
 export const getImportPreferences = () => request<{ automation_mode: ImportAutomationMode }>("/api/v1/imports/preferences");
 export const updateImportPreferences = (automation_mode: ImportAutomationMode) =>
