@@ -137,7 +137,7 @@ def parse_universal_csv(content: str) -> list[ImportRow]:
                     "debt_payment", "giving",
                 }:
                     tx_type = "expense" if is_debit else "income"
-                amount = abs(amount)
+                amount = -abs(amount) if is_debit else abs(amount)
 
             description = cell(description_index) or None
             merchant = cell(merchant_index) or description
