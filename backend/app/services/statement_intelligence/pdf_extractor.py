@@ -354,7 +354,11 @@ def extract_pdf_statement(content: bytes) -> ExtractionResult:
                             } else "expense"
                         elif is_credit:
                             amount = abs(amount)
-                            tx_type = declared_type if declared_type in {"income", "refund", "transfer"} else "income"
+                            tx_type = (
+                                declared_type
+                                if declared_type in {"income", "refund", "transfer"}
+                                else "income"
+                            )
                         else:
                             raise ValueError(
                                 "Transaction direction is unclear; this amount was not guessed."
