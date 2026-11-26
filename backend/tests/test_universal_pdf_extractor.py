@@ -76,7 +76,7 @@ def test_universal_pdf_extractor_maps_columns_and_reconstructs_wrapped_rows(monk
         lambda _buffer: FakePdf([_opay_layout_page()]),
     )
     page = _opay_layout_page()
-    mapping, positions, _header_top = pdf_extractor.detect_column_mapping(page)
+    _mapping, positions, _header_top = pdf_extractor.detect_column_mapping(page)
     assert positions[CanonicalField.TRANSACTION_DATE] == 56
     assert positions[CanonicalField.VALUE_DATE] == 123
     lines = pdf_extractor._cluster_words(page.extract_words())
