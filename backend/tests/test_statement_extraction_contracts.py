@@ -2,7 +2,7 @@ from datetime import date
 from decimal import Decimal
 
 from app.services.statement_extraction import (
-    ColumnField, ExtractionStatus, ExtractedTransaction, StatementSummary,
+    ColumnField, ExtractionStatus, ExtractedTransaction, StatementSummary, TransactionDirection,
     map_statement_columns, normalize_header, validate_extraction,
 )
 
@@ -32,11 +32,11 @@ def test_validation_detects_unknown_direction_and_duplicate_reference() -> None:
     rows = [
         ExtractedTransaction(
             transaction_date=date(2026, 1, 1), amount=Decimal("100.00"),
-            direction="debit", reference="same", confidence=Decimal("0.99"),
+            direction=TransactionDirection.DEBIT, reference="same", confidence=Decimal("0.99"),
         ),
         ExtractedTransaction(
             transaction_date=date(2026, 1, 2), amount=Decimal("50.00"),
-            direction="unknown", reference="same", confidence=Decimal("0.70"),
+            direction=TransactionDirection.UNKNOWN, reference="same", confidence=Decimal("0.70"),
         ),
     ]
     report = validate_extraction(rows)
@@ -55,7 +55,7 @@ def test_statement_summary_reconciliation_flags_mismatches() -> None:
         ),
         ExtractedTransaction(
             transaction_date=date(2026, 1, 2), amount=Decimal("100.00"),
-            direction="credit", confidence=Decimal("0.99"),
+            direction=TransactionDirection.CREDIT, confidence=Decimal("0.99"),
         ),
     ]
     report = validate_extraction(
