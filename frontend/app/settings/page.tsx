@@ -59,7 +59,7 @@ export default function SettingsPage() {
   const [newPassword, setNewPassword] = useState("");
 
   async function refresh() {
-    const [nextBilling, nextInvites, nextTickets, nextHousehold, me] = await Promise.all([
+    const [nextBilling, nextInvites, nextTickets, nextHousehold, me, currencyCatalog] = await Promise.all([
       getBilling(),
       listInvites().catch(() => [] as Invite[]),
       listSupportTickets(),
@@ -74,7 +74,7 @@ export default function SettingsPage() {
     setBufferAmount(nextHousehold.minimum_buffer_amount);
     setFiscalMonth(String(nextHousehold.fiscal_month_start_day));
     setReportingCurrency(nextHousehold.reporting_currency || nextHousehold.base_currency);
-    setCurrencies((await getCurrencyCatalog()).currencies);
+    setCurrencies(currencyCatalog.currencies);
     setInvites(nextInvites);
     setTickets(nextTickets);
   }
