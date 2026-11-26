@@ -3,9 +3,8 @@ from decimal import Decimal
 
 from fastapi.testclient import TestClient
 
-from tests.conftest import register
-
 from app.services.email_imports import parse_bank_alert
+from tests.conftest import register
 
 
 def test_bank_alert_parser_recognizes_iso_codes_and_symbols() -> None:
@@ -24,7 +23,6 @@ def test_bank_alert_parser_recognizes_iso_codes_and_symbols() -> None:
 
 
 def test_alert_preferences_default_to_review_and_can_be_changed(client: TestClient) -> None:
-
     register(client, "gmail-preferences@example.com")
     initial = client.get("/api/v1/imports/preferences")
     assert initial.status_code == 200
