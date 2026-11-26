@@ -609,16 +609,19 @@ export function getCurrencyCatalog() {
   return request<{ currencies: { code: string; name: string; symbol: string }[]; default: string }>("/api/v1/currencies");
 }
 
-export function updateCurrentHousehold(body: {
+export async function updateCurrentHousehold(body: {
   name?: string;
   minimum_buffer_amount?: string;
   fiscal_month_start_day?: number;
   reporting_currency?: string;
 }) {
-  return request<Household>("/api/v1/households/current", {
+  const household = await request<Household>("/api/v1/households/current", {
     method: "PATCH",
     body: JSON.stringify(body),
   });
+  currentHouseholdCache = undefined;
+  if (typeof window !== "undefined") window.dispatchEvent(new Event("ipile:household-changed"));
+  return household;
 }
 
 export function getFinancialHealth() {
