@@ -91,3 +91,71 @@ def test_auto_trusted_posts_only_exact_bank_and_currency_match(
     assert len(transactions) == 1
     balance = Decimal(client.get("/api/v1/accounts").json()[0]["current_balance"])
     assert balance == Decimal("6000.00")
+
+
+
+def test_gmail_oauth_flow_encrypts_refresh_token_and_consumes_state(
+    client: TestClient, monkeypatch
+) -> None:
+    from urllib.parse import parse_qs, urlsplit
+
+    from cryptography.fernet import Fernet
+
+    from app.api.v1 import gmail as gmail_api
+    from app.core.config import Settings
+    from app.models.gmail import GmailConnection
+    from app.services import gmail as gmail_service
+    from tests.conftest import TestingSessionLocal
+
+    register(client, "gmail-oauth@example.com")
+    settings = Settings(
+        gmail_oauth_client_id="google-client",
+        gmail_oauth_client_secret="google-secret",
+        gmail_oauth_redirect_uri="https://api.ipile.app/api/v1/imports/gmail/callback",
+        gmail_sync_secret="sync-secret",
+        gmail_token_encryption_key=Fernet.generate_key().decode("ascii"),
+        gmail_allowed_sender_domains="bank.example",
+        cors_origins="https://ipile.app",
+    )
+    monkeypatch.setattr(gmail_api, "get_settings", lambda: settings)
+    monkeypatch.setattr(gmail_service, "get_settings", lambda: settings)
+
+    started = client.post("/api/v1/imports/gmail/connect")
+    assert started.status_code == 200, started.text
+    authorization = started.json()["authorization_url"]
+    query = parse_qs(urlsplit(authorization).query)
+    assert query["scope"] == [gmail_service.GMAIL_SCOPE]
+    assert query["access_type"] == ["offline"]
+    state = query["state"][0]
+
+    monkeypatch.setattr(
+        gmail_api,
+        "exchange_code",
+        lambda _code: {"access_token": "access-token", "refresh_token": "refresh-token"},
+    )
+    monkeypatch.setattr(
+        gmail_api,
+        "gmail_get",
+        lambda _token, _path: {"emailAddress": "bank-alerts@gmail.com"},
+    )
+    callback = client.get(
+        "/api/v1/imports/gmail/callback",
+        params={"code": "one-time-code", "state": state},
+        follow_redirects=False,
+    )
+    assert callback.status_code == 303
+    assert "gmail=connected" in callback.headers["location"]
+
+    with TestingSessionLocal() as db:
+        connection = db.query(GmailConnection).one()
+        assert connection.enabled is True
+        assert connection.email_address == "bank-alerts@gmail.com"
+        assert connection.refresh_token_encrypted != "refresh-token"
+        assert connection.state_hash is None
+
+    replay = client.get(
+        "/api/v1/imports/gmail/callback",
+        params={"code": "one-time-code", "state": state},
+        follow_redirects=False,
+    )
+    assert "gmail=expired" in replay.headers["location"]
