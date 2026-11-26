@@ -97,4 +97,8 @@ class ExtractionResult:
 
     @property
     def is_importable(self) -> bool:
-        return bool(self.rows) and self.validation is not None and self.validation.status == "verified"
+        return (
+            bool(self.rows)
+            and self.validation is not None
+            and self.validation.status == "verified"
+        )
