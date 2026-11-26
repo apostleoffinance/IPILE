@@ -161,7 +161,11 @@ def test_recurring_payment_generates_one_proactive_alert_and_notification(
     inbox_after_tick = client.get(
         "/api/v1/notifications", params={"unread_only": "true"}
     ).json()
-    assert len([row for row in inbox_after_tick if row["title"] == "Expected recurring transaction"]) == 1
+    recurring_after_tick = [
+        row for row in inbox_after_tick
+        if row["title"] == "Expected recurring transaction"
+    ]
+    assert len(recurring_after_tick) == 1
 
 
 def test_unusually_large_transaction_generates_proactive_alert(client: TestClient) -> None:
