@@ -11,6 +11,7 @@ from app.services.statement_extraction.models import (
     ExtractionMethod,
     ExtractionResult,
     ExtractionStatus,
+    StatementAccountSection,
     StatementMetadata,
     StatementSummary,
     TransactionDirection,
