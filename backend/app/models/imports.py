@@ -58,6 +58,7 @@ class StatementExtractionTask(Base):
     )
     filename: Mapped[str] = mapped_column(String(200))
     suffix: Mapped[str] = mapped_column(String(10))
+    account_section: Mapped[str | None] = mapped_column(String(120), nullable=True)
     content: Mapped[bytes] = mapped_column(LargeBinary)
     status: Mapped[str] = mapped_column(String(20), default="pending", index=True)
     attempts: Mapped[int] = mapped_column(Integer, default=0)
