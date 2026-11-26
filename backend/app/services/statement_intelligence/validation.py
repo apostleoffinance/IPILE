@@ -25,8 +25,19 @@ def validate_statement(
     """
     summary = summary or StatementSummary(opening_balance=opening_balance)
     issues: list[ExtractionIssue] = []
-    debit_rows = [row for row in rows if row.type in {"expense", "debt_payment", "giving"}]
-    credit_rows = [row for row in rows if row.type in {"income", "refund"}]
+    debit_rows = [
+        row for row in rows
+        if row.cash_direction == "debit"
+        or (
+            row.cash_direction is None
+            and row.type in {"expense", "debt_payment", "giving"}
+        )
+    ]
+    credit_rows = [
+        row for row in rows
+        if row.cash_direction == "credit"
+        or (row.cash_direction is None and row.type in {"income", "refund"})
+    ]
     debit_total = sum((row.amount for row in debit_rows), Decimal("0"))
     credit_total = sum((row.amount for row in credit_rows), Decimal("0"))
 
