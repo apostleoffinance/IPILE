@@ -36,3 +36,43 @@ def test_ocr_parser_ignores_non_transaction_lines() -> None:
     assert rows[0].date == date(2026, 11, 26)
     assert rows[0].type == "expense"
     assert rows[0].amount == Decimal("1000.00")
+
+
+
+def test_scanned_pdf_falls_back_to_local_ocr(monkeypatch) -> None:
+    from app.services import pdf_imports
+
+    monkeypatch.setattr(
+        pdf_imports,
+        "_parse_selectable_pdf",
+        lambda _content: (_ for _ in ()).throw(ValueError("No selectable text")),
+    )
+    monkeypatch.setattr(
+        pdf_imports,
+        "extract_pdf_ocr_text",
+        lambda _content: "26/11/2026 ATM WITHDRAWAL 1,000.00 DR 49,000.00",
+    )
+    rows, method = pdf_imports.parse_statement_document(b"scanned-pdf", "pdf")
+    assert method == "pdf_ocr"
+    assert len(rows) == 1
+    assert rows[0].type == "expense"
+
+
+def test_statement_image_runs_local_ocr(monkeypatch) -> None:
+    from io import BytesIO
+
+    from PIL import Image
+
+    from app.services import pdf_imports
+
+    image = Image.new("RGB", (32, 32), "white")
+    buffer = BytesIO()
+    image.save(buffer, format="PNG")
+    monkeypatch.setattr(
+        "app.services.statement_ocr.pytesseract.image_to_string",
+        lambda *_args, **_kwargs: "26/11/2026 BANK DEPOSIT 5,000.00 CR 55,000.00",
+    )
+    rows, method = pdf_imports.parse_statement_document(buffer.getvalue(), "png")
+    assert method == "image_ocr"
+    assert len(rows) == 1
+    assert rows[0].type == "income"
