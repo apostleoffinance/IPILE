@@ -475,7 +475,9 @@ export default function ImportPage() {
                   <div className="space-y-3 border border-line px-4 py-3 text-sm">
                     <p className="font-medium">{result.source} · {result.status.replaceAll("_", " ")}</p>
                     {result.result?.extraction_method ? <p className="text-xs text-muted">{result.result.extraction_method === "pdf_ocr" || result.result.extraction_method === "image_ocr" ? "Scanned document · OCR extraction" : result.result.extraction_method === "pdf_table" || result.result.extraction_method === "pdf_text" ? "PDF text and table extraction" : result.result.extraction_method === "csv" ? "CSV transaction extraction" : "Statement text extraction"}</p> : null}
-                    {result.status === "failed" ? (
+                    {result.status === "processing" ? (
+                      <p className="text-sm text-muted">Your statement is safely queued for background processing. No transactions have been staged or posted yet. You can leave this page; the import will appear in review when processing finishes.</p>
+                    ) : result.status === "failed" ? (
                       <p role="alert" className="text-sm text-red-700">{result.result?.error || "Statement extraction failed. No transactions were staged or posted."}</p>
                     ) : result.status === "needs_section_selection" ? (
                       <>
