@@ -105,7 +105,12 @@ def test_forwarded_bank_alert_is_reviewed_before_posting(client: TestClient, mon
     register(client, "import-email@example.com")
     account = client.post(
         "/api/v1/accounts",
-        json={"name": "Current", "type": "bank", "institution": "GTBank", "current_balance": "50000.00"},
+        json={
+            "name": "Current",
+            "type": "bank",
+            "institution": "GTBank",
+            "current_balance": "50000.00",
+        },
     ).json()
     monkeypatch.setattr(
         imports_api,
@@ -594,11 +599,13 @@ def test_email_alert_can_be_corrected_before_approval_without_posting(
     assert row["description"] == "Corrected debit"
     assert corrected.json()["result"]["corrected"] is True
     assert client.get("/api/v1/transactions").json() == []
-    assert Decimal(client.get("/api/v1/accounts").json()[0]["current_balance"]) == Decimal("50000.00")
+    unchanged_balance = Decimal(client.get("/api/v1/accounts").json()[0]["current_balance"])
+    assert unchanged_balance == Decimal("50000.00")
 
     approved = client.post(
         f"/api/v1/imports/{job_id}/approve",
         json={"account_id": account["id"]},
     )
     assert approved.status_code == 200, approved.text
-    assert Decimal(client.get("/api/v1/accounts").json()[0]["current_balance"]) == Decimal("45500.00")
+    corrected_balance = Decimal(client.get("/api/v1/accounts").json()[0]["current_balance"])
+    assert corrected_balance == Decimal("45500.00")
