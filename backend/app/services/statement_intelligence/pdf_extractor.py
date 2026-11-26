@@ -288,6 +288,7 @@ def extract_pdf_statement(content: bytes) -> ExtractionResult:
     page_count = 0
     document_currency: str | None = None
     account_section: str | None = None
+    scanned_pages: list[int] = []
 
     try:
         pdf = pdfplumber.open(BytesIO(content))
@@ -304,6 +305,8 @@ def extract_pdf_statement(content: bytes) -> ExtractionResult:
             page_text = page.extract_text() or ""
             account_section = _detect_account_section(page_text) or account_section
             raw_page_text[page_number] = page_text
+            if not page_text.strip() and page.images:
+                scanned_pages.append(page_number)
             if page_number == 1:
                 document_currency = _parse_summary(page_text).currency
             if positions is None:
@@ -457,8 +460,17 @@ def extract_pdf_statement(content: bytes) -> ExtractionResult:
     summary = _parse_summary(first_page_text)
     validation = validate_statement(rows, summary)
     combined_issues = [*issues, *validation.issues]
+    if scanned_pages:
+        combined_issues.append(ExtractionIssue(
+            code="mixed_text_and_scanned_pages",
+            message=(
+                "This PDF contains scanned pages that were not processed by text extraction. "
+                "Upload a text-searchable PDF or split out the scanned pages for OCR."
+            ),
+            severity="error",
+        ))
     status = validation.status
-    if issues:
+    if issues or scanned_pages:
         status = "incomplete"
     metadata = StatementMetadata(
         institution=None,
