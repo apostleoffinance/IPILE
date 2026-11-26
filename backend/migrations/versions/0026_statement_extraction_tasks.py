@@ -44,11 +44,6 @@ def upgrade() -> None:
         sa.Column("created_at", sa.DateTime(timezone=True), server_default=sa.func.now(), nullable=False),
     )
     op.create_index(
-        "ix_statement_extraction_tasks_import_job_id",
-        "statement_extraction_tasks",
-        ["import_job_id"],
-    )
-    op.create_index(
         "ix_statement_extraction_tasks_household_id",
         "statement_extraction_tasks",
         ["household_id"],
@@ -69,5 +64,4 @@ def downgrade() -> None:
     op.drop_index("ix_statement_extraction_tasks_status", table_name="statement_extraction_tasks")
     op.drop_index("ix_statement_extraction_tasks_account_id", table_name="statement_extraction_tasks")
     op.drop_index("ix_statement_extraction_tasks_household_id", table_name="statement_extraction_tasks")
-    op.drop_index("ix_statement_extraction_tasks_import_job_id", table_name="statement_extraction_tasks")
     op.drop_table("statement_extraction_tasks")
