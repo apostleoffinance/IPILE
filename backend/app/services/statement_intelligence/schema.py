@@ -23,6 +23,7 @@ class CanonicalField(StrEnum):
     CHANNEL = "channel"
     CURRENCY = "currency"
     TRANSACTION_TIME = "transaction_time"
+    DIRECTION = "direction"
 
 
 @dataclass(frozen=True)
