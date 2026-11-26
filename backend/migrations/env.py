@@ -17,6 +17,7 @@ from app.models import (  # noqa: F401
     HouseholdInvite,
     ImportJob,
     ImportMailbox,
+    StatementExtractionTask,
     Notification,
     Report,
     ReconciliationItem,
