@@ -23,7 +23,8 @@ from app.services.allocations import (
 )
 from app.services.balances import apply_transaction_effect
 from app.services.budgets import evaluate_budget_alerts
-from app.services.funds import record_contribution
+from app.services.currencies import get_rate
+from app.services.funds import ensure_fund_account, record_contribution
 from app.services.notifications import sync_notifications_from_alerts
 from app.services.obligations import generate_occurrences
 from app.services.safe_to_spend import compute_safe_to_spend
@@ -95,17 +96,31 @@ def _fund_from_allocation_lines(
         )
         if already is not None:
             continue
-        if Decimal(str(source.current_balance)) < amount:
+        source_currency = source.currency or household.base_currency
+        rate, rate_date, rate_source = get_rate(
+            db, household.id, source_currency, household.base_currency, today
+        )
+        source_amount = (amount / rate).quantize(Decimal("0.01"))
+        if Decimal(str(source.current_balance)) < source_amount:
             continue
-        dest = None
-        if fund.account_id:
-            dest = db.get(Account, fund.account_id)
+        dest = ensure_fund_account(db, fund)
         tx = Transaction(
             household_id=household.id,
             account_id=source.id,
             counterparty_account_id=dest.id if dest else None,
-            amount=amount,
-            currency=household.base_currency,
+            amount=source_amount,
+            currency=source_currency,
+            base_amount=amount,
+            base_currency=household.base_currency,
+            exchange_rate=rate,
+            exchange_rate_date=rate_date,
+            exchange_rate_source=rate_source,
+            counterparty_amount=amount,
+            counterparty_currency=dest.currency if dest else household.base_currency,
+            counterparty_base_amount=amount,
+            counterparty_exchange_rate=(Decimal("1") / rate),
+            counterparty_exchange_rate_date=rate_date,
+            counterparty_exchange_rate_source=rate_source,
             type="transfer",
             date=today,
             description=period_tag,
@@ -120,8 +135,9 @@ def _fund_from_allocation_lines(
             account=source,
             counterparty=dest,
             tx_type="transfer",
-            amount=amount,
+            amount=source_amount,
             status="cleared",
+            counterparty_amount=amount,
         )
         record_contribution(
             db,

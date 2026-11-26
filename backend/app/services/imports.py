@@ -11,6 +11,7 @@ from app.models.imports import ImportJob
 from app.models.transaction import Transaction
 from app.services.balances import apply_transaction_effect
 from app.services.budgets import evaluate_budget_alerts
+from app.services.currencies import get_rate
 from app.services.import_adapters import ImportAdapter, ImportRow, get_adapter
 
 
@@ -65,11 +66,21 @@ def apply_import_rows(
             continue
         try:
             with db.begin_nested():
+                source_currency = account.currency or household.base_currency
+                rate, rate_date, rate_source = get_rate(
+                    db, household.id, source_currency, household.base_currency, row.date
+                )
+                base_amount = (row.amount * rate).quantize(Decimal("0.01"))
                 tx = Transaction(
                     household_id=household.id,
                     account_id=account.id,
                     amount=row.amount,
-                    currency=account.currency or household.base_currency,
+                    currency=source_currency,
+                    base_amount=base_amount,
+                    base_currency=household.base_currency,
+                    exchange_rate=rate,
+                    exchange_rate_date=rate_date,
+                    exchange_rate_source=rate_source,
                     type=row.type,
                     category_id=_category_id(db, household.id, row.category_name),
                     date=row.date,

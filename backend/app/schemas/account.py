@@ -8,7 +8,7 @@ from app.schemas.money import MoneySigned
 class AccountCreate(BaseModel):
     name: str = Field(min_length=1, max_length=200)
     type: str
-    currency: str = "NGN"
+    currency: str | None = None
     institution: str | None = None
     owner_member_id: UUID | None = None
     access_scope: str = "shared"

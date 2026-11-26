@@ -26,6 +26,7 @@ from app.services.allocation_engine import (
     AllocationRuleSpec,
     allocate,
 )
+from app.services.currencies import transaction_amount_in_base
 from app.services.obligation_engine import add_months
 
 
@@ -61,9 +62,14 @@ def recognized_income(
     )
     if income_source_id is not None:
         query = query.filter(Transaction.income_source_id == income_source_id)
-    return quantize_money(
-        sum((Decimal(str(row.amount)) for row in query.all()), Decimal("0.00"))
+    household = db.query(Household).filter(Household.id == household_id).first()
+    if household is None:
+        raise ValueError("Household not found for income calculation.")
+    amounts = (
+        transaction_amount_in_base(row, household.base_currency)
+        for row in query.all()
     )
+    return quantize_money(sum(amounts, Decimal("0.00")))
 
 
 def source_amounts(
@@ -83,12 +89,16 @@ def source_amounts(
         )
         .all()
     )
+    household = db.query(Household).filter(Household.id == household_id).first()
+    if household is None:
+        raise ValueError("Household not found for income calculation.")
     totals: dict[UUID, Decimal] = {}
     for row in rows:
         if row.income_source_id is None:
             continue
         totals[row.income_source_id] = quantize_money(
-            totals.get(row.income_source_id, Decimal("0.00")) + Decimal(str(row.amount))
+            totals.get(row.income_source_id, Decimal("0.00"))
+            + transaction_amount_in_base(row, household.base_currency)
         )
     return totals
 

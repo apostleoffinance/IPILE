@@ -1,5 +1,7 @@
 "use client";
 
+import { useHouseholdCurrency } from "@/hooks/useHouseholdCurrency";
+
 import { FormEvent, useEffect, useState } from "react";
 import { AccountSummary } from "@/components/financial/AccountSummary";
 import { ContentContainer } from "@/components/layouts/ContentContainer";
@@ -24,6 +26,8 @@ export default function AccountsPage() {
   const [error, setError] = useState<string | null>(null);
   const [name, setName] = useState("");
   const [type, setType] = useState("bank");
+  const householdCurrency = useHouseholdCurrency();
+  const [currency, setCurrency] = useState("NGN");
   const [institution, setInstitution] = useState("");
   const [opening, setOpening] = useState("0.00");
   const [protectedAccount, setProtectedAccount] = useState(false);
@@ -55,6 +59,10 @@ export default function AccountsPage() {
   useEffect(() => {
     refresh().catch((err: Error) => setError(err.message));
   }, []);
+
+  useEffect(() => {
+    if (householdCurrency) setCurrency(householdCurrency);
+  }, [householdCurrency]);
 
   function startEdit(account: Account) {
     setEditingId(account.id);
@@ -97,6 +105,7 @@ export default function AccountsPage() {
       await api.createAccount({
         name,
         type,
+        currency,
         institution: institution || undefined,
         current_balance: opening,
         ...(currentMember && ["owner", "partner"].includes(currentMember.role)
@@ -176,6 +185,12 @@ export default function AccountsPage() {
               </Select>
             </div>
           ) : null}
+          <div>
+            <Label htmlFor="acc-currency">Account currency</Label>
+            <Select id="acc-currency" className="mt-1 w-full border border-line bg-input px-3 py-2 text-sm" value={currency} onChange={(e) => setCurrency(e.target.value)}>
+              <option value="NGN">NGN — Nigerian Naira</option><option value="USD">USD — US Dollar</option><option value="GBP">GBP — British Pound</option><option value="EUR">EUR — Euro</option><option value="CHF">CHF — Swiss Franc</option><option value="CAD">CAD — Canadian Dollar</option><option value="AUD">AUD — Australian Dollar</option><option value="AED">AED — UAE Dirham</option><option value="GHS">GHS — Ghanaian Cedi</option><option value="KES">KES — Kenyan Shilling</option><option value="ZAR">ZAR — South African Rand</option><option value="INR">INR — Indian Rupee</option><option value="JPY">JPY — Japanese Yen</option><option value="SGD">SGD — Singapore Dollar</option><option value="SAR">SAR — Saudi Riyal</option><option value="NZD">NZD — New Zealand Dollar</option><option value="BRL">BRL — Brazilian Real</option><option value="MXN">MXN — Mexican Peso</option><option value="HKD">HKD — Hong Kong Dollar</option><option value="IDR">IDR — Indonesian Rupiah</option><option value="ILS">ILS — Israeli New Shekel</option><option value="NOK">NOK — Norwegian Krone</option><option value="SEK">SEK — Swedish Krona</option><option value="DKK">DKK — Danish Krone</option><option value="PLN">PLN — Polish Złoty</option><option value="CZK">CZK — Czech Koruna</option><option value="HUF">HUF — Hungarian Forint</option><option value="RON">RON — Romanian Leu</option><option value="TRY">TRY — Turkish Lira</option><option value="THB">THB — Thai Baht</option><option value="PHP">PHP — Philippine Peso</option><option value="MYR">MYR — Malaysian Ringgit</option><option value="CNY">CNY — Chinese Yuan</option><option value="TWD">TWD — New Taiwan Dollar</option><option value="VND">VND — Vietnamese Đồng</option><option value="UAH">UAH — Ukrainian Hryvnia</option><option value="ISK">ISK — Icelandic Króna</option><option value="RWF">RWF — Rwandan Franc</option>
+            </Select>
+          </div>
           <div>
             <Label htmlFor="acc-institution">Institution</Label>
             <Input

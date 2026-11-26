@@ -168,6 +168,11 @@ def post_transaction(
                 detail="Capital contribution needs a household account.",
             )
         source = get_account(db, ctx.household.id, payload.account_id)
+        if source.currency != ctx.household.base_currency:
+            raise HTTPException(
+                status_code=422,
+                detail="Business capital contributions must use a household-currency account.",
+            )
         if source.id == vault.id:
             raise HTTPException(status_code=400, detail="Contribute from a household account.")
         household_tx = create_transaction(
@@ -189,6 +194,11 @@ def post_transaction(
         if payload.account_id is None:
             raise HTTPException(status_code=400, detail="Withdrawal needs a household account.")
         destination = get_account(db, ctx.household.id, payload.account_id)
+        if destination.currency != ctx.household.base_currency:
+            raise HTTPException(
+                status_code=422,
+                detail="Business withdrawals must use a household-currency account.",
+            )
         if destination.id == vault.id:
             raise HTTPException(status_code=400, detail="Withdraw to a household account.")
         household_tx = create_transaction(

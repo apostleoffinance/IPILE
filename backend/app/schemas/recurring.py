@@ -12,7 +12,7 @@ class RecurringCreate(BaseModel):
     type: str
     frequency: str = "monthly"
     next_date: Date
-    currency: str = "NGN"
+    currency: str | None = None
     counterparty_account_id: UUID | None = None
     member_id: UUID | None = None
     category_id: UUID | None = None

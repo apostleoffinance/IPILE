@@ -21,6 +21,7 @@ from app.schemas.wealth import (
 )
 from app.services.allocations import period_bounds
 from app.services.balances import apply_transaction_effect
+from app.services.currencies import amount_in_base_currency
 from app.services.obligation_engine import add_months
 from app.services.wealth_engine import (
     ASSET_TYPES,
@@ -67,7 +68,9 @@ def household_net_worth(db: Session, household: Household) -> NetWorthResult:
         AccountSpec(
             id=row.id,
             type=row.type,
-            current_balance=quantize_money(Decimal(str(row.current_balance))),
+            current_balance=amount_in_base_currency(
+                db, household, Decimal(str(row.current_balance)), row.currency, date.today()
+            ),
             include_in_net_worth=row.include_in_net_worth,
             is_emergency=bool(getattr(row, "is_emergency", False)),
             status=row.status,
@@ -386,6 +389,11 @@ def record_investment_tx(
     account = None
     if account_id is not None:
         account = _get_account(db, household.id, account_id)
+        if account.currency != household.base_currency:
+            raise HTTPException(
+                status_code=422,
+                detail="Investment activity must use an account in the household base currency.",
+            )
         effect_type = "investment" if tx_type == "buy" else None
         if tx_type == "sell":
             effect_type = "refund"
@@ -439,6 +447,11 @@ def pay_liability(
     if liability.status == "paid_off":
         raise HTTPException(status_code=400, detail="Liability is already paid off.")
     account = _get_account(db, household.id, account_id)
+    if account.currency != household.base_currency:
+        raise HTTPException(
+            status_code=422,
+            detail="Liability payments must use an account in the household base currency.",
+        )
     remaining, status = apply_liability_payment(Decimal(str(liability.current_balance)), amount)
     money_tx = Transaction(
         household_id=household.id,

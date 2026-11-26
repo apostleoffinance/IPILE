@@ -24,7 +24,7 @@ export function IncomeSummaryCard({
   expected,
   received,
   sourceCount,
-  currency = "NGN",
+  currency,
   className,
 }: {
   expected: string;

@@ -4,7 +4,7 @@ import { cn } from "@/lib/utils";
 
 export function MoneyChange({
   amount,
-  currency = "NGN",
+  currency,
   className,
 }: {
   amount: string;

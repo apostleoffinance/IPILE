@@ -17,6 +17,7 @@ from app.schemas.calendar import CalendarEventOut
 from app.schemas.household import HouseholdOut
 from app.schemas.transaction import TransactionOut
 from app.services.allocations import latest_run, serialize_run
+from app.services.currencies import amount_in_base_currency, transaction_amount_in_base
 from app.services.finance_access import (
     account_visibility,
     has_member_permission,
@@ -57,7 +58,10 @@ def member_financial_summary(
     liquid_cash = quantize_money(
         sum(
             (
-                Decimal(str(account.current_balance))
+                amount_in_base_currency(
+                    db, ctx.household, Decimal(str(account.current_balance)),
+                    account.currency, today
+                )
                 for account in visible_accounts
                 if account.type in {"bank", "cash", "wallet", "savings"}
             ),
@@ -88,14 +92,17 @@ def member_financial_summary(
     transactions = transaction_visibility(query, Transaction, ctx).all()
     income = quantize_money(
         sum(
-            (Decimal(str(row.amount)) for row in transactions if row.type == "income"),
+            (
+                transaction_amount_in_base(row, ctx.household.base_currency)
+                for row in transactions if row.type == "income"
+            ),
             Decimal("0.00"),
         )
     )
     expenses = quantize_money(
         sum(
             (
-                Decimal(str(row.amount))
+                transaction_amount_in_base(row, ctx.household.base_currency)
                 for row in transactions
                 if row.type in {"expense", "giving", "debt_payment", "investment"}
             ),
@@ -159,10 +166,22 @@ def overview(ctx: HouseholdContext = Depends(get_household_context), db: Session
         if account.type in {"bank", "cash", "wallet", "savings"} and account.status == "active"
     ]
     cash_total = quantize_money(
-        sum((Decimal(account.current_balance) for account in cash_accounts), Decimal("0.00"))
+        sum(
+            (
+                amount_in_base_currency(
+                    db, ctx.household, Decimal(str(account.current_balance)),
+                    account.currency, today
+                )
+                for account in cash_accounts
+            ),
+            Decimal("0.00"),
+        )
     )
     period_income = quantize_money(
-        sum((Decimal(row.amount) for row in income_rows), Decimal("0.00"))
+        sum(
+            (transaction_amount_in_base(row, ctx.household.base_currency) for row in income_rows),
+            Decimal("0.00"),
+        )
     )
     horizon = today + timedelta(days=30)
     upcoming_query = (

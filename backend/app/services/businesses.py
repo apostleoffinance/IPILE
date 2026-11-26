@@ -7,6 +7,7 @@ from sqlalchemy.orm import Session
 
 from app.models.account import Account
 from app.models.business import Business, BusinessEmployee, BusinessTransaction
+from app.models.household import Household
 from app.money import quantize_money
 from app.schemas.business import (
     BusinessEmployeeOut,
@@ -15,6 +16,7 @@ from app.schemas.business import (
     BusinessTxOut,
 )
 from app.services.business_engine import BusinessLine, BusinessPnL, compute_pnl
+from app.services.currencies import amount_in_base_currency
 
 
 def _lines(rows: list[BusinessTransaction]) -> list[BusinessLine]:
@@ -31,7 +33,12 @@ def account_balance(db: Session, business: Business) -> Decimal | None:
     account = db.get(Account, business.account_id)
     if account is None:
         return None
-    return quantize_money(Decimal(str(account.current_balance)))
+    household = db.get(Household, business.household_id)
+    if household is None:
+        return None
+    return amount_in_base_currency(
+        db, household, Decimal(str(account.current_balance)), account.currency, date.today()
+    )
 
 
 def business_pnl(db: Session, business: Business) -> BusinessPnL:
@@ -126,7 +133,7 @@ def ensure_business_account(db: Session, business: Business) -> Account:
         household_id=business.household_id,
         name=business.name,
         type="business",
-        currency="NGN",
+        currency=db.get(Household, business.household_id).base_currency,
         current_balance=Decimal("0.00"),
         available_balance=Decimal("0.00"),
         is_protected=True,

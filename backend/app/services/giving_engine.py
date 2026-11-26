@@ -39,7 +39,7 @@ def sum_for_policy(
         query = query.filter(GivingRecord.kind == kind, GivingRecord.policy_id.is_(None))
     if month is not None:
         query = query.filter(extract("month", GivingRecord.date) == month)
-    total = query.with_entities(func.coalesce(func.sum(GivingRecord.amount), 0)).scalar()
+    total = query.with_entities(func.coalesce(func.sum(GivingRecord.base_amount), 0)).scalar()
     return money(total)
 
 

@@ -16,6 +16,7 @@ class Household(Base):
     name: Mapped[str] = mapped_column(String(200))
     slug: Mapped[str] = mapped_column(String(80), unique=True, index=True)
     base_currency: Mapped[str] = mapped_column(String(3), default="NGN")
+    # ISO 4217 currency used for consolidated household reporting; never rewrites ledger amounts.
     timezone: Mapped[str] = mapped_column(String(64), default="Africa/Lagos")
     country: Mapped[str] = mapped_column(String(2), default="NG")
     fiscal_month_start_day: Mapped[int] = mapped_column(Integer, default=1)

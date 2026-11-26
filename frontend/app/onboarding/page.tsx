@@ -23,14 +23,14 @@ import { Input } from "@/components/ui/input";
 const STEPS = [
   { label: "Welcome", title: "Welcome to IPÌLẸ̀.", body: "Let's build your household's financial foundation." },
   { label: "Together", title: "Who are you building this with?", body: "You can invite others later." },
-  { label: "Income", title: "What does your household earn?", body: "A monthly figure helps IPÌLẸ̀ allocate with you." },
+  { label: "Income", title: "What income do you manage?", body: "A monthly figure helps IPÌLẸ̀ allocate with you." },
   { label: "Money", title: "Where does your money live?", body: "Start with one account. Add more anytime." },
   {
     label: "Priorities",
     title: "What should happen first when money comes in?",
     body: "Pick what matters. We'll start with a surplus rule you can refine later.",
   },
-  { label: "Prepare", title: "What must your household prepare for?", body: "Rent, school fees, debt, family support..." },
+  { label: "Prepare", title: "What commitments should you prepare for?", body: "Rent, school fees, debt, family support..." },
   { label: "Build", title: "What are you building toward?", body: "Emergency fund, home, education, investments..." },
   { label: "Ready", title: "Your foundation is taking shape.", body: "IPÌLẸ̀ will keep asking: Are we okay? What needs attention? What's next?" },
 ];
@@ -40,6 +40,8 @@ export default function OnboardingPage() {
   const [step, setStep] = useState(0);
   const [shape, setShape] = useState("couple");
   const [householdName, setHouseholdName] = useState("");
+  const [baseCurrency, setBaseCurrency] = useState("NGN");
+  const [country, setCountry] = useState("NG");
   const [partnerEmail, setPartnerEmail] = useState("");
   const [incomeHint, setIncomeHint] = useState("salary");
   const [incomeAmount, setIncomeAmount] = useState("");
@@ -78,7 +80,7 @@ export default function OnboardingPage() {
       setHouseholdId(me.households[0].id);
       return me.households[0];
     }
-    const household = await onboardHousehold({ name: householdName || "My household" });
+    const household = await onboardHousehold({ name: householdName || "My household", base_currency: baseCurrency, country });
     setHouseholdId(household.id);
     window.localStorage.setItem("ffos_household_id", household.id);
     return household;
@@ -255,6 +257,19 @@ export default function OnboardingPage() {
               {label}
             </label>
           ))}
+          <label className="block text-sm">
+            Country or region
+            <select className="mt-1 w-full rounded-md border border-line bg-surface px-3 py-3" value={country} onChange={(e) => { const selected = e.target.value; setCountry(selected); const suggested: Record<string, string> = { NG: "NGN", GB: "GBP", US: "USD", CA: "CAD", CH: "CHF", AU: "AUD", AE: "AED", GH: "GHS", KE: "KES", ZA: "ZAR", DE: "EUR", FR: "EUR", IN: "INR", SG: "SGD", SA: "SAR", BR: "BRL", MX: "MXN", JP: "JPY", HK: "HKD", NZ: "NZD" }; if (suggested[selected]) setBaseCurrency(suggested[selected]); }}>
+              <option value="NG">Nigeria</option><option value="GB">United Kingdom</option><option value="US">United States</option><option value="CA">Canada</option><option value="CH">Switzerland</option><option value="AU">Australia</option><option value="AE">United Arab Emirates</option><option value="GH">Ghana</option><option value="KE">Kenya</option><option value="ZA">South Africa</option><option value="DE">Germany</option><option value="FR">France</option><option value="IN">India</option><option value="SG">Singapore</option><option value="SA">Saudi Arabia</option><option value="BR">Brazil</option><option value="MX">Mexico</option><option value="JP">Japan</option><option value="HK">Hong Kong</option><option value="NZ">New Zealand</option>
+            </select>
+          </label>
+          <label className="block text-sm">
+            Primary currency
+            <select className="mt-1 w-full rounded-md border border-line bg-surface px-3 py-3" value={baseCurrency} onChange={(e) => setBaseCurrency(e.target.value)}>
+              <option value="NGN">NGN — Nigerian Naira (₦)</option><option value="USD">USD — US Dollar ($)</option><option value="GBP">GBP — British Pound (£)</option><option value="EUR">EUR — Euro (€)</option><option value="CHF">CHF — Swiss Franc</option><option value="CAD">CAD — Canadian Dollar (C$)</option><option value="AUD">AUD — Australian Dollar (A$)</option><option value="AED">AED — UAE Dirham</option><option value="GHS">GHS — Ghanaian Cedi (₵)</option><option value="KES">KES — Kenyan Shilling (KSh)</option><option value="ZAR">ZAR — South African Rand (R)</option><option value="INR">INR — Indian Rupee (₹)</option><option value="JPY">JPY — Japanese Yen (¥)</option><option value="SGD">SGD — Singapore Dollar (S$)</option><option value="SAR">SAR — Saudi Riyal</option><option value="NZD">NZD — New Zealand Dollar (NZ$)</option><option value="BRL">BRL — Brazilian Real (R$)</option><option value="MXN">MXN — Mexican Peso (MX$)</option><option value="HKD">HKD — Hong Kong Dollar (HK$)</option><option value="IDR">IDR — Indonesian Rupiah (Rp)</option><option value="ILS">ILS — Israeli New Shekel (₪)</option><option value="NOK">NOK — Norwegian Krone</option><option value="SEK">SEK — Swedish Krona</option><option value="DKK">DKK — Danish Krone</option><option value="PLN">PLN — Polish Złoty</option><option value="CZK">CZK — Czech Koruna</option><option value="HUF">HUF — Hungarian Forint</option><option value="RON">RON — Romanian Leu</option><option value="TRY">TRY — Turkish Lira (₺)</option><option value="THB">THB — Thai Baht (฿)</option><option value="PHP">PHP — Philippine Peso (₱)</option><option value="MYR">MYR — Malaysian Ringgit</option><option value="CNY">CNY — Chinese Yuan (¥)</option><option value="TWD">TWD — New Taiwan Dollar</option><option value="VND">VND — Vietnamese Đồng</option><option value="UAH">UAH — Ukrainian Hryvnia</option><option value="ISK">ISK — Icelandic Króna</option><option value="RWF">RWF — Rwandan Franc</option>
+            </select>
+            <span className="mt-1 block text-xs text-muted">This becomes the household's starting financial currency. You can add accounts in other currencies later.</span>
+          </label>
           <label className="block text-sm">
             Household name
             <Input

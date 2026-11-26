@@ -10,6 +10,7 @@ from app.models.business import Business
 from app.models.member import HouseholdMember
 from app.schemas.account import AccountCreate, AccountOut, AccountUpdate
 from app.services.balances import snapshot_balance
+from app.services.currencies import CurrencyError, validate_currency
 from app.services.finance_access import account_visibility
 
 router = APIRouter(prefix="/accounts", tags=["accounts"])
@@ -93,11 +94,15 @@ def create_account(
                 status_code=404,
                 detail="Personal account owner not found in this household.",
             )
+    try:
+        currency = validate_currency(payload.currency or ctx.household.base_currency)
+    except CurrencyError as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
     opening = Decimal(payload.current_balance)
     include_sts = False if payload.type == "business" else payload.include_in_safe_to_spend
     account = Account(
         household_id=ctx.household.id, name=payload.name, type=payload.type,
-        currency=payload.currency, institution=payload.institution,
+        currency=currency, institution=payload.institution,
         owner_member_id=payload.owner_member_id, access_scope=payload.access_scope,
         business_id=payload.business_id, current_balance=opening, available_balance=opening,
         is_protected=payload.is_protected, is_emergency=payload.is_emergency,

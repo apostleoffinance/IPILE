@@ -11,7 +11,7 @@ class ContributionAgreementCreate(BaseModel):
     member_id: UUID
     name: str = Field(min_length=1, max_length=200)
     amount: Decimal = Field(gt=0, max_digits=18, decimal_places=2)
-    currency: str = Field(default="NGN", min_length=3, max_length=3)
+    currency: str | None = Field(default=None, min_length=3, max_length=3)
     cadence: str = "monthly"
     due_day: int | None = Field(default=None, ge=1, le=31)
     start_date: date

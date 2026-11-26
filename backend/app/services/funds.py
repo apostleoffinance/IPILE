@@ -6,6 +6,7 @@ from sqlalchemy.orm import Session
 
 from app.models.account import Account
 from app.models.fund import FundContribution, SinkingFund
+from app.models.household import Household
 from app.models.obligation import Obligation
 from app.money import format_money, quantize_money
 from app.schemas.fund import FundOut
@@ -108,7 +109,7 @@ def ensure_fund_account(db: Session, fund: SinkingFund) -> Account:
         household_id=fund.household_id,
         name=fund.name,
         type="savings",
-        currency="NGN",
+        currency=db.get(Household, fund.household_id).base_currency,
         current_balance=Decimal("0.00"),
         available_balance=Decimal("0.00"),
         is_protected=True,

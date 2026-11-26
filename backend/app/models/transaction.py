@@ -38,6 +38,21 @@ class Transaction(Base):
     access_scope: Mapped[str] = mapped_column(String(20), default="shared", nullable=False)
     amount: Mapped[Decimal] = mapped_column(Numeric(18, 2))
     currency: Mapped[str] = mapped_column(String(3), default="NGN")
+    base_amount: Mapped[Decimal | None] = mapped_column(Numeric(18, 2), nullable=True)
+    base_currency: Mapped[str | None] = mapped_column(String(3), nullable=True)
+    exchange_rate: Mapped[Decimal | None] = mapped_column(Numeric(24, 12), nullable=True)
+    exchange_rate_date: Mapped[date | None] = mapped_column(Date, nullable=True)
+    exchange_rate_source: Mapped[str | None] = mapped_column(String(40), nullable=True)
+    counterparty_amount: Mapped[Decimal | None] = mapped_column(Numeric(18, 2), nullable=True)
+    counterparty_currency: Mapped[str | None] = mapped_column(String(3), nullable=True)
+    counterparty_base_amount: Mapped[Decimal | None] = mapped_column(Numeric(18, 2), nullable=True)
+    counterparty_exchange_rate: Mapped[Decimal | None] = mapped_column(
+        Numeric(24, 12), nullable=True
+    )
+    counterparty_exchange_rate_date: Mapped[date | None] = mapped_column(Date, nullable=True)
+    counterparty_exchange_rate_source: Mapped[str | None] = mapped_column(
+        String(40), nullable=True
+    )
     type: Mapped[str] = mapped_column(String(32))
     category_id: Mapped[uuid.UUID | None] = mapped_column(
         Uuid, ForeignKey("categories.id", ondelete="SET NULL"), nullable=True

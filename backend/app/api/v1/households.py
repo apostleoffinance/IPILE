@@ -1,6 +1,6 @@
 from decimal import Decimal
 
-from fastapi import APIRouter, Depends, status
+from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 
 from app.api.deps import (
@@ -22,6 +22,7 @@ from app.schemas.household import (
 )
 from app.schemas.public import OnboardingCreate
 from app.services.audit import write_audit
+from app.services.currencies import CurrencyError, validate_currency
 from app.services.export import soft_delete_household
 from app.services.households import create_household_for_owner
 
@@ -57,7 +58,13 @@ def create_household(
     user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
-    household, _member = create_household_for_owner(db, user, payload.name)
+    try:
+        base_currency = validate_currency(payload.base_currency)
+    except CurrencyError as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
+    household, _member = create_household_for_owner(
+        db, user, payload.name, base_currency=base_currency, country=payload.country
+    )
     db.commit()
     db.refresh(household)
     return household
@@ -84,12 +91,19 @@ def onboard_household(
         )
         .count()
     )
-    buffer = Decimal(payload.minimum_buffer_amount or "90000.00")
+    try:
+        base_currency = validate_currency(payload.base_currency)
+    except CurrencyError as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
+    default_buffer = "90000.00" if base_currency == "NGN" else "0.00"
+    buffer = Decimal(payload.minimum_buffer_amount or default_buffer)
     household, _member = create_household_for_owner(
         db,
         user,
         payload.name,
         minimum_buffer_amount=buffer,
+        base_currency=base_currency,
+        country=payload.country,
     )
     write_audit(
         db,
@@ -118,6 +132,11 @@ def update_household(
 ):
     household = ctx.household
     data = payload.model_dump(exclude_unset=True)
+    if "reporting_currency" in data:
+        try:
+            data["reporting_currency"] = validate_currency(data["reporting_currency"])
+        except CurrencyError as exc:
+            raise HTTPException(status_code=422, detail=str(exc)) from exc
     for key, value in data.items():
         setattr(household, key, value)
     db.add(household)

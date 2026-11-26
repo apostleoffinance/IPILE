@@ -77,6 +77,7 @@ def apply_transaction_effect(
     amount: Decimal,
     status: str,
     reverse: bool = False,
+    counterparty_amount: Decimal | None = None,
 ) -> None:
     if status not in ACTIVE_STATUSES and not reverse:
         return
@@ -84,7 +85,8 @@ def apply_transaction_effect(
     if not current and not available:
         return
     delta = account_delta(tx_type, amount)
-    other = counterparty_delta(tx_type, amount)
+    counterparty_value = counterparty_amount if counterparty_amount is not None else amount
+    other = counterparty_delta(tx_type, counterparty_value)
     if reverse:
         delta = -delta
         other = None if other is None else -other

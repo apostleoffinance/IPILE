@@ -60,7 +60,7 @@ def create_recurring(
         raise HTTPException(status_code=400, detail="Invalid transaction type.")
     if payload.type == "transfer" and not payload.counterparty_account_id:
         raise HTTPException(status_code=400, detail="Transfer requires a counterparty account.")
-    _require_account(db, ctx.household.id, payload.account_id)
+    source_account = _require_account(db, ctx.household.id, payload.account_id)
     if payload.counterparty_account_id:
         if payload.counterparty_account_id == payload.account_id:
             raise HTTPException(status_code=400, detail="Transfer accounts must be different.")
@@ -96,7 +96,7 @@ def create_recurring(
         member_id=payload.member_id,
         category_id=payload.category_id,
         amount=payload.amount,
-        currency=payload.currency,
+        currency=payload.currency or source_account.currency,
         type=payload.type,
         frequency=payload.frequency,
         next_date=payload.next_date,

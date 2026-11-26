@@ -1,5 +1,7 @@
 "use client";
 
+import { useHouseholdCurrency } from "@/hooks/useHouseholdCurrency";
+
 import { FormEvent, useEffect, useState } from "react";
 import { ContentContainer } from "@/components/layouts/ContentContainer";
 import { PageHeader } from "@/components/layouts/PageHeader";
@@ -36,6 +38,7 @@ export default function ContributionsPage() {
   const [memberId, setMemberId] = useState("");
   const [name, setName] = useState("Household contribution");
   const [amount, setAmount] = useState("");
+  const householdCurrency = useHouseholdCurrency();
   const [currency, setCurrency] = useState("NGN");
   const [cadence, setCadence] = useState("monthly");
   const [dueDay, setDueDay] = useState("1");
@@ -76,6 +79,10 @@ export default function ContributionsPage() {
   useEffect(() => {
     refresh().catch((err: Error) => setError(err.message)).finally(() => setLoaded(true));
   }, []);
+
+  useEffect(() => {
+    if (householdCurrency) setCurrency(householdCurrency);
+  }, [householdCurrency]);
 
   async function onCreate(event: FormEvent) {
     event.preventDefault();
@@ -179,7 +186,7 @@ export default function ContributionsPage() {
           </div>
           <div>
             <Label htmlFor="agreement-currency">Currency</Label>
-            <Input id="agreement-currency" className="mt-1" minLength={3} maxLength={3} value={currency} onChange={(e) => setCurrency(e.target.value.toUpperCase())} required />
+            <Input id="agreement-currency" className="mt-1" value={currency} readOnly aria-describedby="agreement-currency-help" /><p id="agreement-currency-help" className="mt-1 text-xs text-muted">Contribution plans use your household primary currency.</p>
           </div>
           <div>
             <Label htmlFor="agreement-cadence">Frequency</Label>
