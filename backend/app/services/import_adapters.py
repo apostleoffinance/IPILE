@@ -73,7 +73,10 @@ def _stable_id(*parts: str) -> str:
 def _make_row(
     *, raw_date: str, amount: Decimal, tx_type: str, description: str | None,
     external_id: str | None, merchant: str | None = None, category: str | None = None,
-    row_index: int | None = None,
+    row_index: int | None = None, currency: str | None = None,
+    value_date: date | None = None, transaction_datetime: datetime | None = None,
+    running_balance: Decimal | None = None, source_page: int | None = None,
+    extraction_confidence: float | None = None,
 ) -> ImportRow:
     parsed_date = _parse_date(raw_date)
     if amount == 0:
@@ -92,6 +95,12 @@ def _make_row(
         ),
         merchant=merchant.strip() if merchant else None,
         category_name=category.strip() if category else None,
+        currency=currency,
+        value_date=value_date,
+        transaction_datetime=transaction_datetime,
+        running_balance=running_balance,
+        source_page=source_page,
+        extraction_confidence=extraction_confidence,
     )
 
 
