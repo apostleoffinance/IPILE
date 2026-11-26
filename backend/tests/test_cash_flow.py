@@ -124,3 +124,52 @@ def test_cash_flow_rejects_inverted_range(client: TestClient) -> None:
         f"/api/v1/cash-flow?period_start={today.isoformat()}&period_end={earlier.isoformat()}"
     )
     assert response.status_code == 400
+
+
+def test_cash_flow_historical_native_balance_uses_account_currency_snapshot(
+    client: TestClient, monkeypatch
+) -> None:
+    from decimal import Decimal
+    from app.services import cash_flow
+
+    register(client, "cashflow-multi-currency@example.com")
+    household = client.get("/api/v1/households/current").json()
+    household_id = household["id"]
+    foreign = client.post(
+        "/api/v1/accounts",
+        json={
+            "name": "USD account",
+            "type": "bank",
+            "currency": "USD",
+            "current_balance": "100.00",
+        },
+    )
+    assert foreign.status_code == 201, foreign.text
+    account = foreign.json()
+    today = date.today()
+    past = today - timedelta(days=2)
+    transaction = client.post(
+        "/api/v1/transactions",
+        json={
+            "account_id": account["id"],
+            "amount": "20.00",
+            "type": "expense",
+            "date": today.isoformat(),
+        },
+    )
+    assert transaction.status_code == 201, transaction.text
+
+    def fake_conversion(db, household_obj, amount, currency, on_date):
+        assert currency == "USD"
+        assert on_date == past
+        return (Decimal(str(amount)) * Decimal("0.75")).quantize(Decimal("0.01"))
+
+    monkeypatch.setattr(cash_flow, "amount_in_base_currency", fake_conversion)
+    response = client.get(
+        f"/api/v1/cash-flow?period_start={past.isoformat()}&period_end={past.isoformat()}"
+    )
+    assert response.status_code == 200, response.text
+    body = response.json()
+    # Future expense is reversed in native USD before valuing the reconstructed
+    # $100 historical balance at the historical rate of 0.75.
+    assert body["closing_cash"] == "75.00"
