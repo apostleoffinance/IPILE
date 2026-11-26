@@ -609,3 +609,59 @@ def test_email_alert_can_be_corrected_before_approval_without_posting(
     assert approved.status_code == 200, approved.text
     corrected_balance = Decimal(client.get("/api/v1/accounts").json()[0]["current_balance"])
     assert corrected_balance == Decimal("45500.00")
+
+
+
+def test_bank_alert_parser_supports_multiple_currencies_and_ambiguous_dollar() -> None:
+    from app.services.email_imports import parse_bank_alert
+
+    base = {
+        "sender": "alerts@bank.example",
+        "subject": "Credit Alert",
+        "email_date": "Thu, 26 Nov 2026 09:00:00 +0100",
+    }
+    usd = parse_bank_alert(**base, body="You received USD 125.50. Ref: USD123456")
+    eur = parse_bank_alert(**base, body="You received € 80.00. Ref: EUR123456")
+    ambiguous = parse_bank_alert(**base, body="You received $ 80.00. Ref: USD123457")
+    assert usd.currency == "USD"
+    assert eur.currency == "EUR"
+    assert ambiguous.currency is None
+
+
+def test_email_alert_currency_must_match_destination_account(
+    client: TestClient, monkeypatch
+) -> None:
+    from app.api.v1 import imports as imports_api
+    from app.core.config import Settings
+
+    register(client, "currency-alert@example.com")
+    account = client.post(
+        "/api/v1/accounts",
+        json={"name": "Dollar account", "type": "bank", "currency": "USD", "institution": "bank"},
+    ).json()
+    monkeypatch.setattr(
+        imports_api,
+        "get_settings",
+        lambda: Settings(
+            inbound_email_domain="imports.example.test",
+            inbound_email_webhook_secret="test-secret",
+        ),
+    )
+    mailbox = client.post("/api/v1/imports/mailbox").json()
+    inbound = client.post(
+        "/api/v1/imports/inbound-email",
+        headers={"X-Inbound-Email-Secret": "test-secret"},
+        json={
+            "To": mailbox["address"],
+            "From": "alerts@bank.example",
+            "Subject": "Credit Alert",
+            "TextBody": "You received EUR 80.00 on 26/11/2026. Ref: EUR123456",
+        },
+    )
+    job_id = inbound.json()["id"]
+    approved = client.post(
+        f"/api/v1/imports/{job_id}/approve",
+        json={"account_id": account["id"]},
+    )
+    assert approved.status_code == 409
+    assert client.get("/api/v1/transactions").json() == []
