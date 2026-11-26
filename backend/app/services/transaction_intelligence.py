@@ -92,10 +92,18 @@ def match_alert_account(
 
 _CATEGORY_RULES: tuple[tuple[str, tuple[str, ...], tuple[str, ...]], ...] = (
     ("income", ("salary", "payroll", "wages"), ("salary", "income")),
-    ("income", ("interest received", "dividend", "investment return"), ("investment income", "income")),
+    (
+        "income",
+        ("interest received", "dividend", "investment return"),
+        ("investment income", "income"),
+    ),
     ("expense", ("grocery", "supermarket", "market", "foodstuff"), ("groceries", "food")),
     ("expense", ("fuel", "petrol", "diesel", "uber", "bolt", "transport"), ("transport", "fuel")),
-    ("expense", ("electricity", "water bill", "internet", "airtime", "utility"), ("utilities", "bills")),
+    (
+        "expense",
+        ("electricity", "water bill", "internet", "airtime", "utility"),
+        ("utilities", "bills"),
+    ),
     ("expense", ("rent", "landlord", "lease"), ("housing", "rent")),
     ("expense", ("hospital", "pharmacy", "clinic", "medical"), ("health", "healthcare")),
     ("expense", ("school", "tuition", "lesson", "university"), ("education",)),
@@ -106,10 +114,15 @@ _CATEGORY_RULES: tuple[tuple[str, tuple[str, ...], tuple[str, ...]], ...] = (
 
 
 def suggest_category(
-    db: Session, household_id: UUID, description: str | None, merchant: str | None, tx_type: str
+    db: Session,
+    household_id: UUID,
+    description: str | None,
+    merchant: str | None,
+    tx_type: str,
+    classification_context: str | None = None,
 ) -> tuple[str | None, int, str | None]:
     """Suggest an existing household category; never create or hardcode one."""
-    text = f"{merchant or ''} {description or ''}".lower()
+    text = f"{merchant or ''} {description or ''} {classification_context or ''}".lower()
     categories = (
         db.query(Category)
         .filter(
@@ -172,6 +185,7 @@ def enrich_bank_alert(
     provider: str,
     provider_event_id: str | None,
     sender_verified: bool,
+    classification_context: str | None = None,
 ) -> tuple[ImportRow, Account | None, dict[str, Any]]:
     """Normalize and enrich an alert from any trusted ingestion provider."""
     accounts = (
@@ -185,7 +199,12 @@ def enrich_bank_alert(
     )
     account, account_match = match_alert_account(accounts, sender, row.currency)
     category_name, category_points, category_reason = suggest_category(
-        db, household_id, row.description, row.merchant, row.type
+        db,
+        household_id,
+        row.description,
+        row.merchant,
+        row.type,
+        classification_context,
     )
     confidence = assess_confidence(
         sender_verified=sender_verified,

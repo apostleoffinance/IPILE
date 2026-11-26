@@ -1,7 +1,8 @@
 """Tests for provider-independent bank alert parsing and automation."""
 
-from fastapi.testclient import TestClient
 from decimal import Decimal
+
+from fastapi.testclient import TestClient
 
 from app.services.email_imports import parse_bank_alert
 from tests.conftest import register

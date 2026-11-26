@@ -419,6 +419,7 @@ def receive_inbound_email(
         provider="cloudflare_forwarding",
         provider_event_id=message_id or None,
         sender_verified=True,
+        classification_context=body,
     )
 
     job = ImportJob(

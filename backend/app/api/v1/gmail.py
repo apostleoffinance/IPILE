@@ -132,6 +132,7 @@ def _save_alert(db: Session, connection: GmailConnection, message: dict[str, str
         provider="gmail",
         provider_event_id=message["message_id"],
         sender_verified=True,
+        classification_context=message["body"],
     )
     job = ImportJob(
         household_id=connection.household_id,
