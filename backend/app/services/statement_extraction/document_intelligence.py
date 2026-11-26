@@ -8,7 +8,7 @@ from io import BytesIO
 
 import pdfplumber
 
-from app.services.statement_extraction.field_mapping import map_statement_columns
+from app.services.statement_extraction.field_mapping import ColumnField, map_statement_columns
 
 
 class PDFContentKind(StrEnum):
@@ -54,13 +54,13 @@ def inspect_pdf_document(content: bytes) -> PDFDocumentProfile:
                 map_statement_columns(line.split()) for line in text.splitlines()
             ]
             table_count = int(any(
-                any(field.value in mapping for field in map_statement_columns.__annotations__.get("return", {}))
-                for mapping in header_lines
-            )) if False else int(any(
-                any(key.value in mapping for key in (
-                    __import__("app.services.statement_extraction.field_mapping", fromlist=["ColumnField"]).ColumnField.DEBIT,
-                    __import__("app.services.statement_extraction.field_mapping", fromlist=["ColumnField"]).ColumnField.CREDIT,
-                    __import__("app.services.statement_extraction.field_mapping", fromlist=["ColumnField"]).ColumnField.AMOUNT,
+                any(field in mapping for field in (
+                    ColumnField.DEBIT, ColumnField.CREDIT, ColumnField.AMOUNT,
+                ))
+                and any(field in mapping for field in (
+                    ColumnField.TRANSACTION_DATE,
+                    ColumnField.TRANSACTION_TIME,
+                    ColumnField.DATETIME,
                 ))
                 for mapping in header_lines
             ))
