@@ -103,7 +103,7 @@ describe("Cloudflare inbound bank-alert Worker", () => {
   it("rejects oversized email payloads before parsing or forwarding", async () => {
     const fetchMock = vi.fn();
     vi.stubGlobal("fetch", fetchMock);
-    const { message, rejects } = emailMessage();
+    const { message, rejects } = emailMessage({ body: "x".repeat(2048) });
     const oversizedEnv = { ...env, MAX_EMAIL_BYTES: "1024" };
 
     await worker.email(message, oversizedEnv as never);
