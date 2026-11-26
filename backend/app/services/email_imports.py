@@ -125,6 +125,15 @@ def apply_alert_automation(db, household, job, row, account):
         return False
     if account.currency.upper() != row.currency.upper():
         return False
+    intelligence = job.result.get("intelligence") or {}
+    # A verified sender and explicit account/currency match are mandatory;
+    # the confidence threshold is an additional safety gate, never a replacement.
+    if (
+        intelligence.get("sender_verified") is not True
+        or int(intelligence.get("confidence_score") or 0) < 90
+        or intelligence.get("account_match") != "exact_institution"
+    ):
+        return False
 
     from app.services.imports import apply_import_rows
 

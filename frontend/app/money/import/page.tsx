@@ -326,6 +326,13 @@ export default function ImportPage() {
                       <p>{row.date} · {row.type} · {row.currency ?? "Currency not detected"}</p>
                       <p className="font-semibold">{row.amount}</p>
                       <p className="text-muted sm:col-span-2">{row.description || row.merchant || "Bank transaction"}</p>
+                      {row.category_name ? <p className="text-xs text-muted sm:col-span-2">Suggested category: {row.category_name}</p> : null}
+                      {job.result?.intelligence ? (
+                        <div className="text-xs text-muted sm:col-span-2">
+                          <p>Confidence: {job.result.intelligence.confidence_score}/100 · {job.result.intelligence.confidence_band}</p>
+                          {job.result.intelligence.review_reasons.map((reason) => <p key={reason}>• {reason}</p>)}
+                        </div>
+                      ) : null}
                       {row.external_id ? <p className="text-xs text-muted sm:col-span-2">Reference: {row.external_id}</p> : null}
                     </div>
                   ) : null}

@@ -1,7 +1,7 @@
 """Tests for provider-independent bank alert parsing and automation."""
-from decimal import Decimal
 
 from fastapi.testclient import TestClient
+from decimal import Decimal
 
 from app.services.email_imports import parse_bank_alert
 from tests.conftest import register
@@ -191,3 +191,73 @@ def test_gmail_sender_authentication_requires_aligned_dmarc() -> None:
     assert _gmail_dmarc_passes_for_sender("GTBank <alerts@gtbank.com>", passed)
     assert not _gmail_dmarc_passes_for_sender("alerts@gtbank.com", mismatched)
     assert not _gmail_dmarc_passes_for_sender("alerts@gtbank.com", failed)
+
+
+
+def test_provider_neutral_intelligence_enriches_forwarded_alert_review(
+    client: TestClient, monkeypatch
+) -> None:
+    from app.api.v1 import imports as imports_api
+    from app.core.config import Settings
+
+    register(client, "intelligence-review@example.com")
+    account = client.post(
+        "/api/v1/accounts",
+        json={
+            "name": "OPay Wallet",
+            "type": "bank",
+            "currency": "NGN",
+            "institution": "OPay",
+            "current_balance": "25000.00",
+        },
+    ).json()
+    monkeypatch.setattr(
+        imports_api,
+        "get_settings",
+        lambda: Settings(
+            inbound_email_domain="imports.example.test",
+            inbound_email_webhook_secret="test-secret",
+        ),
+    )
+    mailbox = client.post("/api/v1/imports/mailbox").json()
+    response = client.post(
+        "/api/v1/imports/inbound-email",
+        headers={"X-Inbound-Email-Secret": "test-secret"},
+        json={
+            "To": mailbox["address"],
+            "From": "no-reply@opayweb.com",
+            "Subject": "Debit Alert",
+            "TextBody": "Your wallet was debited NGN 2,500.00 for fuel on 26/11/2026. Ref: OPY123456",
+            "MessageID": "forwarding-event-001",
+        },
+    )
+    assert response.status_code == 200, response.text
+    queue = client.get("/api/v1/imports/review")
+    assert queue.status_code == 200
+    item = queue.json()[0]
+    assert item["result"]["account_match"] == "exact_institution"
+    assert item["result"]["suggested_account_id"] == account["id"]
+    intelligence = item["result"]["intelligence"]
+    assert intelligence["normalized_event"]["provider"] == "cloudflare_forwarding"
+    assert intelligence["normalized_event"]["external_id"].startswith("bankref:opayweb.com:")
+    assert intelligence["sender_verified"] is True
+    assert intelligence["confidence_band"] == "high"
+    assert "category_name" in item["result"]["rows"][0]
+
+
+def test_same_bank_event_has_same_identity_across_ingestion_providers() -> None:
+    forwarded = parse_bank_alert(
+        sender="alerts@gtbank.com",
+        subject="Debit Alert",
+        body="Your account was debited NGN 5,000.00 on 26/11/2026. Ref: CROSS12345",
+        email_date="Thu, 26 Nov 2026 09:00:00 +0100",
+        message_id="cloudflare-message-id",
+    )
+    gmail = parse_bank_alert(
+        sender="alerts@gtbank.com",
+        subject="Debit Alert",
+        body="Your account was debited NGN 5,000.00 on 26/11/2026. Ref: CROSS12345",
+        email_date="Thu, 26 Nov 2026 09:00:00 +0100",
+        message_id="gmail-message-id",
+    )
+    assert forwarded.external_id == gmail.external_id
