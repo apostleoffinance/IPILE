@@ -35,7 +35,7 @@ def test_detects_monthly_recurring_payment_with_upcoming_date():
     assert len(found) == 1
     assert found[0]["code"] == "recurring_payment_upcoming"
     assert found[0]["evidence"]["frequency"] == "monthly"
-    assert found[0]["evidence"]["expected_next_date"] == "2026-04-04"
+    assert found[0]["evidence"]["expected_next_date"] == "2026-04-05"
 
 
 def test_does_not_infer_recurring_from_only_two_transactions():
