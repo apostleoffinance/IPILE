@@ -117,11 +117,14 @@ def _walk_parts(part: dict[str, Any]) -> list[str]:
 
 def extract_message(message: dict[str, Any]) -> dict[str, str]:
     payload = message.get("payload") if isinstance(message.get("payload"), dict) else {}
-    headers = {
-        str(item.get("name", "")).lower(): str(item.get("value", ""))
-        for item in payload.get("headers", [])
-        if isinstance(item, dict)
-    }
+    headers: dict[str, str] = {}
+    for item in payload.get("headers", []):
+        if isinstance(item, dict):
+            name = str(item.get("name", "")).lower()
+            # Gmail prepends its own authentication result; retain the first
+            # occurrence rather than a sender-supplied duplicate header.
+            if name and name not in headers:
+                headers[name] = str(item.get("value", ""))
     body_parts = _walk_parts(payload)
     body = "\n".join(part for part in body_parts if part).strip()
     if not body:
