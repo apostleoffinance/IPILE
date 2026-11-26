@@ -1331,7 +1331,20 @@ export const api = {
     access_scope?: "shared" | "personal";
     owner_member_id?: string;
   }) => request<Account>("/api/v1/accounts", { method: "POST", body: JSON.stringify(body) }),
-  currentMember: () => request<Member>("/api/v1/members/me"),
+  currentMember: async () => {
+    // Older production API deployments do not expose GET /members/me yet.
+    // Resolve the current household member using endpoints already supported
+    // by those deployments, while preserving household scoping.
+    const [user, members] = await Promise.all([
+      request<User>("/api/v1/auth/me"),
+      request<Member[]>("/api/v1/members"),
+    ]);
+    const member = members.find((row) => row.user_id === user.id);
+    if (!member) {
+      throw new Error("Your household member profile could not be found.");
+    }
+    return member;
+  },
   updateAccount: (id: string, body: {
     name?: string;
     institution?: string | null;
