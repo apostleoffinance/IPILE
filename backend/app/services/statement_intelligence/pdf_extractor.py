@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import re
 from collections import defaultdict
-from datetime import date, datetime
+from datetime import datetime
 from decimal import Decimal
 from io import BytesIO
 from typing import Any
@@ -241,7 +241,6 @@ def extract_pdf_statement(content: bytes) -> ExtractionResult:
                     date_rows.append((top, cells, parsed_datetime))
 
             for row_index, (top, cells, transaction_datetime) in enumerate(date_rows, start=1):
-                date_text = cells.get(CanonicalField.TRANSACTION_DATE, "")
                 debit_text = cells.get(CanonicalField.DEBIT, "")
                 credit_text = cells.get(CanonicalField.CREDIT, "")
                 amount_text = cells.get(CanonicalField.AMOUNT, "")
