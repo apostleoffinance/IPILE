@@ -29,6 +29,11 @@ class ImportRow:
     merchant: str | None = None
     category_name: str | None = None
     currency: str | None = None
+    value_date: date | None = None
+    transaction_datetime: datetime | None = None
+    running_balance: Decimal | None = None
+    source_page: int | None = None
+    extraction_confidence: float | None = None
 
 
 class ImportAdapter(Protocol):
