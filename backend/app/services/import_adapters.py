@@ -34,6 +34,7 @@ class ImportRow:
     running_balance: Decimal | None = None
     source_page: int | None = None
     extraction_confidence: float | None = None
+    cash_direction: str | None = None
 
 
 class ImportAdapter(Protocol):
@@ -79,7 +80,7 @@ def _make_row(
     row_index: int | None = None, currency: str | None = None,
     value_date: date | None = None, transaction_datetime: datetime | None = None,
     running_balance: Decimal | None = None, source_page: int | None = None,
-    extraction_confidence: float | None = None,
+    extraction_confidence: float | None = None, cash_direction: str | None = None,
 ) -> ImportRow:
     parsed_date = _parse_date(raw_date)
     if amount == 0:
@@ -104,6 +105,18 @@ def _make_row(
         running_balance=running_balance,
         source_page=source_page,
         extraction_confidence=extraction_confidence,
+        cash_direction=(
+            cash_direction
+            or (
+                "credit"
+                if tx_type in {"income", "refund"}
+                else "debit"
+                if tx_type in {"expense", "debt_payment", "giving"}
+                else "credit"
+                if amount > 0
+                else "debit"
+            )
+        ),
     )
 
 
