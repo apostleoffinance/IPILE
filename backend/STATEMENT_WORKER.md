@@ -6,13 +6,13 @@ Statement uploads are persisted as jobs in PostgreSQL and processed outside the 
 
 Create a **Background Worker** using the same repository and the same environment group as the API:
 
-- Root directory: `backend`
-- Build command: `pip install -e .`
-- Start command: `python -m app.workers.statement_extraction`
+- Root directory: `backend/`
+- Runtime: Docker, using the existing `backend/Dockerfile` (Docker context `.`)
+- Docker command override: `python -m app.workers.statement_extraction`
 - Instance: at least 1 GB RAM; one worker process per instance
 - Required shared environment: `DATABASE_URL` and the same application secrets/configuration used by the API
 
-The worker and API must use the same database. Do not run multiple worker processes inside one small instance. PostgreSQL row locks with `SKIP LOCKED` allow horizontal scaling later without double-claiming tasks.
+The worker and API must use the same database and the same application environment group. Reuse the backend Dockerfile so Tesseract and the native PDF dependencies are installed. Do not run multiple worker processes inside one small instance. PostgreSQL row locks with `SKIP LOCKED` allow horizontal scaling later without double-claiming tasks.
 
 ## Processing lifecycle
 
