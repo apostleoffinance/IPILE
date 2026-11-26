@@ -28,6 +28,7 @@ class ImportRow:
     external_id: str
     merchant: str | None = None
     category_name: str | None = None
+    currency: str | None = None
 
 
 class ImportAdapter(Protocol):
