@@ -4,7 +4,6 @@ from decimal import Decimal
 
 from app.services.import_adapters import ImportRow
 from app.services.statement_intelligence.schema import (
-    ExtractionIssue,
     ExtractionResult,
     StatementSummary,
 )
