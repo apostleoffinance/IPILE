@@ -24,6 +24,7 @@ class CanonicalField(StrEnum):
     CURRENCY = "currency"
     TRANSACTION_TIME = "transaction_time"
     DIRECTION = "direction"
+    TRANSACTION_TYPE = "transaction_type"
     MERCHANT = "merchant"
     CATEGORY = "category"
 
