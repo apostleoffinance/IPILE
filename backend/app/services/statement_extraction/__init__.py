@@ -24,5 +24,7 @@ __all__ = [
     "ColumnField", "ColumnMapping", "ExtractionMethod", "ExtractionResult",
     "ExtractionStatus", "ExtractedTransaction", "StatementMetadata",
     "StatementSummary", "TransactionDirection", "ValidationIssue", "ValidationReport",
-    "map_statement_columns", "normalize_header", "validate_extraction",
+    "extract_statement_document", "map_statement_columns", "normalize_header", "validate_extraction",
 ]
+
+from app.services.statement_extraction.extractor import extract_statement_document
