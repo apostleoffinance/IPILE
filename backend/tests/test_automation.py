@@ -43,6 +43,20 @@ def test_duplicate_ticks_do_not_double_allocate(client: TestClient) -> None:
     latest = client.get("/api/v1/allocations/latest").json()
     assert latest["recognized_income"] == "500000.00"
 
+    additional_income = client.post(
+        "/api/v1/transactions",
+        json={
+            "account_id": account["id"],
+            "amount": "250000.00",
+            "type": "income",
+            "date": date.today().isoformat(),
+            "status": "cleared",
+        },
+    )
+    assert additional_income.status_code == 201, additional_income.text
+    refreshed = client.get("/api/v1/allocations/latest").json()
+    assert refreshed["recognized_income"] == "750000.00"
+
 
 def test_budget_threshold_and_overspend_alerts(client: TestClient) -> None:
     register(client, "auto-budget@example.com")
