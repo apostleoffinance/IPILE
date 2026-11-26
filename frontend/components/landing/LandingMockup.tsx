@@ -174,8 +174,8 @@ export function LandingMockup() {
       <section className="ipile-marketing-cta">
         <p className="ipile-marketing-kicker">Your next chapter starts with clarity</p>
         <h2>A better understanding of your money starts here.</h2>
-        <div className="mt-9 flex flex-wrap justify-center gap-4"><PrimaryLink>Build your financial foundation</PrimaryLink><Link href="#how-it-works" className="px-4 py-3 text-sm text-white/80 underline underline-offset-4">See how IPÌLẸ̀ works</Link></div>
-        <p className="mt-8 text-xs tracking-[.18em] text-white/60">Your money. In harmony.</p>
+        <div className="mt-9 flex flex-wrap justify-center gap-4"><PrimaryLink>Build your financial foundation</PrimaryLink><Link href="#how-it-works" className="ipile-marketing-cta-secondary px-4 py-3 text-sm underline underline-offset-4">See how IPÌLẸ̀ works</Link></div>
+        <p className="ipile-marketing-cta-brandline mt-8 text-xs tracking-[.18em]">Your money. In harmony.</p>
       </section>
       <footer className="ipile-marketing-footer">
         <div><Wordmark size="sm" /><small>Clarity for today. Confidence for tomorrow.</small></div>
