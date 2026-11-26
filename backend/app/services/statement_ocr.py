@@ -83,16 +83,21 @@ def extract_pdf_ocr_text(content: bytes) -> str:
 
 
 def extract_image_ocr_text(content: bytes) -> str:
+    prepared = None
     try:
         with Image.open(BytesIO(content)) as image:
             image.load()
-            return _ocr_image(ImageOps.exif_transpose(image))
+            prepared = ImageOps.exif_transpose(image)
+            return _ocr_image(prepared)
     except ValueError:
         raise
     except Exception as exc:
         raise ValueError(
             "This image could not be opened. Please upload a clear PNG, JPEG or WebP."
         ) from exc
+    finally:
+        if prepared is not None:
+            prepared.close()
 
 
 def parse_ocr_statement(text: str) -> list[ImportRow]:
