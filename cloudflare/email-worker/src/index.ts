@@ -100,10 +100,12 @@ export default {
       key: header.key,
       value: header.value,
     }));
-    const authenticationResults = headerValue(headers, "authentication-results").toLowerCase();
+    // Cloudflare prepends its trusted result to message.headers. Never trust
+    // Authentication-Results parsed from raw MIME: a sender can forge that header.
+    const authenticationResults = (message.headers.get("Authentication-Results") ?? "").toLowerCase();
     const authenticated =
-      /\bdmarc=pass\b/.test(authenticationResults) ||
-      (/\bdkim=pass\b/.test(authenticationResults) && /\bspf=pass\b/.test(authenticationResults));
+      /^\s*mx\.cloudflare\.net\s*;/.test(authenticationResults) &&
+      /\bdmarc=pass\b/.test(authenticationResults);
     if (!authenticated) {
       message.setReject("The sender could not be verified. Contact your bank or forward an original alert.");
       return;
