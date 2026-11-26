@@ -86,12 +86,16 @@ def test_pdf_layout_reconstructs_wrapped_descriptions_and_repeated_pages(monkeyp
     class FakeDocument:
         pages = [
             FakePage(first_page_words, "Wallet Account Period: 01 Jan 2026 - 25 Nov 2026"),
-            FakePage([
-            word("03", 10, 18, 10), word("Jan", 19, 30, 10),
-            word("2026", 31, 45, 10), word("11:00:00", 46, 65, 10),
-            word("SECOND", 70, 110, 10), word("--", 150, 160, 10),
-            word("900.00", 210, 250, 10), word("REF-003", 270, 320, 10),
-        ])]
+            FakePage(
+                [
+                    word("03", 10, 18, 10), word("Jan", 19, 30, 10),
+                    word("2026", 31, 45, 10), word("11:00:00", 46, 65, 10),
+                    word("SECOND", 70, 110, 10), word("--", 150, 160, 10),
+                    word("900.00", 210, 250, 10), word("REF-003", 270, 320, 10),
+                ],
+                "Savings Account Period: 01 Jan 2026 - 25 Nov 2026",
+            ),
+        ]
 
         def __enter__(self):
             return self
