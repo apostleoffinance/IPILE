@@ -63,9 +63,10 @@ Do not include request bodies, cookies, OAuth tokens, bank-alert content or acco
 ### Cloudflare
 
 Inspect Worker observability for:
-- `ipile-inbound-email` and `ipile-inbound-email-production` email delivery failures.
-- Scheduled event failures and non-2xx Gmail/daily automation requests.
-- Worker exceptions and API proxy 5xx responses.
+- `bank_alert_delivery_failed` and `bank_alert_delivered` events (the Worker logs no sender address, mailbox token, subject or message body).
+- `gmail_sync_cron_completed` aggregate `scanned`, `queued`, `auto_posted`, `rejected` and `failed` counts; investigate any non-zero `failed` count or unexpected rejected volume.
+- `daily_automation_cron_completed` aggregate household, processed, skipped and failed counts.
+- `gmail_sync_cron_failed`, `daily_automation_cron_failed`, Worker exceptions and API proxy 5xx responses.
 
 ### Error reporting
 
