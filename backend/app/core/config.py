@@ -165,29 +165,6 @@ class Settings(BaseSettings):
             ):
                 problems.append("GMAIL_OAUTH_REDIRECT_URI must be an absolute HTTPS URL")
 
-        gmail_values = (
-            self.gmail_oauth_client_id,
-            self.gmail_oauth_client_secret,
-            self.gmail_oauth_redirect_uri,
-            self.gmail_sync_secret,
-        )
-        if any(value.strip() for value in gmail_values) and not all(
-            value.strip() for value in gmail_values
-        ):
-            problems.append(
-                "Gmail integration requires GMAIL_OAUTH_CLIENT_ID, "
-                "GMAIL_OAUTH_CLIENT_SECRET, GMAIL_OAUTH_REDIRECT_URI and GMAIL_SYNC_SECRET"
-            )
-        if self.gmail_oauth_redirect_uri:
-            gmail_redirect = urlsplit(self.gmail_oauth_redirect_uri)
-            if (
-                gmail_redirect.scheme.lower() != "https"
-                or not gmail_redirect.hostname
-                or gmail_redirect.username
-                or gmail_redirect.password
-            ):
-                problems.append("GMAIL_OAUTH_REDIRECT_URI must be an absolute HTTPS URL")
-
         if problems:
             raise ValueError("Invalid production configuration: " + "; ".join(problems))
         return self
