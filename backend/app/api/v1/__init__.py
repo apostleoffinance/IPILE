@@ -21,6 +21,7 @@ from app.api.v1 import (
     export,
     funds,
     giving,
+    gmail,
     goals,
     health,
     households,
@@ -71,6 +72,7 @@ api_router.include_router(simulations.router)
 api_router.include_router(automation.router)
 api_router.include_router(ai.router)
 api_router.include_router(imports.router)
+api_router.include_router(gmail.router)
 api_router.include_router(receipts.router)
 api_router.include_router(reconciliation.router)
 api_router.include_router(bank_connections.router)

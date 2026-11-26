@@ -4,6 +4,9 @@ compatibility_date = "2026-11-20"
 compatibility_flags = ["nodejs_compat"]
 workers_dev = false
 
+[triggers]
+crons = ["*/5 * * * *"]
+
 [vars]
 BACKEND_URL = "https://ipile-staging-api-v2.onrender.com"
 MAX_EMAIL_BYTES = "10485760"
@@ -20,3 +23,6 @@ MAX_ATTACHMENT_BYTES = "10485760"
 # Configure Email Routing rules in Cloudflare after verifying ownership of
 # the dedicated inbound subdomain. Route bank-alert@<subdomain> to the
 # matching Worker and verify plus-addressing preserves the household token.
+
+[env.production.triggers]
+crons = ["*/5 * * * *"]

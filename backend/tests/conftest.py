@@ -33,6 +33,7 @@ from app.models import (  # noqa: F401
     FundContribution,
     GivingPolicy,
     GivingRecord,
+    GmailConnection,
     Goal,
     GoalContribution,
     Household,

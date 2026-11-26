@@ -38,5 +38,19 @@ npx wrangler secret put ALLOWED_BANK_SENDER_DOMAINS --env production
 - The recipient must contain a sufficiently long opaque household token. The API resolves only its SHA-256 hash to an enabled mailbox.
 - The Worker enforces a bounded raw email size and attachment size. Attachments are metadata only; they are never parsed as transaction content.
 - The backend webhook requires the shared secret and deduplicates provider Message IDs per household.
-- Alerts enter the household review queue. No account balance or transaction ledger is changed until an authorized household owner/partner approves the alert.
-- The parser currently recognizes NGN alert amounts and common debit/credit wording. Extend and test bank-specific formats before enabling other currencies.
+- By default alerts enter the household review queue. Opt-in automation may post only verified alerts with a unique exact account match and explicit matching currency; all ambiguous alerts remain in review.
+- The parser recognizes a defined set of ISO 4217 codes and unambiguous currency symbols. Ambiguous dollar symbols remain unassigned until the user confirms the destination account currency.
+
+
+## Scheduled Gmail polling
+
+This Worker also owns the five-minute scheduled trigger used for Gmail read-only
+sync. Configure `GMAIL_SYNC_CRON_SECRET` as a Worker secret in both environments.
+It must exactly match the corresponding backend `GMAIL_SYNC_SECRET`. The
+scheduled handler calls `POST /api/v1/imports/gmail/sync/cron`; the backend
+rejects requests without the matching secret. Never put this secret in
+`wrangler.toml` or commit it.
+
+The cron schedule is defined for the default (staging) Worker and the named
+`production` Worker environment. Deploy each environment separately only after
+its matching backend OAuth settings and secrets have been configured.

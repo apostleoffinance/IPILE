@@ -783,7 +783,7 @@ export type ImportJob = {
     account_id?: string;
     row_count?: number;
     duplicate_count_at_preview?: number;
-    rows?: { date: string; amount: string; type: string; description: string | null; external_id?: string; merchant?: string | null; category_name?: string | null }[];
+    rows?: { date: string; amount: string; currency?: string | null; type: string; description: string | null; external_id?: string; merchant?: string | null; category_name?: string | null }[];
   };
 };
 
@@ -828,13 +828,31 @@ export function approveEmailImport(jobId: string, accountId: string) {
 
 export function correctEmailImport(
   jobId: string,
-  correction: { amount?: string; date?: string; type?: "income" | "expense"; description?: string },
+  correction: { amount?: string; date?: string; type?: "income" | "expense"; description?: string; currency?: string },
 ) {
   return request<ImportJob>(`/api/v1/imports/${jobId}/review`, {
     method: "PATCH",
     body: JSON.stringify(correction),
   });
 }
+
+export type GmailConnectionStatus = {
+  connected: boolean;
+  email_address: string | null;
+  last_sync_at: string | null;
+  last_error: string | null;
+};
+export const getGmailConnection = () => request<GmailConnectionStatus>("/api/v1/imports/gmail/connection");
+export const connectGmail = () => request<{ authorization_url: string }>("/api/v1/imports/gmail/connect", { method: "POST" });
+export const disconnectGmail = () => request<{ connected: boolean }>("/api/v1/imports/gmail/disconnect", { method: "POST" });
+export const syncGmail = () => request<{ scanned: number; queued: number; auto_posted: number; rejected: number; ignored: number }>("/api/v1/imports/gmail/sync", { method: "POST" });
+export type ImportAutomationMode = "review_everything" | "auto_trusted" | "full_automation";
+export const getImportPreferences = () => request<{ automation_mode: ImportAutomationMode }>("/api/v1/imports/preferences");
+export const updateImportPreferences = (automation_mode: ImportAutomationMode) =>
+  request<{ automation_mode: ImportAutomationMode }>("/api/v1/imports/preferences", {
+    method: "PUT",
+    body: JSON.stringify({ automation_mode }),
+  });
 
 export function exportHousehold() {
   return request<Record<string, unknown>>("/api/v1/export");

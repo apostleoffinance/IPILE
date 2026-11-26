@@ -32,6 +32,31 @@ class Settings(BaseSettings):
     mono_webhook_secret: str = ""
     mono_redirect_url: str = ""
     bank_data_encryption_key: str = ""
+    gmail_oauth_client_id: str = ""
+    gmail_oauth_client_secret: str = ""
+    gmail_oauth_redirect_uri: str = ""
+    gmail_sync_secret: str = ""
+    gmail_token_encryption_key: str = ""
+    gmail_allowed_sender_domains: str = ""
+
+    @property
+    def gmail_connect_configured(self) -> bool:
+        return all(value.strip() for value in (
+            self.gmail_oauth_client_id,
+            self.gmail_oauth_client_secret,
+            self.gmail_oauth_redirect_uri,
+            self.gmail_sync_secret,
+            self.gmail_token_encryption_key,
+            self.gmail_allowed_sender_domains,
+        ))
+
+    @property
+    def gmail_sender_domain_list(self) -> list[str]:
+        return [
+            part.strip().lower().lstrip("@")
+            for part in self.gmail_allowed_sender_domains.split(",")
+            if part.strip()
+        ]
 
     @property
     def mono_connect_configured(self) -> bool:
@@ -116,6 +141,41 @@ class Settings(BaseSettings):
             except (ValueError, UnicodeEncodeError):
                 problems.append(
                     "BANK_DATA_ENCRYPTION_KEY must be a valid URL-safe base64-encoded "
+                    "32-byte Fernet key"
+                )
+
+        gmail_values = (
+            self.gmail_oauth_client_id,
+            self.gmail_oauth_client_secret,
+            self.gmail_oauth_redirect_uri,
+            self.gmail_sync_secret,
+            self.gmail_token_encryption_key,
+            self.gmail_allowed_sender_domains,
+        )
+        if any(value.strip() for value in gmail_values) and not all(
+            value.strip() for value in gmail_values
+        ):
+            problems.append(
+                "Gmail integration requires GMAIL_OAUTH_CLIENT_ID, "
+                "GMAIL_OAUTH_CLIENT_SECRET, GMAIL_OAUTH_REDIRECT_URI, GMAIL_SYNC_SECRET, "
+                "GMAIL_TOKEN_ENCRYPTION_KEY and GMAIL_ALLOWED_SENDER_DOMAINS"
+            )
+        if self.gmail_oauth_redirect_uri:
+            gmail_redirect = urlsplit(self.gmail_oauth_redirect_uri)
+            if (
+                gmail_redirect.scheme.lower() != "https"
+                or not gmail_redirect.hostname
+                or gmail_redirect.username
+                or gmail_redirect.password
+            ):
+                problems.append("GMAIL_OAUTH_REDIRECT_URI must be an absolute HTTPS URL")
+
+        if self.gmail_token_encryption_key:
+            try:
+                Fernet(self.gmail_token_encryption_key.encode("ascii"))
+            except (ValueError, UnicodeEncodeError):
+                problems.append(
+                    "GMAIL_TOKEN_ENCRYPTION_KEY must be a valid URL-safe base64-encoded "
                     "32-byte Fernet key"
                 )
 

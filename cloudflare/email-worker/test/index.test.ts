@@ -17,7 +17,7 @@ function emailMessage(options: {
   body?: string;
 } = {}) {
   const raw = [
-    "From: alerts@bank.example",
+    `From: ${options.from ?? "alerts@bank.example"}`,
     "To: bank-alert+abcdefghijklmnopqrstuvwxyz0123456789@inbox.example.test",
     "Subject: Debit Alert",
     "Date: Sun, 15 Nov 2026 10:00:00 +0100",
@@ -27,14 +27,14 @@ function emailMessage(options: {
     "Content-Type: text/plain; charset=utf-8",
     "",
     options.body ?? "Your account was debited NGN 5,000.00 on 15/11/2026. Ref: ABC12345",
-  ].join("\\r\\n");
+  ].join("\r\n");
   const bytes = new TextEncoder().encode(raw);
   const rejects: string[] = [];
   const message = {
     from: options.from ?? "alerts@bank.example",
     to: options.to ?? "bank-alert+abcdefghijklmnopqrstuvwxyz0123456789@inbox.example.test",
     headers: new Headers({
-      "Authentication-Results": options.cloudflareAuthentication ?? "mx.cloudflare.net; spf=pass; dkim=pass; dmarc=pass",
+      "Authentication-Results": options.cloudflareAuthentication ?? "mx.cloudflare.net; spf=pass; dkim=pass; dmarc=pass header.from=bank.example",
       Date: "Sun, 15 Nov 2026 10:00:00 +0100",
       "Message-ID": "<alert-001@bank.example>",
     }),
@@ -87,7 +87,7 @@ describe("Cloudflare inbound bank-alert Worker", () => {
   it("accepts the operator-observed OPay sender domain when explicitly allowlisted", async () => {
     const fetchMock = vi.fn().mockResolvedValue(new Response("{}", { status: 200 }));
     vi.stubGlobal("fetch", fetchMock);
-    const { message, rejects } = emailMessage({ from: "no-reply@opay-nigeria.com" });
+    const { message, rejects } = emailMessage({ from: "no-reply@opay-nigeria.com", cloudflareAuthentication: "mx.cloudflare.net; spf=pass; dkim=pass; dmarc=pass header.from=opay-nigeria.com" });
     const opayEnv = {
       ...env,
       ALLOWED_BANK_SENDER_DOMAINS: "bank.example,opay-nigeria.com",
@@ -107,6 +107,19 @@ describe("Cloudflare inbound bank-alert Worker", () => {
     const { message, rejects } = emailMessage({
       authentication: "mx.cloudflare.net; dmarc=pass",
       cloudflareAuthentication: "mx.cloudflare.net; dmarc=fail; dkim=fail; spf=pass",
+    });
+
+    await worker.email(message, env as never);
+
+    expect(fetchMock).not.toHaveBeenCalled();
+    expect(rejects).toHaveLength(1);
+  });
+
+  it("rejects a passing DMARC result for a different From domain", async () => {
+    const fetchMock = vi.fn();
+    vi.stubGlobal("fetch", fetchMock);
+    const { message, rejects } = emailMessage({
+      cloudflareAuthentication: "mx.cloudflare.net; spf=pass; dkim=pass; dmarc=pass header.from=attacker.test",
     });
 
     await worker.email(message, env as never);

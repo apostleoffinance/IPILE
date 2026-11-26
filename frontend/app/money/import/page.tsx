@@ -12,6 +12,12 @@ import { Input } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
 import {
   approveEmailImport,
+  connectGmail,
+  disconnectGmail,
+  getGmailConnection,
+  getImportPreferences,
+  syncGmail,
+  updateImportPreferences,
   commitStagedImport,
   createImportMailbox,
   correctEmailImport,
@@ -21,6 +27,8 @@ import {
   previewStatementUpload,
   type Account,
   type ImportJob,
+  type GmailConnectionStatus,
+  type ImportAutomationMode,
 } from "@/lib/api";
 
 const CSV_HINT = "Use a bank-exported CSV with a transaction date and amount. Debit and credit columns are supported. A description or merchant name is helpful but optional.";
@@ -39,8 +47,12 @@ export default function ImportPage() {
   const [mailboxAddress, setMailboxAddress] = useState<string | null>(null);
   const [emailJobs, setEmailJobs] = useState<ImportJob[]>([]);
   const [reviewAccounts, setReviewAccounts] = useState<Record<string, string>>({});
-  const [emailCorrections, setEmailCorrections] = useState<Record<string, { amount?: string; date?: string; type?: "income" | "expense"; description?: string }>>({});
+  const [emailCorrections, setEmailCorrections] = useState<Record<string, { amount?: string; date?: string; type?: "income" | "expense"; description?: string; currency?: string }>>({});
   const [mailboxBusy, setMailboxBusy] = useState(false);
+  const [gmail, setGmail] = useState<GmailConnectionStatus | null>(null);
+  const [gmailBusy, setGmailBusy] = useState(false);
+  const [gmailSyncSummary, setGmailSyncSummary] = useState<{ scanned: number; queued: number; auto_posted: number; rejected: number; ignored: number } | null>(null);
+  const [automationMode, setAutomationMode] = useState<ImportAutomationMode>("review_everything");
 
   async function refreshEmailReview() {
     const jobs = await getImportReview();
@@ -65,6 +77,16 @@ export default function ImportPage() {
           setEmailJobs(jobs.filter((job) => job.source === "email"));
         } catch {
           // Keep statement imports usable if the review queue is temporarily unavailable.
+        }
+        try {
+          const [connection, preferences] = await Promise.all([
+            getGmailConnection(),
+            getImportPreferences(),
+          ]);
+          setGmail(connection);
+          setAutomationMode(preferences.automation_mode);
+        } catch {
+          // Email forwarding remains available if Gmail integration is not configured.
         }
       })
       .catch((err: Error) => setError(err.message));
@@ -114,9 +136,60 @@ export default function ImportPage() {
     }
   }
 
+  async function onConnectGmail() {
+    setGmailBusy(true);
+    setError(null);
+    try {
+      const result = await connectGmail();
+      window.location.assign(result.authorization_url);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Could not start Gmail connection.");
+      setGmailBusy(false);
+    }
+  }
+
+  async function onSyncGmail() {
+    setGmailBusy(true);
+    setError(null);
+    try {
+      setGmailSyncSummary(await syncGmail());
+      await refreshEmailReview();
+      setGmail(await getGmailConnection());
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Could not sync Gmail.");
+    } finally {
+      setGmailBusy(false);
+    }
+  }
+
+  async function onDisconnectGmail() {
+    setGmailBusy(true);
+    setError(null);
+    try {
+      await disconnectGmail();
+      setGmail(await getGmailConnection());
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Could not disconnect Gmail.");
+    } finally {
+      setGmailBusy(false);
+    }
+  }
+
+  async function onAutomationChange(value: ImportAutomationMode) {
+    setAutomationMode(value);
+    setError(null);
+    try {
+      const saved = await updateImportPreferences(value);
+      setAutomationMode(saved.automation_mode);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Could not update automation preferences.");
+      setAutomationMode("review_everything");
+    }
+  }
+
   async function onCorrectEmail(job: ImportJob) {
     const row = job.result?.rows?.[0];
-    if (!row) return;
+    if (!row || !accounts) return;
     const correction = emailCorrections[job.id] ?? {};
     setPending(true);
     setError(null);
@@ -126,6 +199,7 @@ export default function ImportPage() {
         date: correction.date ?? String(row.date),
         type: correction.type ?? (row.type as "income" | "expense"),
         description: correction.description ?? String(row.description ?? ""),
+        currency: correction.currency ?? row.currency ?? accounts.find((account) => account.id === reviewAccounts[job.id])?.currency,
       });
       await refreshEmailReview();
       setEmailCorrections((current) => {
@@ -168,10 +242,35 @@ export default function ImportPage() {
         {error ? <ErrorState message={error} /> : null}
         <div className="max-w-3xl space-y-8">
           <section className="space-y-4 border border-line p-4">
-            <h2 className="font-semibold">1. Receive bank alerts by email</h2>
+            <h2 className="font-semibold">1. Connect your bank-alert inbox</h2>
             <p className="text-sm text-muted">
-              Generate a private household address, then set your bank to email transaction alerts to it or create a forwarding rule in your personal inbox.
+              Connect Gmail once for automatic read-only monitoring, or use the private forwarding address as an alternative for other email providers.
             </p>
+            <div className="space-y-2 border border-line bg-surface p-3">
+              {gmail?.connected ? (
+                <>
+                  <p className="text-sm font-medium">Gmail connected · {gmail.email_address}</p>
+                  <p className="text-xs text-muted">Google grants IPÌLẸ̀ read-only Gmail access. IPÌLẸ̀ only searches configured trusted bank-sender domains, stores extracted transaction fields rather than email bodies, and cannot send, modify or delete emails.</p>
+                  <div className="flex flex-wrap gap-2">
+                    <Button type="button" size="sm" variant="outline" disabled={gmailBusy} onClick={() => void onSyncGmail()}>{gmailBusy ? "Syncing..." : "Sync now"}</Button>
+                    <Button type="button" size="sm" variant="ghost" disabled={gmailBusy} onClick={() => void onDisconnectGmail()}>Disconnect Gmail</Button>
+                  </div>
+                  {gmail.last_sync_at ? <p className="text-xs text-muted">Last checked: {new Date(gmail.last_sync_at).toLocaleString()}</p> : null}
+                  {gmailSyncSummary ? <p className="text-xs text-muted">{gmailSyncSummary.scanned} messages checked · {gmailSyncSummary.queued} awaiting review · {gmailSyncSummary.auto_posted} recorded automatically · {gmailSyncSummary.rejected} rejected</p> : null}
+                  {gmail.last_error ? <p className="text-xs text-danger">{gmail.last_error}</p> : null}
+                </>
+              ) : (
+                <>
+                  <p className="text-sm font-medium">Gmail · Recommended</p>
+                  <p className="text-xs text-muted">Connect the inbox where your bank alerts already arrive. Google grants read-only Gmail access; IPÌLẸ̀ processes only configured trusted bank-sender domains. You approve access through Google.</p>
+                  <Button type="button" disabled={gmailBusy} onClick={() => void onConnectGmail()}>{gmailBusy ? "Connecting..." : "Connect Gmail"}</Button>
+                </>
+              )}
+            </div>
+            <div className="space-y-2">
+              <p className="text-sm font-medium">Other email providers</p>
+              <p className="text-xs text-muted">Create the private IPÌLẸ̀ address below, then add a one-time forwarding/filter rule in your email provider. Only bank-alert emails should be forwarded; you do not need to forward each alert manually.</p>
+            </div>
             {mailboxAddress ? (
               <div className="space-y-2 border border-line bg-surface p-3">
                 <p className="break-all font-mono text-sm">{mailboxAddress}</p>
@@ -191,9 +290,23 @@ export default function ImportPage() {
             </p>
           </section>
 
+          <section className="space-y-3 border border-line p-4">
+            <h2 className="font-semibold">2. Automation preferences</h2>
+            <p className="text-sm text-muted">Choose how much control IPÌLẸ̀ should take. You can change this at any time.</p>
+            <label className="block text-sm">
+              <span className="text-muted">Transaction handling</span>
+              <Select className="mt-1" value={automationMode} onChange={(event) => void onAutomationChange(event.target.value as ImportAutomationMode)}>
+                <option value="review_everything">Review every transaction (recommended)</option>
+                <option value="auto_trusted">Automatically record trusted, matched alerts</option>
+                <option value="full_automation">Full automation for confidently matched alerts</option>
+              </Select>
+            </label>
+            <p className="text-xs text-muted">Even with automation enabled, IPÌLẸ̀ will hold uncertain amounts, currencies, senders and account matches for review. It will never guess a destination account.</p>
+          </section>
+
           <section className="space-y-4 border border-line p-4">
             <div className="flex flex-wrap items-center justify-between gap-2">
-              <h2 className="font-semibold">2. Review incoming bank alerts</h2>
+              <h2 className="font-semibold">3. Review incoming bank alerts</h2>
               <Button type="button" size="sm" variant="outline" onClick={() => void refreshEmailReview()}>Refresh</Button>
             </div>
             {emailJobs.length === 0 ? (
@@ -210,7 +323,7 @@ export default function ImportPage() {
                   <p className="text-xs text-muted">From: {String(job.result?.sender ?? "Unknown sender")}</p>
                   {row ? (
                     <div className="grid gap-1 text-sm sm:grid-cols-2">
-                      <p>{row.date} · {row.type}</p>
+                      <p>{row.date} · {row.type} · {row.currency ?? "Currency not detected"}</p>
                       <p className="font-semibold">{row.amount}</p>
                       <p className="text-muted sm:col-span-2">{row.description || row.merchant || "Bank transaction"}</p>
                       {row.external_id ? <p className="text-xs text-muted sm:col-span-2">Reference: {row.external_id}</p> : null}
@@ -242,6 +355,12 @@ export default function ImportPage() {
                           <span className="text-muted">Description</span>
                           <Input className="mt-1" value={emailCorrections[job.id]?.description ?? String(row?.description ?? "")} onChange={(event) => setEmailCorrections((current) => ({ ...current, [job.id]: { ...current[job.id], description: event.target.value } }))} />
                         </label>
+                        <label className="block text-sm">
+                          <span className="text-muted">Transaction currency</span>
+                          <Select className="mt-1" value={emailCorrections[job.id]?.currency ?? row?.currency ?? (accounts.find((account) => account.id === reviewAccounts[job.id])?.currency ?? "")} onChange={(event) => setEmailCorrections((current) => ({ ...current, [job.id]: { ...current[job.id], currency: event.target.value } }))}>
+                            {[...new Set(accounts.map((account) => account.currency))].map((currency) => <option key={currency} value={currency}>{currency}</option>)}
+                          </Select>
+                        </label>
                       </div>
                       <Button type="button" variant="outline" disabled={pending} onClick={() => void onCorrectEmail(job)}>
                         Save corrections
@@ -264,7 +383,7 @@ export default function ImportPage() {
           </section>
 
           <section className="space-y-4 border border-line p-4">
-            <h2 className="font-semibold">3. Import a bank statement</h2>
+            <h2 className="font-semibold">4. Import a bank statement</h2>
             {accounts.length === 0 ? (
               <EmptyState title="Add an account first" body="Imports are reviewed and posted against a household bank or cash account." />
             ) : (

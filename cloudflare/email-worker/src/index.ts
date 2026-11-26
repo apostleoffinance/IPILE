@@ -6,6 +6,7 @@ interface Env {
   ALLOWED_BANK_SENDER_DOMAINS: string;
   MAX_EMAIL_BYTES?: string;
   MAX_ATTACHMENT_BYTES?: string;
+  GMAIL_SYNC_CRON_SECRET?: string;
 }
 
 interface ParsedHeader {
@@ -84,7 +85,10 @@ export default {
       return;
     }
 
-    const sender = normalizeAddress(message.from);
+    const sender = normalizeAddress(headerValue(
+      (parsed.headers ?? []).map((header) => ({ key: header.key, value: header.value })),
+      "from",
+    ) || message.from);
     if (!isAllowedSender(sender, env.ALLOWED_BANK_SENDER_DOMAINS)) {
       message.setReject("This sender is not on IPÌLẸ̀'s approved bank-alert list.");
       return;
@@ -103,9 +107,11 @@ export default {
     // Cloudflare prepends its trusted result to message.headers. Never trust
     // Authentication-Results parsed from raw MIME: a sender can forge that header.
     const authenticationResults = (message.headers.get("Authentication-Results") ?? "").toLowerCase();
+    const authenticatedFrom = authenticationResults.match(/\bheader\.from=([a-z0-9.-]+)/i)?.[1] ?? "";
     const authenticated =
       /^\s*mx\.cloudflare\.net\s*;/.test(authenticationResults) &&
-      /\bdmarc=pass\b/.test(authenticationResults);
+      /\bdmarc=pass\b/.test(authenticationResults) &&
+      authenticatedFrom.toLowerCase() === senderDomain(sender);
     if (!authenticated) {
       message.setReject("The sender could not be verified. Contact your bank or forward an original alert.");
       return;
@@ -160,5 +166,15 @@ export default {
       return;
     }
     message.setReject("IPÌLẸ̀ is temporarily unavailable. Please try forwarding this alert again later.");
+  },
+  async scheduled(_controller: ScheduledController, env: Env, ctx: ExecutionContext): Promise<void> {
+    if (!env.BACKEND_URL || !env.GMAIL_SYNC_CRON_SECRET) return;
+    ctx.waitUntil(fetch(new URL("/api/v1/imports/gmail/sync/cron", env.BACKEND_URL), {
+      method: "POST",
+      headers: { "x-gmail-sync-secret": env.GMAIL_SYNC_CRON_SECRET },
+      signal: AbortSignal.timeout(55_000),
+    }).then((response) => {
+      if (!response.ok) throw new Error(`Gmail sync scheduler returned ${response.status}`);
+    }));
   },
 } satisfies ExportedHandler<Env>;
