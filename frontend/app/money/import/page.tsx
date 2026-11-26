@@ -14,6 +14,7 @@ import {
   approveEmailImport,
   commitStagedImport,
   createImportMailbox,
+  correctEmailImport,
   getAccounts,
   getImportReview,
   previewImport,
@@ -38,6 +39,7 @@ export default function ImportPage() {
   const [mailboxAddress, setMailboxAddress] = useState<string | null>(null);
   const [emailJobs, setEmailJobs] = useState<ImportJob[]>([]);
   const [reviewAccounts, setReviewAccounts] = useState<Record<string, string>>({});
+  const [emailCorrections, setEmailCorrections] = useState<Record<string, { amount?: string; date?: string; type?: "income" | "expense"; description?: string }>>({});
   const [mailboxBusy, setMailboxBusy] = useState(false);
 
   async function refreshEmailReview() {
@@ -47,7 +49,7 @@ export default function ImportPage() {
     setReviewAccounts((current) => {
       const next = { ...current };
       for (const job of pendingEmailJobs) {
-        if (!next[job.id] && accounts?.[0]) next[job.id] = accounts[0].id;
+        if (!next[job.id] && accounts?.length) next[job.id] = accounts.find((account) => account.id === job.result?.suggested_account_id)?.id ?? accounts[0].id;
       }
       return next;
     });
@@ -109,6 +111,32 @@ export default function ImportPage() {
       setError(err instanceof Error ? err.message : "Could not create an inbound email address.");
     } finally {
       setMailboxBusy(false);
+    }
+  }
+
+  async function onCorrectEmail(job: ImportJob) {
+    const row = job.result?.rows?.[0];
+    if (!row) return;
+    const correction = emailCorrections[job.id] ?? {};
+    setPending(true);
+    setError(null);
+    try {
+      await correctEmailImport(job.id, {
+        amount: correction.amount ?? String(row.amount),
+        date: correction.date ?? String(row.date),
+        type: correction.type ?? (row.type as "income" | "expense"),
+        description: correction.description ?? String(row.description ?? ""),
+      });
+      await refreshEmailReview();
+      setEmailCorrections((current) => {
+        const next = { ...current };
+        delete next[job.id];
+        return next;
+      });
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Could not save these corrections.");
+    } finally {
+      setPending(false);
     }
   }
 
@@ -194,9 +222,33 @@ export default function ImportPage() {
                     </ul>
                   ) : (
                     <div className="space-y-2">
+                      <div className="grid gap-2 sm:grid-cols-2">
+                        <label className="block text-sm">
+                          <span className="text-muted">Amount</span>
+                          <Input className="mt-1" inputMode="decimal" value={emailCorrections[job.id]?.amount ?? String(row?.amount ?? "")} onChange={(event) => setEmailCorrections((current) => ({ ...current, [job.id]: { ...current[job.id], amount: event.target.value } }))} />
+                        </label>
+                        <label className="block text-sm">
+                          <span className="text-muted">Transaction date</span>
+                          <Input className="mt-1" type="date" value={emailCorrections[job.id]?.date ?? String(row?.date ?? "")} onChange={(event) => setEmailCorrections((current) => ({ ...current, [job.id]: { ...current[job.id], date: event.target.value } }))} />
+                        </label>
+                        <label className="block text-sm">
+                          <span className="text-muted">Direction</span>
+                          <Select className="mt-1" value={emailCorrections[job.id]?.type ?? row?.type ?? "expense"} onChange={(event) => setEmailCorrections((current) => ({ ...current, [job.id]: { ...current[job.id], type: event.target.value as "income" | "expense" } }))}>
+                            <option value="income">Money in</option>
+                            <option value="expense">Money out</option>
+                          </Select>
+                        </label>
+                        <label className="block text-sm">
+                          <span className="text-muted">Description</span>
+                          <Input className="mt-1" value={emailCorrections[job.id]?.description ?? String(row?.description ?? "")} onChange={(event) => setEmailCorrections((current) => ({ ...current, [job.id]: { ...current[job.id], description: event.target.value } }))} />
+                        </label>
+                      </div>
+                      <Button type="button" variant="outline" disabled={pending} onClick={() => void onCorrectEmail(job)}>
+                        Save corrections
+                      </Button>
                       <label className="block text-sm">
                         <span className="text-muted">Post to account</span>
-                        <Select className="mt-1" value={reviewAccounts[job.id] ?? accounts[0]?.id ?? ""} onChange={(event) => setReviewAccounts((current) => ({ ...current, [job.id]: event.target.value }))}>
+                        <Select className="mt-1" value={reviewAccounts[job.id] ?? (accounts.some((account) => account.id === job.result?.suggested_account_id) ? String(job.result?.suggested_account_id) : accounts[0]?.id) ?? ""} onChange={(event) => setReviewAccounts((current) => ({ ...current, [job.id]: event.target.value }))}>
                           {accounts.map((account) => <option key={account.id} value={account.id}>{account.name} · {account.currency}</option>)}
                         </Select>
                       </label>

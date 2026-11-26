@@ -776,6 +776,9 @@ export type ImportJob = {
   result: {
     sender?: string;
     message_id?: string | null;
+    suggested_account_id?: string | null;
+    account_match?: string;
+    corrected?: boolean;
     errors?: string[];
     account_id?: string;
     row_count?: number;
@@ -820,6 +823,16 @@ export function approveEmailImport(jobId: string, accountId: string) {
   return request<ImportJob>(`/api/v1/imports/${jobId}/approve`, {
     method: "POST",
     body: JSON.stringify({ account_id: accountId }),
+  });
+}
+
+export function correctEmailImport(
+  jobId: string,
+  correction: { amount?: string; date?: string; type?: "income" | "expense"; description?: string },
+) {
+  return request<ImportJob>(`/api/v1/imports/${jobId}/review`, {
+    method: "PATCH",
+    body: JSON.stringify(correction),
   });
 }
 
