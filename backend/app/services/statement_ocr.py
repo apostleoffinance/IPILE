@@ -40,6 +40,9 @@ def extract_pdf_ocr_text(content: bytes) -> str:
     pages: list[str] = []
     try:
         for page in document:
+            width, height = page.get_size()
+            if width * height * OCR_DPI_SCALE * OCR_DPI_SCALE > MAX_IMAGE_PIXELS:
+                raise ValueError("A scanned PDF page is too large to process safely.")
             bitmap = page.render(scale=OCR_DPI_SCALE)
             pages.append(_ocr_image(bitmap.to_pil()))
     finally:
