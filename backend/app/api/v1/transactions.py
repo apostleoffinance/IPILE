@@ -15,7 +15,6 @@ from app.models.member import HouseholdMember
 from app.models.obligation import Obligation
 from app.models.transaction import Transaction
 from app.schemas.transaction import TransactionCreate, TransactionOut, TransactionUpdate
-from app.services.allocations import ensure_period_allocation
 from app.services.audit import write_audit
 from app.services.balances import TRANSFER_TYPE, apply_transaction_effect
 from app.services.budgets import evaluate_budget_alerts
