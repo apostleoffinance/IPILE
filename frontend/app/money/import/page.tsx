@@ -124,7 +124,7 @@ export default function ImportPage() {
       await correctEmailImport(job.id, {
         amount: correction.amount ?? String(row.amount),
         date: correction.date ?? String(row.date),
-        type: correction.type ?? row.type,
+        type: correction.type ?? (row.type as "income" | "expense"),
         description: correction.description ?? String(row.description ?? ""),
       });
       await refreshEmailReview();
