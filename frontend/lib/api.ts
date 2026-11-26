@@ -527,7 +527,7 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
     throw new Error("IPÌLẸ̀ is temporarily unavailable. Please try again in a moment.");
   }
 
-  if (response.status === 403 && ["POST", "PUT", "PATCH", "DELETE"].includes(method)) {
+  if (response.status === 403 && !csrfExempt && ["POST", "PUT", "PATCH", "DELETE"].includes(method)) {
     clearCsrfToken();
     headers["X-CSRF-Token"] = await ensureCsrfToken();
     const retry = await fetch(`${apiUrl}${path}`, {
