@@ -28,6 +28,7 @@ from app.services.allocations import (
 from app.services.balances import OUTFLOW_TYPES
 from app.services.budgets import category_spent
 from app.services.contribution_forecast import contribution_forecast
+from app.services.currencies import amount_in_base_currency, transaction_amount_in_base
 from app.services.obligation_engine import add_months
 from app.services.safe_to_spend_engine import (
     current_safe_to_spend,
@@ -63,16 +64,27 @@ def _accounts(db: Session, household_id: UUID) -> list[Account]:
     )
 
 
-def liquid_cash(accounts: list[Account]) -> Decimal:
+def liquid_cash(
+    db: Session, household: Household, accounts: list[Account], on_date: date
+) -> Decimal:
     total = Decimal("0.00")
     for account in accounts:
         if not counts_toward_current_sts(account):
             continue
-        total += Decimal(str(account.available_balance))
+        total += amount_in_base_currency(
+            db, household, Decimal(str(account.available_balance)),
+            account.currency, on_date
+        )
     return quantize_money(total)
 
 
-def protected_in_spendable(accounts: list[Account], funds: list[SinkingFund]) -> Decimal:
+def protected_in_spendable(
+    accounts: list[Account],
+    funds: list[SinkingFund],
+    db: Session | None = None,
+    household: Household | None = None,
+    on_date: date | None = None,
+) -> Decimal:
     spendable_ids = {
         account.id
         for account in accounts
@@ -86,7 +98,12 @@ def protected_in_spendable(accounts: list[Account], funds: list[SinkingFund]) ->
     total = Decimal("0.00")
     for account in accounts:
         if account.id in protected_account_ids:
-            total += Decimal(str(account.available_balance))
+            account_amount = Decimal(str(account.available_balance))
+            if db is not None and household is not None and on_date is not None:
+                account_amount = amount_in_base_currency(
+                    db, household, account_amount, account.currency, on_date
+                )
+            total += account_amount
     for fund in funds:
         if not fund.is_protected or fund.status != "active" or fund.deleted_at is not None:
             continue
@@ -146,11 +163,11 @@ def unfunded_occurrences(
     return quantize_money(total), open_rows
 
 
-def pending_outbound(db: Session, household_id: UUID) -> Decimal:
+def pending_outbound(db: Session, household: Household) -> Decimal:
     rows = (
         db.query(Transaction)
         .filter(
-            Transaction.household_id == household_id,
+            Transaction.household_id == household.id,
             Transaction.access_scope == "shared",
             Transaction.deleted_at.is_(None),
             Transaction.status == "pending",
@@ -158,7 +175,11 @@ def pending_outbound(db: Session, household_id: UUID) -> Decimal:
         )
         .all()
     )
-    return quantize_money(sum((Decimal(str(row.amount)) for row in rows), Decimal("0.00")))
+    amounts = (
+        transaction_amount_in_base(row, household.base_currency)
+        for row in rows
+    )
+    return quantize_money(sum(amounts, Decimal("0.00")))
 
 
 def upcoming_bills(db: Session, household_id: UUID, start: date, end: date) -> Decimal:
@@ -178,7 +199,19 @@ def upcoming_bills(db: Session, household_id: UUID, start: date, end: date) -> D
         )
         .all()
     )
-    return quantize_money(sum((Decimal(str(row.amount)) for row in rows), Decimal("0.00")))
+    household = db.query(Household).filter(Household.id == household_id).first()
+    if household is None:
+        raise ValueError("Household not found for recurring bill calculation.")
+    total = sum(
+        (
+            amount_in_base_currency(
+                db, household, Decimal(str(row.amount)), row.currency, row.next_date
+            )
+            for row in rows
+        ),
+        Decimal("0.00"),
+    )
+    return quantize_money(total)
 
 
 def fund_contribution_remaining(
@@ -281,9 +314,11 @@ def compute_safe_to_spend(
         for fund in all_funds
         if fund.account_id is None or fund.account_id in shared_account_ids
     ]
-    liquid = liquid_cash(accounts)
-    protected_held = protected_in_spendable(accounts, funds)
-    pending = pending_outbound(db, household.id)
+    liquid = liquid_cash(db, household, accounts, today)
+    protected_held = protected_in_spendable(
+        accounts, funds, db=db, household=household, on_date=today
+    )
+    pending = pending_outbound(db, household)
     due_now, _ = unfunded_occurrences(db, household.id, date(1970, 1, 1), today)
     current = current_safe_to_spend(liquid, due_now, pending, protected_held)
 

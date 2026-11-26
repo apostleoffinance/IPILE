@@ -86,6 +86,13 @@ export type Transaction = {
   access_scope: "shared" | "personal";
   amount: string;
   currency: string;
+  base_amount?: string | null;
+  base_currency?: string | null;
+  exchange_rate?: string | null;
+  exchange_rate_date?: string | null;
+  counterparty_amount?: string | null;
+  counterparty_currency?: string | null;
+  counterparty_base_amount?: string | null;
   type: string;
   category_id: string | null;
   date: string;
@@ -439,6 +446,9 @@ let csrfToken: string | undefined;
 
 export function setHouseholdId(id?: string) {
   householdId = id;
+  if (typeof window !== "undefined") {
+    window.dispatchEvent(new Event("ipile:household-changed"));
+  }
 }
 
 function readCookie(name: string): string | undefined {
@@ -879,7 +889,7 @@ export function createSupportTicket(body: { subject: string; body: string }) {
   });
 }
 
-export function onboardHousehold(body: { name: string; minimum_buffer_amount?: string }) {
+export function onboardHousehold(body: { name: string; minimum_buffer_amount?: string; base_currency?: string; country?: string }) {
   return request<Household>("/api/v1/onboarding/household", {
     method: "POST",
     body: JSON.stringify(body),
@@ -1314,6 +1324,7 @@ export const api = {
   createAccount: (body: {
     name: string;
     type: string;
+    currency?: string;
     institution?: string;
     current_balance?: string;
     is_protected?: boolean;

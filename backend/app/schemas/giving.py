@@ -50,6 +50,8 @@ class GivingRecordOut(BaseModel):
     beneficiary: str | None
     amount: Decimal
     currency: str
+    base_amount: Decimal | None = None
+    base_currency: str | None = None
     date: Date
     account_id: UUID
     transaction_id: UUID | None

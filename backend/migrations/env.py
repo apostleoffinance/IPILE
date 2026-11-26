@@ -28,6 +28,7 @@ from app.models import (  # noqa: F401
     Category,
     ContributionAgreement,
     ContributionRecord,
+    ExchangeRate,
     FundContribution,
     Household,
     HouseholdMember,

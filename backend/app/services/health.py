@@ -18,6 +18,7 @@ from app.models.wealth import InvestmentTransaction, Liability
 from app.money import format_money, quantize_money
 from app.services.allocations import period_bounds, recognized_income
 from app.services.budgets import serialize_budget
+from app.services.currencies import transaction_amount_in_base
 from app.services.health_engine import HealthResult, compute_health
 from app.services.wealth import household_net_worth
 
@@ -99,7 +100,11 @@ def _period_sum(
         )
         .all()
     )
-    return quantize_money(sum((Decimal(str(row.amount)) for row in rows), Decimal("0.00")))
+    household = db.query(Household).filter(Household.id == household_id).first()
+    if household is None:
+        raise ValueError("Household not found for health calculation.")
+    amounts = (transaction_amount_in_base(row, household.base_currency) for row in rows)
+    return quantize_money(sum(amounts, Decimal("0.00")))
 
 
 def _obligation_coverage(db: Session, household_id: UUID, today: date) -> tuple[Decimal, Decimal]:

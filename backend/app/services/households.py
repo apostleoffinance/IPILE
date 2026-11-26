@@ -22,20 +22,39 @@ def unique_slug(db: Session, base: str) -> str:
     return candidate
 
 
+COUNTRY_TIMEZONES = {
+    "NG": "Africa/Lagos", "GB": "Europe/London", "US": "America/New_York",
+    "CA": "America/Toronto", "CH": "Europe/Zurich", "AU": "Australia/Sydney",
+    "AE": "Asia/Dubai", "GH": "Africa/Accra", "KE": "Africa/Nairobi",
+    "ZA": "Africa/Johannesburg", "DE": "Europe/Berlin", "FR": "Europe/Paris",
+    "IN": "Asia/Kolkata", "SG": "Asia/Singapore", "SA": "Asia/Riyadh",
+    "BR": "America/Sao_Paulo", "MX": "America/Mexico_City", "JP": "Asia/Tokyo",
+    "HK": "Asia/Hong_Kong", "NZ": "Pacific/Auckland",
+}
+
+
 def create_household_for_owner(
     db: Session,
     user: User,
     name: str,
     *,
-    minimum_buffer_amount: Decimal = Decimal("90000.00"),
+    minimum_buffer_amount: Decimal | None = None,
     slug: str | None = None,
+    base_currency: str = "NGN",
+    country: str = "NG",
 ) -> tuple[Household, HouseholdMember]:
+    if minimum_buffer_amount is None:
+        minimum_buffer_amount = (
+            Decimal("90000.00")
+            if base_currency.upper() == "NGN"
+            else Decimal("0.00")
+        )
     household = Household(
         name=name,
         slug=unique_slug(db, slug or slugify(name)),
-        base_currency="NGN",
-        timezone="Africa/Lagos",
-        country="NG",
+        base_currency=base_currency.upper(),
+        timezone=COUNTRY_TIMEZONES.get(country.upper(), "UTC"),
+        country=country.upper(),
         fiscal_month_start_day=1,
         minimum_buffer_amount=minimum_buffer_amount,
         settings={},

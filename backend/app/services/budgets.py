@@ -7,6 +7,7 @@ from sqlalchemy.orm import Session
 
 from app.models.budget import Budget, BudgetCategory
 from app.models.category import Category
+from app.models.household import Household
 from app.models.member import HouseholdMember
 from app.models.transaction import Transaction
 from app.money import format_money, quantize_money
@@ -21,6 +22,7 @@ from app.services.budget_engine import (
     spent_from_lines,
     utilization,
 )
+from app.services.currencies import transaction_amount_in_base
 
 
 def current_month_bounds(today: date | None = None) -> tuple[date, date]:
@@ -54,7 +56,13 @@ def category_spent(
         # Household budgets are funded by shared money; private spending must
         # not consume the household's remaining budget.
         query = query.filter(Transaction.access_scope == "shared")
-    rows = [(row.type, quantize_money(Decimal(str(row.amount)))) for row in query.all()]
+    household = db.query(Household).filter(Household.id == household_id).first()
+    if household is None:
+        raise ValueError("Household not found for budget calculation.")
+    rows = [
+        (row.type, quantize_money(transaction_amount_in_base(row, household.base_currency)))
+        for row in query.all()
+    ]
     return spent_from_lines(rows)
 
 

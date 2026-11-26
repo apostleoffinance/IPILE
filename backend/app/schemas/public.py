@@ -58,3 +58,5 @@ class SupportTicketOut(BaseModel):
 class OnboardingCreate(BaseModel):
     name: str = Field(min_length=1, max_length=200)
     minimum_buffer_amount: str | None = None
+    base_currency: str = Field(default="NGN", min_length=3, max_length=3)
+    country: str = Field(default="NG", min_length=2, max_length=2)

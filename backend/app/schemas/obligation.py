@@ -12,7 +12,7 @@ class ObligationCreate(BaseModel):
     amount: MoneyAmount
     frequency: str = "monthly"
     next_due_date: Date
-    currency: str = "NGN"
+    currency: str | None = None
     priority: str = "medium"
     sinking_fund: bool = False
     auto_allocate: bool = False

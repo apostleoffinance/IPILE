@@ -60,7 +60,14 @@ export function TransactionTable({
               <td className="px-4 py-3 capitalize">{row.access_scope}</td>
               <td className="px-4 py-3 capitalize">{row.status}</td>
               <td className="px-4 py-3 text-right">
-                <MoneyAmount amount={row.amount} currency={row.currency} />
+                <div>
+                  <MoneyAmount amount={row.amount} currency={row.currency} />
+                  {row.base_amount != null && row.base_currency && row.base_currency !== row.currency ? (
+                    <p className="mt-1 text-xs text-muted">
+                      ≈ <MoneyAmount amount={row.base_amount} currency={row.base_currency} />
+                    </p>
+                  ) : null}
+                </div>
               </td>
               {onVoid || onEdit ? (
                 <td className="px-4 py-3 text-right">

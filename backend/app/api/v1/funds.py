@@ -134,7 +134,7 @@ def contribute(
         db,
         fund,
         account_id=source.id,
-        amount=payload.amount,
+        amount=transaction.counterparty_amount or transaction.amount,
         contribution_date=when,
         transaction_id=transaction.id,
     )

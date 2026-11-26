@@ -14,6 +14,7 @@ from app.models.household import Household
 from app.models.transaction import Transaction
 from app.money import quantize_money
 from app.services.balances import account_delta, counterparty_delta
+from app.services.currencies import amount_in_base_currency, transaction_amount_in_base
 
 CASH_TYPES = frozenset({"bank", "cash", "wallet", "savings"})
 ACTIVE_TX = ("cleared", "reconciled")
@@ -40,9 +41,17 @@ def _cash_accounts(db: Session, household_id: UUID) -> list[Account]:
     )
 
 
-def _cash_total(accounts: list[Account]) -> Decimal:
+def _cash_total(db: Session, household: Household, accounts: list[Account], as_of: date) -> Decimal:
     return quantize_money(
-        sum((Decimal(str(row.current_balance)) for row in accounts), ZERO)
+        sum(
+            (
+                amount_in_base_currency(
+                    db, household, Decimal(str(row.current_balance)), row.currency, as_of
+                )
+                for row in accounts
+            ),
+            ZERO,
+        )
     )
 
 
@@ -62,39 +71,62 @@ def _period_transactions(
 
 
 def _cash_impact(
+    db: Session,
+    household: Household,
     tx: Transaction,
     cash_ids: set[UUID],
     account_types: dict[UUID, str],
 ) -> Decimal:
-    """Net effect of one transaction on the household cash pool."""
-    amount = Decimal(str(tx.amount))
+    """Net effect translated using persisted historical FX metadata."""
+    source_amount = transaction_amount_in_base(tx, household.base_currency)
     impact = ZERO
     if tx.account_id in cash_ids:
-        impact += account_delta(tx.type, amount)
+        impact += account_delta(tx.type, source_amount)
     if tx.counterparty_account_id and tx.counterparty_account_id in cash_ids:
-        other = counterparty_delta(tx.type, amount)
+        if tx.counterparty_amount is None:
+            counterparty_amount = source_amount
+        elif tx.counterparty_base_amount is not None:
+            counterparty_amount = Decimal(str(tx.counterparty_base_amount))
+        else:
+            counterparty_amount = amount_in_base_currency(
+                db, household, Decimal(str(tx.counterparty_amount)),
+                tx.counterparty_currency or household.base_currency, tx.date,
+            )
+        other = counterparty_delta(tx.type, counterparty_amount)
         if other is not None:
             impact += other
-    # Internal cash↔cash transfers already cancel via account + counterparty deltas.
     _ = account_types
     return quantize_money(impact)
 
 
 def cash_as_of(
     db: Session,
-    household_id: UUID,
+    household: Household,
     *,
     as_of: date,
     accounts: list[Account] | None = None,
 ) -> Decimal:
     """Cash pool balance at end of ``as_of`` (undo later activity)."""
-    accounts = accounts if accounts is not None else _cash_accounts(db, household_id)
-    cash_ids = {row.id for row in accounts}
-    account_types = {row.id: row.type for row in accounts}
-    total = _cash_total(accounts)
-    later = _period_transactions(db, household_id, start=as_of + timedelta(days=1))
-    for tx in later:
-        total -= _cash_impact(tx, cash_ids, account_types)
+    accounts = accounts if accounts is not None else _cash_accounts(db, household.id)
+    later = _period_transactions(db, household.id, start=as_of + timedelta(days=1))
+    total = ZERO
+    for account in accounts:
+        native_balance = Decimal(str(account.current_balance))
+        for tx in later:
+            if tx.account_id == account.id:
+                native_balance -= account_delta(tx.type, Decimal(str(tx.amount)))
+            if tx.counterparty_account_id == account.id:
+                counterparty_native = (
+                    Decimal(str(tx.counterparty_amount))
+                    if tx.counterparty_amount is not None
+                    else Decimal(str(tx.amount))
+                )
+                counterparty_change = counterparty_delta(tx.type, counterparty_native)
+                if counterparty_change is not None:
+                    native_balance -= counterparty_change
+        total += amount_in_base_currency(
+            db, household, native_balance, account.currency, as_of
+        )
     return quantize_money(total)
 
 
@@ -117,8 +149,8 @@ def compute_cash_flow(
     cash_ids = {row.id for row in accounts}
     account_types = {row.id: row.type for row in accounts}
 
-    opening = cash_as_of(db, household.id, as_of=start - timedelta(days=1), accounts=accounts)
-    closing = cash_as_of(db, household.id, as_of=end, accounts=accounts)
+    opening = cash_as_of(db, household, as_of=start - timedelta(days=1), accounts=accounts)
+    closing = cash_as_of(db, household, as_of=end, accounts=accounts)
 
     rows = _period_transactions(db, household.id, start=start, end=end)
     income = ZERO
@@ -138,7 +170,7 @@ def compute_cash_flow(
         cursor += timedelta(days=1)
 
     for tx in rows:
-        amount = quantize_money(Decimal(str(tx.amount)))
+        amount = transaction_amount_in_base(tx, household.base_currency)
         day = by_day.get(tx.date)
         if day is None:
             continue
@@ -152,7 +184,7 @@ def compute_cash_flow(
             giving += amount
             day["giving"] += amount
         elif tx.type == "transfer":
-            impact = _cash_impact(tx, cash_ids, account_types)
+            impact = _cash_impact(db, household, tx, cash_ids, account_types)
             transfers_net += impact
             day["transfers_net"] += impact
 
@@ -173,7 +205,7 @@ def compute_cash_flow(
         # Full cash impact for the day (includes refunds, debt, etc.)
         day_txs = [tx for tx in rows if tx.date == day_date]
         day_cash_delta = quantize_money(
-            sum((_cash_impact(tx, cash_ids, account_types) for tx in day_txs), ZERO)
+            sum((_cash_impact(db, household, tx, cash_ids, account_types) for tx in day_txs), ZERO)
         )
         running = quantize_money(running + day_cash_delta)
         daily.append(

@@ -45,6 +45,8 @@ class GivingRecord(Base):
     beneficiary: Mapped[str | None] = mapped_column(String(200), nullable=True)
     amount: Mapped[Decimal] = mapped_column(Numeric(18, 2))
     currency: Mapped[str] = mapped_column(String(3), default="NGN")
+    base_amount: Mapped[Decimal | None] = mapped_column(Numeric(18, 2), nullable=True)
+    base_currency: Mapped[str | None] = mapped_column(String(3), nullable=True)
     date: Mapped[date] = mapped_column(Date)
     account_id: Mapped[uuid.UUID] = mapped_column(
         Uuid, ForeignKey("accounts.id", ondelete="RESTRICT")

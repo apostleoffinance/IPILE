@@ -28,7 +28,7 @@ const safeToSpendMarkup = renderToStaticMarkup(
   React.createElement(SafeToSpend, { snapshot, currency: "USD", onInspect: () => undefined }),
 );
 assert(safeToSpendMarkup.includes("Safe to spend"), "Safe to Spend label is visible");
-assert(safeToSpendMarkup.includes("USD 1,250.00"), "Safe to Spend uses the supplied currency");
+assert(safeToSpendMarkup.includes("$1,250.00"), "Safe to Spend uses the supplied currency");
 assert(safeToSpendMarkup.includes("View calculation"), "Safe to Spend exposes an inspection action when available");
 
 const healthMarkup = renderToStaticMarkup(

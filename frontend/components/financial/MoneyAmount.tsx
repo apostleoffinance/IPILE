@@ -1,5 +1,8 @@
+"use client";
+
 import * as React from "react";
-import { formatNaira } from "@/lib/money";
+import { useHouseholdCurrency } from "@/hooks/useHouseholdCurrency";
+import { formatMoney } from "@/lib/money";
 import { cn } from "@/lib/utils";
 
 type MoneyAmountProps = {
@@ -8,6 +11,8 @@ type MoneyAmountProps = {
   className?: string;
 };
 
-export function MoneyAmount({ amount, currency = "NGN", className }: MoneyAmountProps) {
-  return <span className={cn("tabular", className)}>{formatNaira(amount, currency)}</span>;
+export function MoneyAmount({ amount, currency, className }: MoneyAmountProps) {
+  const householdCurrency = useHouseholdCurrency();
+  const displayCurrency = currency ?? householdCurrency ?? "NGN";
+  return <span className={cn("tabular", className)}>{formatMoney(amount, displayCurrency)}</span>;
 }

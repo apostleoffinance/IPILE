@@ -1,3 +1,4 @@
+from decimal import Decimal
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
@@ -18,6 +19,7 @@ from app.services.allocations import ensure_period_allocation
 from app.services.audit import write_audit
 from app.services.balances import TRANSFER_TYPE, apply_transaction_effect
 from app.services.budgets import evaluate_budget_alerts
+from app.services.currencies import CurrencyError, get_rate, validate_currency
 from app.services.finance_access import account_visibility, transaction_visibility
 
 router = APIRouter(prefix="/transactions", tags=["transactions"])
@@ -198,6 +200,57 @@ def create_transaction(
             detail="Shared transactions must use shared accounts.",
         )
 
+    try:
+        source_currency = validate_currency(account.currency or ctx.household.base_currency)
+    except CurrencyError as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
+    if payload.currency and validate_currency(payload.currency) != source_currency:
+        raise HTTPException(
+            status_code=400,
+            detail="Transaction currency must match its source account currency.",
+        )
+
+    counterparty_amount = None
+    counterparty_base_amount = None
+    counterparty_rate = None
+    counterparty_rate_date = None
+    counterparty_rate_source = None
+    if counterparty:
+        target_currency = validate_currency(counterparty.currency or ctx.household.base_currency)
+        if source_currency == target_currency:
+            counterparty_amount = payload.amount
+            counterparty_rate = Decimal("1")
+            counterparty_rate_date = payload.date
+            counterparty_rate_source = "identity"
+        else:
+            try:
+                counterparty_rate, counterparty_rate_date, counterparty_rate_source = get_rate(
+                    db, ctx.household.id, source_currency, target_currency, payload.date
+                )
+            except CurrencyError as exc:
+                raise HTTPException(status_code=422, detail=str(exc)) from exc
+            counterparty_amount = (payload.amount * counterparty_rate).quantize(Decimal("0.01"))
+
+    try:
+        if source_currency == ctx.household.base_currency:
+            base_amount = payload.amount
+            base_rate = Decimal("1")
+            base_rate_date = payload.date
+            base_rate_source = "identity"
+        else:
+            base_rate, base_rate_date, base_rate_source = get_rate(
+                db, ctx.household.id, source_currency, ctx.household.base_currency, payload.date
+            )
+            base_amount = (payload.amount * base_rate).quantize(Decimal("0.01"))
+    except CurrencyError as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
+
+    if counterparty_amount is not None:
+        counterparty_base_amount = (
+            (base_amount * counterparty_amount / payload.amount).quantize(Decimal("0.01"))
+            if payload.amount else Decimal("0.00")
+        )
+
     transaction = Transaction(
         household_id=ctx.household.id,
         account_id=account.id,
@@ -205,7 +258,18 @@ def create_transaction(
         member_id=member_id,
         access_scope=payload.access_scope,
         amount=payload.amount,
-        currency=payload.currency or ctx.household.base_currency,
+        currency=source_currency,
+        base_amount=base_amount,
+        base_currency=ctx.household.base_currency,
+        exchange_rate=base_rate,
+        exchange_rate_date=base_rate_date,
+        exchange_rate_source=base_rate_source,
+        counterparty_amount=counterparty_amount,
+        counterparty_currency=counterparty.currency if counterparty else None,
+        counterparty_base_amount=counterparty_base_amount,
+        counterparty_exchange_rate=counterparty_rate,
+        counterparty_exchange_rate_date=counterparty_rate_date,
+        counterparty_exchange_rate_source=counterparty_rate_source,
         type=payload.type,
         category_id=payload.category_id,
         date=payload.date,
@@ -227,6 +291,7 @@ def create_transaction(
         tx_type=transaction.type,
         amount=transaction.amount,
         status=transaction.status,
+        counterparty_amount=transaction.counterparty_amount,
     )
     db.flush()
     evaluate_budget_alerts(db, ctx.household.id)
@@ -284,6 +349,50 @@ def update_transaction(
         _require_household_reference(
             db, Category, ctx.household.id, updates["category_id"], "Category"
         )
+    if "date" in updates and updates["date"] != transaction.date:
+        new_date = updates["date"]
+        source_currency = transaction.currency
+        base_currency = ctx.household.base_currency
+        try:
+            if source_currency == base_currency:
+                transaction.base_amount = transaction.amount
+                transaction.exchange_rate = Decimal("1")
+                transaction.exchange_rate_date = new_date
+                transaction.exchange_rate_source = "identity"
+            else:
+                rate, rate_date, rate_source = get_rate(
+                    db, ctx.household.id, source_currency, base_currency, new_date
+                )
+                transaction.base_amount = (
+                    Decimal(str(transaction.amount)) * rate
+                ).quantize(Decimal("0.01"))
+                transaction.exchange_rate = rate
+                transaction.exchange_rate_date = rate_date
+                transaction.exchange_rate_source = rate_source
+            if transaction.counterparty_account_id:
+                target_currency = transaction.counterparty_currency or source_currency
+                if source_currency == target_currency:
+                    transaction.counterparty_amount = transaction.amount
+                    counterparty_rate = Decimal("1")
+                    counterparty_rate_date = new_date
+                    counterparty_rate_source = "identity"
+                else:
+                    counterparty_rate, counterparty_rate_date, counterparty_rate_source = get_rate(
+                        db, ctx.household.id, source_currency, target_currency, new_date
+                    )
+                    transaction.counterparty_amount = (
+                        Decimal(str(transaction.amount)) * counterparty_rate
+                    ).quantize(Decimal("0.01"))
+                transaction.counterparty_exchange_rate = counterparty_rate
+                transaction.counterparty_exchange_rate_date = counterparty_rate_date
+                transaction.counterparty_exchange_rate_source = counterparty_rate_source
+                transaction.counterparty_base_amount = (
+                    Decimal(str(transaction.base_amount))
+                    * Decimal(str(transaction.counterparty_amount))
+                    / Decimal(str(transaction.amount))
+                ).quantize(Decimal("0.01")) if transaction.amount else Decimal("0.00")
+        except CurrencyError as exc:
+            raise HTTPException(status_code=422, detail=str(exc)) from exc
     for key, value in updates.items():
         setattr(transaction, key, value)
     db.add(transaction)
@@ -324,6 +433,7 @@ def void_transaction(
         amount=transaction.amount,
         status=transaction.status,
         reverse=True,
+        counterparty_amount=transaction.counterparty_amount,
     )
     was_income = transaction.type == "income"
     transaction.status = "voided"

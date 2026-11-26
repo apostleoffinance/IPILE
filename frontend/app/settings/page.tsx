@@ -201,7 +201,7 @@ export default function SettingsPage() {
             <label>Household name<Input value={householdName} onChange={(e) => setHouseholdName(e.target.value)} maxLength={200} required disabled={!canManageHousehold} /></label>
             <label>Minimum cash buffer<Input value={bufferAmount} onChange={(e) => setBufferAmount(e.target.value)} inputMode="decimal" required disabled={!canManageHousehold} /></label>
             <label>Fiscal period starts on day<Input type="number" min={1} max={28} step={1} value={fiscalMonth} onChange={(e) => setFiscalMonth(e.target.value)} disabled={!canManageHousehold} required /></label>
-            <div className="ipile-settings-readonly"><span>Base currency</span><strong>{household.base_currency}</strong><span>Time zone</span><strong>{household.timezone}</strong><span>Country</span><strong>{household.country}</strong><p>Currency, country and time zone are displayed from the household record. This screen does not offer unsupported changes to those fields.</p></div>
+            <div className="ipile-settings-readonly"><span>Primary currency</span><strong>{household.base_currency}</strong><span>Time zone</span><strong>{household.timezone}</strong><span>Country</span><strong>{household.country}</strong><p>Primary currency is selected during onboarding and remains fixed to protect financial history. Individual accounts can use other currencies.</p></div>
             <div className="ipile-settings-form-actions">{canManageHousehold ? <Button type="submit" disabled={pending || !householdName.trim()}>Save household settings</Button> : <span>Only a household owner can change these settings.</span>}<span>Changes are recorded by the household settings API.</span></div>
           </form> : <LoadingState />}
         </section>

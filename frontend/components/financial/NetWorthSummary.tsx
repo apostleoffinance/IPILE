@@ -6,7 +6,7 @@ export function NetWorthSummary({
   netWorth,
   totalAssets,
   totalLiabilities,
-  currency = "NGN",
+  currency,
   delta,
   className,
 }: {

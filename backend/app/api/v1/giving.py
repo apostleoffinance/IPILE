@@ -17,6 +17,7 @@ from app.schemas.giving import (
     GivingSummaryOut,
 )
 from app.schemas.transaction import TransactionCreate
+from app.services.currencies import amount_in_base_currency
 from app.services.giving_engine import (
     limit_warning_for,
     money,
@@ -143,7 +144,7 @@ def giving_summary(
     month_total = posted_records(db, ctx.household.id).filter(
         extract("year", GivingRecord.date) == today.year,
         extract("month", GivingRecord.date) == today.month,
-    ).with_entities(func.coalesce(func.sum(GivingRecord.amount), 0)).scalar()
+    ).with_entities(func.coalesce(func.sum(GivingRecord.base_amount), 0)).scalar()
     year_total = posted_records(db, ctx.household.id).filter(
         extract("year", GivingRecord.date) == today.year,
     ).with_entities(func.coalesce(func.sum(GivingRecord.amount), 0)).scalar()
@@ -184,7 +185,10 @@ def create_giving(
         if policy is None:
             raise HTTPException(status_code=404, detail="Giving policy not found.")
     kind = policy.kind if policy else payload.kind
-    warning = limit_warning_for(db, ctx.household.id, policy, kind, payload.amount, when)
+    base_amount = amount_in_base_currency(
+        db, ctx.household, payload.amount, account.currency, when
+    )
+    warning = limit_warning_for(db, ctx.household.id, policy, kind, base_amount, when)
     needs_approval = bool(policy and policy.requires_dual_approval)
     record = GivingRecord(
         household_id=ctx.household.id,
@@ -193,6 +197,8 @@ def create_giving(
         beneficiary=payload.beneficiary,
         amount=payload.amount,
         currency=account.currency,
+        base_amount=base_amount,
+        base_currency=ctx.household.base_currency,
         date=when,
         account_id=account.id,
         category_id=payload.category_id,

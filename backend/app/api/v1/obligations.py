@@ -7,6 +7,7 @@ from sqlalchemy.orm import Session
 
 from app.api.deps import HouseholdContext, get_db, get_household_context, require_roles
 from app.api.v1.transactions import create_transaction
+from app.models.account import Account
 from app.models.category import Category
 from app.models.fund import SinkingFund
 from app.models.member import HouseholdMember
@@ -113,7 +114,7 @@ def create_obligation(
         household_id=ctx.household.id,
         name=payload.name,
         amount=payload.amount,
-        currency=payload.currency,
+        currency=ctx.household.base_currency,
         frequency=payload.frequency,
         next_due_date=payload.next_due_date,
         priority=payload.priority,
@@ -229,6 +230,23 @@ def pay_occurrence(
         source_id = fund.account_id
         apply_payment_from_fund(fund, occurrence.amount)
         db.add(fund)
+    if source_id is None:
+        raise HTTPException(
+            status_code=422,
+            detail="Select a household-currency account to pay this obligation.",
+        )
+    source_account = db.query(Account).filter(
+        Account.id == source_id,
+        Account.household_id == ctx.household.id,
+        Account.deleted_at.is_(None),
+    ).first()
+    if source_account is None:
+        raise HTTPException(status_code=404, detail="Payment account not found.")
+    if source_account.currency != ctx.household.base_currency:
+        raise HTTPException(
+            status_code=422,
+            detail="Obligation payments must use an account in the household base currency.",
+        )
     transaction = create_transaction(
         TransactionCreate(
             account_id=source_id,

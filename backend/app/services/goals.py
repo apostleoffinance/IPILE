@@ -6,6 +6,7 @@ from sqlalchemy.orm import Session
 
 from app.models.account import Account
 from app.models.goal import Goal, GoalContribution
+from app.models.household import Household
 from app.money import format_money, quantize_money
 from app.schemas.goal import GoalOut
 from app.services.goal_engine import (
@@ -61,7 +62,7 @@ def ensure_goal_account(db: Session, goal: Goal) -> Account:
         household_id=goal.household_id,
         name=goal.name,
         type="savings",
-        currency="NGN",
+        currency=db.get(Household, goal.household_id).base_currency,
         current_balance=Decimal("0.00"),
         available_balance=Decimal("0.00"),
         is_protected=True,

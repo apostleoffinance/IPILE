@@ -11,7 +11,9 @@ const formatCases: Array<[string, string, string?]> = [
   ["0", "₦0.00"],
   ["0.01", "₦0.01"],
   ["-45000.25", "-₦45,000.25"],
-  ["1000", "USD 1,000.00", "USD"],
+  ["1000", "$1,000.00", "USD"],
+  ["1000", "£1,000.00", "GBP"],
+  ["1000", "CHF 1'000.00", "CHF"],
 ];
 
 for (const [input, expected, currency] of formatCases) {

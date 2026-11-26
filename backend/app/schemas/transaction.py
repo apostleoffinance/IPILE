@@ -1,4 +1,5 @@
 from datetime import date as Date
+from decimal import Decimal
 from uuid import UUID
 
 from pydantic import BaseModel, model_validator
@@ -11,7 +12,7 @@ class TransactionCreate(BaseModel):
     amount: MoneyAmount
     type: str
     date: Date
-    currency: str = "NGN"
+    currency: str | None = None
     counterparty_account_id: UUID | None = None
     member_id: UUID | None = None
     access_scope: str = "shared"
@@ -51,6 +52,17 @@ class TransactionOut(BaseModel):
     access_scope: str
     amount: MoneyAmount
     currency: str
+    base_amount: MoneyAmount | None = None
+    base_currency: str | None = None
+    exchange_rate: Decimal | None = None
+    exchange_rate_date: Date | None = None
+    exchange_rate_source: str | None = None
+    counterparty_amount: MoneyAmount | None = None
+    counterparty_currency: str | None = None
+    counterparty_base_amount: MoneyAmount | None = None
+    counterparty_exchange_rate: Decimal | None = None
+    counterparty_exchange_rate_date: Date | None = None
+    counterparty_exchange_rate_source: str | None = None
     type: str
     category_id: UUID | None
     date: Date

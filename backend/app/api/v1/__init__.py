@@ -16,6 +16,7 @@ from app.api.v1 import (
     cash_flow,
     categories,
     contributions,
+    currencies,
     debts,
     export,
     funds,
@@ -45,6 +46,7 @@ api_router.include_router(auth.router)
 api_router.include_router(households.router)
 api_router.include_router(members.router)
 api_router.include_router(contributions.router)
+api_router.include_router(currencies.router)
 api_router.include_router(accounts.router)
 api_router.include_router(categories.router)
 api_router.include_router(income.router)

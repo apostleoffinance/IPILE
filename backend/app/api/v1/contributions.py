@@ -181,7 +181,7 @@ def create_agreement(
         member_id=member.id,
         name=payload.name.strip(),
         amount=payload.amount,
-        currency=payload.currency.upper(),
+        currency=ctx.household.base_currency,
         cadence=payload.cadence,
         due_day=payload.due_day,
         start_date=payload.start_date,
