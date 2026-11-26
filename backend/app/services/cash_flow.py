@@ -110,18 +110,12 @@ def cash_as_of(
     accounts = accounts if accounts is not None else _cash_accounts(db, household.id)
     later = _period_transactions(db, household.id, start=as_of + timedelta(days=1))
     account_map = {account.id: account for account in accounts}
-    later_account_ids = {
-        tx.account_id for tx in later
-    } | {
-        tx.counterparty_account_id for tx in later if tx.counterparty_account_id is not None
-    }
-    # Refuse to produce a fabricated historical rate for accounts whose
-    # transaction history cannot be reconstructed from retained rows.
     native_balances = {
         account.id: Decimal(str(account.current_balance))
         for account in accounts
     }
-    total = ZERO
+    # Undo all post-period movements in each account's native currency first.
+    # Only then translate each reconstructed balance at the requested date.
     for tx in later:
         source = account_map.get(tx.account_id)
         if source is not None:
@@ -138,6 +132,8 @@ def cash_as_of(
             counterparty_change = counterparty_delta(tx.type, counterparty_native)
             if counterparty_change is not None:
                 native_balances[destination.id] -= counterparty_change
+
+    total = ZERO
     for account in accounts:
         total += amount_in_base_currency(
             db, household, native_balances[account.id], account.currency, as_of
