@@ -7,11 +7,11 @@ from __future__ import annotations
 
 import re
 from collections import defaultdict
+from collections.abc import Iterable
 from calendar import monthrange
 from datetime import date, timedelta
 from decimal import Decimal
 from statistics import median
-from typing import Iterable
 
 
 def _payee_key(transaction) -> str:
