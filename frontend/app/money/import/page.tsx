@@ -51,6 +51,7 @@ export default function ImportPage() {
   const [mailboxBusy, setMailboxBusy] = useState(false);
   const [gmail, setGmail] = useState<GmailConnectionStatus | null>(null);
   const [gmailBusy, setGmailBusy] = useState(false);
+  const [gmailSyncSummary, setGmailSyncSummary] = useState<{ scanned: number; queued: number; auto_posted: number; rejected: number; ignored: number } | null>(null);
   const [automationMode, setAutomationMode] = useState<ImportAutomationMode>("review_everything");
 
   async function refreshEmailReview() {
@@ -151,7 +152,7 @@ export default function ImportPage() {
     setGmailBusy(true);
     setError(null);
     try {
-      await syncGmail();
+      setGmailSyncSummary(await syncGmail());
       await refreshEmailReview();
       setGmail(await getGmailConnection());
     } catch (err) {
@@ -255,6 +256,7 @@ export default function ImportPage() {
                     <Button type="button" size="sm" variant="ghost" disabled={gmailBusy} onClick={() => void onDisconnectGmail()}>Disconnect Gmail</Button>
                   </div>
                   {gmail.last_sync_at ? <p className="text-xs text-muted">Last checked: {new Date(gmail.last_sync_at).toLocaleString()}</p> : null}
+                  {gmailSyncSummary ? <p className="text-xs text-muted">{gmailSyncSummary.scanned} messages checked · {gmailSyncSummary.queued} awaiting review · {gmailSyncSummary.auto_posted} recorded automatically · {gmailSyncSummary.rejected} rejected</p> : null}
                   {gmail.last_error ? <p className="text-xs text-danger">{gmail.last_error}</p> : null}
                 </>
               ) : (
