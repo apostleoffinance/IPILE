@@ -1,0 +1,51 @@
+{
+  "$schema": "https://developers.cloudflare.com/workers/wrangler/config-schema.json",
+  "name": "ipile-statement-jobs",
+  "main": "src/index.ts",
+  "compatibility_date": "2026-11-27",
+  "compatibility_flags": ["nodejs_compat"],
+  "workers_dev": true,
+  "observability": { "enabled": true },
+  "queues": {
+    "producers": [
+      { "binding": "STATEMENT_QUEUE", "queue": "ipile-statement-jobs" }
+    ],
+    "consumers": [
+      {
+        "queue": "ipile-statement-jobs",
+        "max_batch_size": 1,
+        "max_batch_timeout": 1,
+        "max_retries": 5,
+        "max_concurrency": 2,
+        "dead_letter_queue": "ipile-statement-jobs-dlq"
+      }
+    ]
+  },
+  "workflows": [
+    {
+      "name": "ipile-statement-workflow",
+      "binding": "STATEMENT_WORKFLOW",
+      "class_name": "StatementWorkflow"
+    }
+  ],
+  "durable_objects": {
+    "bindings": [
+      { "name": "STATEMENT_CONTAINER", "class_name": "StatementContainer" }
+    ]
+  },
+  "containers": [
+    {
+      "class_name": "StatementContainer",
+      "scheduling_policy": "durable_object",
+      "image": "../../backend/Dockerfile",
+      "instance_type": "standard-1",
+      "max_instances": 2
+    }
+  ],
+  "migrations": [
+    { "tag": "v1", "new_sqlite_classes": ["StatementContainer"] }
+  ],
+  "vars": {
+    "BACKEND_URL": "https://ipile-bmfz.onrender.com"
+  }
+}
