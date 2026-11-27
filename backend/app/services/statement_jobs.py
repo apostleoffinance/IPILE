@@ -146,15 +146,15 @@ def process_next_statement_task(task_id: UUID | None = None) -> bool:
     with SessionLocal() as db:
         now = datetime.now(UTC)
         stale_before = now - timedelta(minutes=15)
+        exhausted_query = select(StatementExtractionTask).where(
+            StatementExtractionTask.status == "processing",
+            StatementExtractionTask.claimed_at < stale_before,
+            StatementExtractionTask.attempts >= 3,
+        )
+        if task_id is not None:
+            exhausted_query = exhausted_query.where(StatementExtractionTask.id == task_id)
         exhausted = db.scalar(
-            select(StatementExtractionTask)
-            .where(
-                StatementExtractionTask.status == "processing",
-                StatementExtractionTask.claimed_at < stale_before,
-                StatementExtractionTask.attempts >= 3,
-            )
-            .with_for_update(skip_locked=True)
-            .limit(1)
+            exhausted_query.with_for_update(skip_locked=True).limit(1)
         )
         if exhausted is not None:
             exhausted.status = "failed"
@@ -290,9 +290,23 @@ def process_next_statement_task(task_id: UUID | None = None) -> bool:
                         else "Statement processing failed unexpectedly. Please try again."
                     ),
                 }
-            task.status = "failed"
-            task.content = b""
             task.claimed_at = None
+            if task.attempts >= 3:
+                task.status = "failed"
+                task.content = b""
+            else:
+                task.status = "pending"
+                if job is not None:
+                    job.status = "processing"
+                    job.result = {
+                        **(job.result or {}),
+                        "processing_stage": "retrying",
+                        "last_error": (
+                            str(exc)[:500]
+                            if isinstance(exc, ValueError)
+                            else "Statement processing attempt failed; retrying safely."
+                        ),
+                    }
             db.commit()
     return True
 
