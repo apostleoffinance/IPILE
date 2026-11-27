@@ -24,6 +24,7 @@ import {
   correctEmailImport,
   getAccounts,
   getImportReview,
+  getStatementImportJob,
   previewImport,
   previewStatementUpload,
   type Account,
@@ -94,6 +95,25 @@ export default function ImportPage() {
       })
       .catch((err: Error) => setError(err.message));
   }, []);
+
+  useEffect(() => {
+    if (!result || result.status !== "processing") return;
+    let active = true;
+    const poll = async () => {
+      try {
+        const latest = await getStatementImportJob(result.id);
+        if (active) setResult(latest);
+      } catch {
+        // Keep the last known state visible; the next poll can recover transient API errors.
+      }
+    };
+    const timer = window.setInterval(() => void poll(), 2_000);
+    void poll();
+    return () => {
+      active = false;
+      window.clearInterval(timer);
+    };
+  }, [result?.id, result?.status]);
 
   async function onSubmit(event: FormEvent) {
     event.preventDefault();
@@ -476,7 +496,7 @@ export default function ImportPage() {
                     <p className="font-medium">{result.source} · {result.status.replaceAll("_", " ")}</p>
                     {result.result?.extraction_method ? <p className="text-xs text-muted">{result.result.extraction_method === "pdf_ocr" || result.result.extraction_method === "image_ocr" ? "Scanned document · OCR extraction" : result.result.extraction_method === "pdf_table" || result.result.extraction_method === "pdf_text" ? "PDF text and table extraction" : result.result.extraction_method === "csv" ? "CSV transaction extraction" : "Statement text extraction"}</p> : null}
                     {result.status === "processing" ? (
-                      <p className="text-sm text-muted">Your statement is safely queued for background processing. No transactions have been staged or posted yet. Processing continues independently of this page. If it remains queued, the statement worker may not be running.</p>
+                      <p className="text-sm text-muted">{result.result?.processing_stage === "retrying" ? "The processor encountered a temporary issue and is retrying this statement safely." : result.result?.processing_stage === "processing" ? "The statement is being extracted and validated in the background. This page will update automatically." : "Your statement is safely queued for background processing. This page will update automatically as the Cloudflare processor picks it up."} No transactions have been posted to your ledger.</p>
                     ) : result.status === "failed" ? (
                       <p role="alert" className="text-sm text-red-700">{result.result?.error || "Statement extraction failed. No transactions were staged or posted."}</p>
                     ) : result.status === "needs_section_selection" ? (
