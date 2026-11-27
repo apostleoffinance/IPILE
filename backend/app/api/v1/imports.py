@@ -30,6 +30,7 @@ from app.services.imports import (
 from app.services.statement_jobs import (
     StatementQueueFullError,
     enqueue_statement_extraction,
+    process_next_statement_task,
 )
 from app.services.transaction_intelligence import enrich_bank_alert
 
@@ -310,6 +311,47 @@ async def preview_statement_upload(
             status_code=503,
             detail="Statement processing could not be queued. Please try again.",
         ) from exc
+
+
+@router.post("/internal/statement-tasks/{task_id}/process")
+def process_statement_task_internal(
+    task_id: UUID,
+    x_statement_worker_secret: str | None = Header(
+        default=None, alias="X-Statement-Worker-Secret"
+    ),
+    db: Session = Depends(get_db),
+):
+    """Authenticated Cloudflare Container entrypoint; never exposes task data publicly."""
+    configured = get_settings().internal_statement_worker_secret
+    if not configured or not x_statement_worker_secret or not hmac.compare_digest(
+        configured, x_statement_worker_secret
+    ):
+        raise HTTPException(status_code=401, detail="Invalid statement worker credentials.")
+    from app.models.imports import StatementExtractionTask
+
+    task = db.query(StatementExtractionTask).filter(
+        StatementExtractionTask.id == task_id
+    ).first()
+    if task is None:
+        raise HTTPException(status_code=404, detail="Statement task not found.")
+    if task.status == "completed":
+        return {"task_id": str(task_id), "status": "completed", "idempotent_replay": True}
+    if task.status == "failed":
+        raise HTTPException(status_code=409, detail="Statement task has already failed.")
+    processed = process_next_statement_task(task_id=task_id)
+    db.expire_all()
+    task = db.query(StatementExtractionTask).filter(
+        StatementExtractionTask.id == task_id
+    ).first()
+    if task is None:
+        raise HTTPException(status_code=404, detail="Statement task not found.")
+    if task.status == "completed":
+        return {"task_id": str(task_id), "status": "completed"}
+    if task.status == "failed":
+        raise HTTPException(status_code=500, detail="Statement task processing failed.")
+    if not processed:
+        raise HTTPException(status_code=409, detail="Statement task is already being processed.")
+    return {"task_id": str(task_id), "status": task.status}
 
 
 @router.get("/jobs/{job_id}", response_model=ImportJobOut)
