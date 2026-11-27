@@ -405,6 +405,11 @@ def process_statement_task_internal(
         return {"task_id": str(task_id), "status": "completed"}
     if task.status == "failed":
         raise HTTPException(status_code=500, detail="Statement task processing failed.")
+    if task.status == "pending":
+        raise HTTPException(
+            status_code=503,
+            detail="Statement task attempt failed; retry the durable workflow.",
+        )
     if not processed:
         raise HTTPException(status_code=409, detail="Statement task is already being processed.")
     return {"task_id": str(task_id), "status": task.status}
