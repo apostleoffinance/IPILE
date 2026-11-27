@@ -337,7 +337,12 @@ def list_statement_dispatch_outbox(
         .limit(50)
         .all()
     )
-    return {\n        "items": [\n            {"outbox_id": str(item.id), "task_id": str(item.task_id)}\n            for item in entries\n        ]\n    }
+    return {
+        "items": [
+            {"outbox_id": str(item.id), "task_id": str(item.task_id)}
+            for item in entries
+        ]
+    }
 
 
 @router.post("/internal/statement-queue/outbox/{outbox_id}/dispatched")
