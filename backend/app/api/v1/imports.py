@@ -20,6 +20,7 @@ from app.models.imports import (
     ImportJob,
     ImportMailbox,
     StatementExtractionOutbox,
+    StatementExtractionTask,
 )
 from app.models.transaction import Transaction
 from app.schemas.imports import ImportBody, ImportCommitBody, ImportJobOut, ImportPreviewBody
