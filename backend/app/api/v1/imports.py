@@ -16,7 +16,7 @@ from app.api.deps import HouseholdContext, get_db, require_roles
 from app.core.config import get_settings
 from app.models.account import Account
 from app.models.household import Household
-from app.models.imports import ImportJob, ImportMailbox
+from app.models.imports import ImportJob, ImportMailbox, StatementExtractionOutbox, StatementExtractionTask
 from app.models.transaction import Transaction
 from app.schemas.imports import ImportBody, ImportCommitBody, ImportJobOut, ImportPreviewBody
 from app.services.email_imports import apply_alert_automation, parse_bank_alert
@@ -311,6 +311,57 @@ async def preview_statement_upload(
             status_code=503,
             detail="Statement processing could not be queued. Please try again.",
         ) from exc
+
+
+@router.get("/internal/statement-queue/outbox")
+def list_statement_dispatch_outbox(
+    x_statement_worker_secret: str | None = Header(
+        default=None, alias="X-Statement-Worker-Secret"
+    ),
+    db: Session = Depends(get_db),
+):
+    """Cloudflare Cron poller reads only task identifiers from the transactional outbox."""
+    configured = get_settings().internal_statement_worker_secret
+    if not configured or not x_statement_worker_secret or not hmac.compare_digest(
+        configured, x_statement_worker_secret
+    ):
+        raise HTTPException(status_code=401, detail="Invalid statement worker credentials.")
+    entries = (
+        db.query(StatementExtractionOutbox)
+        .filter(StatementExtractionOutbox.status == "pending")
+        .order_by(StatementExtractionOutbox.created_at.asc())
+        .limit(50)
+        .all()
+    )
+    return {"items": [{"outbox_id": str(item.id), "task_id": str(item.task_id)} for item in entries]}
+
+
+@router.post("/internal/statement-queue/outbox/{outbox_id}/dispatched")
+def mark_statement_dispatch_outbox(
+    outbox_id: UUID,
+    x_statement_worker_secret: str | None = Header(
+        default=None, alias="X-Statement-Worker-Secret"
+    ),
+    db: Session = Depends(get_db),
+):
+    """Mark an outbox item only after Cloudflare Queue confirms message acceptance."""
+    configured = get_settings().internal_statement_worker_secret
+    if not configured or not x_statement_worker_secret or not hmac.compare_digest(
+        configured, x_statement_worker_secret
+    ):
+        raise HTTPException(status_code=401, detail="Invalid statement worker credentials.")
+    item = db.query(StatementExtractionOutbox).filter(
+        StatementExtractionOutbox.id == outbox_id
+    ).with_for_update().first()
+    if item is None:
+        raise HTTPException(status_code=404, detail="Outbox item not found.")
+    if item.status != "dispatched":
+        item.status = "dispatched"
+        item.attempts += 1
+        item.dispatched_at = datetime.now(UTC)
+        item.last_error = None
+        db.commit()
+    return {"outbox_id": str(outbox_id), "status": item.status}
 
 
 @router.post("/internal/statement-tasks/{task_id}/process")
