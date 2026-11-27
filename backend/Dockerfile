@@ -12,6 +12,5 @@ RUN pip install --no-cache-dir -e ".[dev]"
 
 COPY . /app
 
-# Render injects PORT (currently 10000); keep a safe local/container default.
 EXPOSE 10000
-CMD ["sh", "-c", "alembic upgrade head && python -m scripts.seed && exec uvicorn app.main:app --host 0.0.0.0 --port \"${PORT:-10000}\""]
+CMD ["sh", "-c", "if [ \"${STATEMENT_CONTAINER_MODE:-false}\" = \"true\" ]; then exec uvicorn app.main:app --host 0.0.0.0 --port \"${PORT:-10000}\"; else alembic upgrade head && python -m scripts.seed && exec uvicorn app.main:app --host 0.0.0.0 --port \"${PORT:-10000}\"; fi"]
