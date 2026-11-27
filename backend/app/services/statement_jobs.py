@@ -13,7 +13,7 @@ from sqlalchemy.orm import Session
 from app.core.db import SessionLocal
 from app.models.account import Account
 from app.models.household import Household
-from app.models.imports import ImportJob, StatementExtractionTask
+from app.models.imports import ImportJob, StatementExtractionOutbox, StatementExtractionTask
 from app.services.imports import stage_import_rows
 from app.services.statement_intelligence.engine import extract_statement
 
@@ -134,6 +134,8 @@ def enqueue_statement_extraction(
         status="pending",
     )
     db.add(task)
+    db.flush()
+    db.add(StatementExtractionOutbox(task_id=task.id, status="pending"))
     db.commit()
     db.refresh(job)
     return job
