@@ -1,0 +1,85 @@
+name: Deploy IPÌLẸ̀ statement processing to Cloudflare
+
+on:
+  workflow_dispatch:
+    inputs:
+      approve_statement_processing_deployment:
+        description: "Approve deployment of the separate statement-processing Worker and Python container."
+        required: true
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ipile-cloudflare-statement-processing
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    if: ${{ inputs.approve_statement_processing_deployment == true }}
+    runs-on: ubuntu-latest
+    environment: production
+    env:
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+      DATABASE_URL: ${{ secrets.IPILE_DATABASE_URL }}
+      APP_SECRET_KEY: ${{ secrets.IPILE_APP_SECRET_KEY }}
+      INTERNAL_API_SECRET: ${{ secrets.IPILE_INTERNAL_STATEMENT_WORKER_SECRET }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+
+      - name: Validate production secrets
+        shell: bash
+        run: |
+          set -euo pipefail
+          for name in CLOUDFLARE_API_TOKEN CLOUDFLARE_ACCOUNT_ID DATABASE_URL APP_SECRET_KEY INTERNAL_API_SECRET; do
+            if [[ -z "${!name}" ]]; then echo "Missing required secret: $name"; exit 1; fi
+          done
+          [[ "$DATABASE_URL" == postgresql://* || "$DATABASE_URL" == postgresql+psycopg://* ]]
+
+      - name: Install Cloudflare tooling
+        working-directory: cloudflare/statement-jobs
+        run: npm install --no-save wrangler@4 typescript @cloudflare/workers-types
+
+      - name: Typecheck statement Worker
+        working-directory: cloudflare/statement-jobs
+        run: npx tsc --noEmit
+
+      - name: Validate Wrangler configuration
+        working-directory: cloudflare/statement-jobs
+        run: npx wrangler deploy --dry-run
+
+      - name: Configure runtime secrets
+        working-directory: cloudflare/statement-jobs
+        shell: bash
+        run: |
+          set -euo pipefail
+          printf '%s' "$DATABASE_URL" | npx wrangler secret put DATABASE_URL --name ipile-statement-jobs
+          printf '%s' "$APP_SECRET_KEY" | npx wrangler secret put APP_SECRET_KEY --name ipile-statement-jobs
+          printf '%s' "$INTERNAL_API_SECRET" | npx wrangler secret put INTERNAL_API_SECRET --name ipile-statement-jobs
+
+      - name: Deploy separate statement-processing service
+        working-directory: cloudflare/statement-jobs
+        run: npx wrangler deploy
+
+      - name: Smoke-test statement Worker health
+        run: |
+          curl --fail --silent --show-error --retry 5 --retry-connrefused --retry-delay 5 --max-time 30 \
+            https://ipile-statement-jobs.ipile-71a.workers.dev/health
+
+      - name: Deployment summary
+        run: |
+          {
+            echo "## IPÌLẸ̀ statement processing deployed"
+            echo "- Separate Worker: `ipile-statement-jobs`"
+            echo "- Existing frontend Worker `ipile-web` was not modified."
+            echo "- Confirm the Container image rollout and run the 113-page PDF acceptance test before switching production upload traffic."
+          } >> "$GITHUB_STEP_SUMMARY"
