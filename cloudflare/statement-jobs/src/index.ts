@@ -2,6 +2,7 @@ import { DurableObject, WorkflowEntrypoint } from "cloudflare:workers";
 
 interface Env {
   STATEMENT_QUEUE: Queue<StatementQueueMessage>;
+  STATEMENT_DLQ: Queue<StatementQueueMessage & { failure_reason?: string }>;
   STATEMENT_WORKFLOW: Workflow<StatementWorkflowParams>;
   STATEMENT_CONTAINER: DurableObjectNamespace<StatementContainer>;
   DATABASE_URL: string;
@@ -53,7 +54,8 @@ export class StatementContainer extends DurableObject<Env> {
           SECRET_KEY: this.env.APP_SECRET_KEY,
           INTERNAL_STATEMENT_WORKER_SECRET: this.env.INTERNAL_API_SECRET,
           SEED_ON_START: "false",
-          COOKIE_SECURE: "true"
+          COOKIE_SECURE: "true",
+          STATEMENT_CONTAINER_MODE: "true"
         }
       });
     }
@@ -78,7 +80,8 @@ export class StatementContainer extends DurableObject<Env> {
 export class StatementWorkflow extends WorkflowEntrypoint<Env, StatementWorkflowParams> {
   async run(event: { payload: StatementWorkflowParams }, step: any): Promise<void> {
     const taskId = event.payload.task_id;
-    await step.do(
+    try {
+      await step.do(
       "process-statement",
       {
         retries: { limit: 3, delay: "10 seconds", backoff: "exponential" },
@@ -99,6 +102,14 @@ export class StatementWorkflow extends WorkflowEntrypoint<Env, StatementWorkflow
         return await response.json();
       }
     );
+    } catch (error) {
+      await this.env.STATEMENT_DLQ.send({
+        task_id: taskId,
+        schema_version: 1,
+        failure_reason: String(error).slice(0, 500)
+      });
+      throw error;
+    }
   }
 }
 
