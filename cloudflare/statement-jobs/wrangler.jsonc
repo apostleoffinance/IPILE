@@ -9,7 +9,8 @@
   "observability": { "enabled": true },
   "queues": {
     "producers": [
-      { "binding": "STATEMENT_QUEUE", "queue": "ipile-statement-jobs" }
+      { "binding": "STATEMENT_QUEUE", "queue": "ipile-statement-jobs" },
+      { "binding": "STATEMENT_DLQ", "queue": "ipile-statement-jobs-dlq" }
     ],
     "consumers": [
       {
