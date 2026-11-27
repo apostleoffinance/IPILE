@@ -21,7 +21,7 @@ Set these as Worker secrets before deployment:
 ## Deployment prerequisites
 
 1. Confirm the Cloudflare account has Workers Paid and Containers enabled.
-2. Create Queue `ipile-statement-jobs`; the dead-letter queue is declared in Wrangler consumer configuration.
+2. Create Queues `ipile-statement-jobs` and `ipile-statement-jobs-dlq` in the Cloudflare account before the first deploy.
 3. Configure the API-to-Worker dispatch secret and URL.
 4. Verify the image build context resolves the repository's existing backend Dockerfile and backend dependency files. Wrangler must build the container image in CI with Docker enabled.
 5. Deploy this service separately from `ipile-web`.
