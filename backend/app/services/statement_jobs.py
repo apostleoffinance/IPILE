@@ -194,6 +194,14 @@ def process_next_statement_task(task_id: UUID | None = None) -> bool:
         task.status = "processing"
         task.claimed_at = now
         task.attempts += 1
+        job = db.get(ImportJob, task.import_job_id)
+        if job is not None:
+            job.status = "processing"
+            job.result = {
+                **(job.result or {}),
+                "processing_stage": "processing",
+                "attempt": task.attempts,
+            }
         db.commit()
         task_id = task.id
 
