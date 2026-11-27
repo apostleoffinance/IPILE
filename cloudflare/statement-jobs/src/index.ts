@@ -5,7 +5,9 @@ interface Env {
   STATEMENT_WORKFLOW: Workflow<StatementWorkflowParams>;
   STATEMENT_CONTAINER: DurableObjectNamespace<StatementContainer>;
   DATABASE_URL: string;
+  APP_SECRET_KEY: string;
   INTERNAL_API_SECRET: string;
+  BACKEND_URL: string;
 }
 
 interface StatementQueueMessage {
@@ -48,8 +50,10 @@ export class StatementContainer extends DurableObject<Env> {
         env: {
           ENVIRONMENT: "production",
           DATABASE_URL: this.env.DATABASE_URL,
+          SECRET_KEY: this.env.APP_SECRET_KEY,
           INTERNAL_STATEMENT_WORKER_SECRET: this.env.INTERNAL_API_SECRET,
-          SEED_ON_START: "false"
+          SEED_ON_START: "false",
+          COOKIE_SECURE: "true"
         }
       });
     }
@@ -118,14 +122,38 @@ export default {
     await env.STATEMENT_QUEUE.send(body);
     return Response.json({ accepted: true, task_id: body.task_id }, { status: 202 });
   },
+  async scheduled(_event: ScheduledController, env: Env, ctx: ExecutionContext): Promise<void> {
+    ctx.waitUntil((async () => {
+      const base = env.BACKEND_URL.replace(/\\/$/, "");
+      const response = await fetch(`${base}/api/v1/imports/internal/statement-queue/outbox`, {
+        headers: { "X-Statement-Worker-Secret": env.INTERNAL_API_SECRET }
+      });
+      if (!response.ok) throw new Error(`Outbox poll failed: ${response.status}`);
+      const payload = await response.json() as { items: Array<{ outbox_id: string; task_id: string }> };
+      for (const item of payload.items) {
+        await env.STATEMENT_QUEUE.send({ task_id: item.task_id, schema_version: 1 });
+        const ack = await fetch(`${base}/api/v1/imports/internal/statement-queue/outbox/${item.outbox_id}/dispatched`, {
+          method: "POST",
+          headers: { "X-Statement-Worker-Secret": env.INTERNAL_API_SECRET }
+        });
+        if (!ack.ok) throw new Error(`Outbox acknowledgement failed: ${ack.status}`);
+      }
+    })());
+  },
   async queue(batch: MessageBatch<StatementQueueMessage>, env: Env): Promise<void> {
     for (const message of batch.messages) {
       try {
         const workflowId = `statement-${message.body.task_id}`;
-        await env.STATEMENT_WORKFLOW.create({
-          id: workflowId,
-          params: { task_id: message.body.task_id }
-        });
+        try {
+          await env.STATEMENT_WORKFLOW.create({
+            id: workflowId,
+            params: { task_id: message.body.task_id }
+          });
+        } catch (error) {
+          // Queue delivery is at-least-once. A deterministic workflow ID prevents
+          // duplicate workflow creation; an existing instance owns this task.
+          await env.STATEMENT_WORKFLOW.get(workflowId);
+        }
         message.ack();
       } catch (error) {
         console.error("Could not start statement workflow", {
