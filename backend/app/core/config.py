@@ -39,6 +39,7 @@ class Settings(BaseSettings):
     gmail_token_encryption_key: str = ""
     gmail_allowed_sender_domains: str = ""
     automation_cron_secret: str = ""
+    internal_statement_worker_secret: str = ""
 
     @property
     def gmail_connect_configured(self) -> bool:

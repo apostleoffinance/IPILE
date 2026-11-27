@@ -1,0 +1,36 @@
+name: Cloudflare statement worker validation
+
+on:
+  pull_request:
+    paths:
+      - "cloudflare/statement-jobs/**"
+      - "backend/Dockerfile"
+      - "backend/app/api/v1/imports.py"
+      - "backend/app/core/config.py"
+      - "backend/app/models/imports.py"
+      - "backend/app/services/statement_jobs.py"
+      - "backend/migrations/versions/0027_statement_extraction_outbox.py"
+      - ".github/workflows/cloudflare-statement-jobs-validation.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - name: Install Cloudflare tooling
+        working-directory: cloudflare/statement-jobs
+        run: npm install --no-save wrangler@4 typescript @cloudflare/workers-types
+      - name: Typecheck Worker and Workflow
+        working-directory: cloudflare/statement-jobs
+        run: npx tsc --noEmit
+      - name: Validate Wrangler configuration
+        working-directory: cloudflare/statement-jobs
+        run: npx wrangler deploy --dry-run
+      - name: Verify backend Docker image can be built
+        run: docker build -f backend/Dockerfile backend -t ipile-statement-worker:ci

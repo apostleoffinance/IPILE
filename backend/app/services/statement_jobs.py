@@ -5,6 +5,7 @@ from __future__ import annotations
 import logging
 import time
 from datetime import UTC, datetime, timedelta
+from uuid import UUID
 
 from sqlalchemy import func, or_, select
 from sqlalchemy.orm import Session
@@ -12,7 +13,7 @@ from sqlalchemy.orm import Session
 from app.core.db import SessionLocal
 from app.models.account import Account
 from app.models.household import Household
-from app.models.imports import ImportJob, StatementExtractionTask
+from app.models.imports import ImportJob, StatementExtractionOutbox, StatementExtractionTask
 from app.services.imports import stage_import_rows
 from app.services.statement_intelligence.engine import extract_statement
 
@@ -133,25 +134,27 @@ def enqueue_statement_extraction(
         status="pending",
     )
     db.add(task)
+    db.flush()
+    db.add(StatementExtractionOutbox(task_id=task.id, status="pending"))
     db.commit()
     db.refresh(job)
     return job
 
 
-def process_next_statement_task() -> bool:
-    """Claim and process one task; database row locks prevent duplicate workers."""
+def process_next_statement_task(task_id: UUID | None = None) -> bool:
+    """Claim and process one task; optional task ID makes queue delivery idempotent."""
     with SessionLocal() as db:
         now = datetime.now(UTC)
         stale_before = now - timedelta(minutes=15)
+        exhausted_query = select(StatementExtractionTask).where(
+            StatementExtractionTask.status == "processing",
+            StatementExtractionTask.claimed_at < stale_before,
+            StatementExtractionTask.attempts >= 3,
+        )
+        if task_id is not None:
+            exhausted_query = exhausted_query.where(StatementExtractionTask.id == task_id)
         exhausted = db.scalar(
-            select(StatementExtractionTask)
-            .where(
-                StatementExtractionTask.status == "processing",
-                StatementExtractionTask.claimed_at < stale_before,
-                StatementExtractionTask.attempts >= 3,
-            )
-            .with_for_update(skip_locked=True)
-            .limit(1)
+            exhausted_query.with_for_update(skip_locked=True).limit(1)
         )
         if exhausted is not None:
             exhausted.status = "failed"
@@ -169,19 +172,20 @@ def process_next_statement_task() -> bool:
                 }
             db.commit()
             return True
-        task = db.scalar(
-            select(StatementExtractionTask)
-            .where(
-                or_(
-                    StatementExtractionTask.status == "pending",
-                    (
-                        (StatementExtractionTask.status == "processing")
-                        & (StatementExtractionTask.claimed_at < stale_before)
-                        & (StatementExtractionTask.attempts < 3)
-                    ),
-                )
+        task_query = select(StatementExtractionTask).where(
+            or_(
+                StatementExtractionTask.status == "pending",
+                (
+                    (StatementExtractionTask.status == "processing")
+                    & (StatementExtractionTask.claimed_at < stale_before)
+                    & (StatementExtractionTask.attempts < 3)
+                ),
             )
-            .order_by(StatementExtractionTask.created_at)
+        )
+        if task_id is not None:
+            task_query = task_query.where(StatementExtractionTask.id == task_id)
+        task = db.scalar(
+            task_query.order_by(StatementExtractionTask.created_at)
             .with_for_update(skip_locked=True)
             .limit(1)
         )
@@ -190,6 +194,14 @@ def process_next_statement_task() -> bool:
         task.status = "processing"
         task.claimed_at = now
         task.attempts += 1
+        job = db.get(ImportJob, task.import_job_id)
+        if job is not None:
+            job.status = "processing"
+            job.result = {
+                **(job.result or {}),
+                "processing_stage": "processing",
+                "attempt": task.attempts,
+            }
         db.commit()
         task_id = task.id
 
@@ -286,9 +298,23 @@ def process_next_statement_task() -> bool:
                         else "Statement processing failed unexpectedly. Please try again."
                     ),
                 }
-            task.status = "failed"
-            task.content = b""
             task.claimed_at = None
+            if task.attempts >= 3:
+                task.status = "failed"
+                task.content = b""
+            else:
+                task.status = "pending"
+                if job is not None:
+                    job.status = "processing"
+                    job.result = {
+                        **(job.result or {}),
+                        "processing_stage": "retrying",
+                        "last_error": (
+                            str(exc)[:500]
+                            if isinstance(exc, ValueError)
+                            else "Statement processing attempt failed; retrying safely."
+                        ),
+                    }
             db.commit()
     return True
 

@@ -968,6 +968,10 @@ export async function previewStatementUpload(
   return job;
 }
 
+export function getStatementImportJob(jobId: string) {
+  return request<ImportJob>(`/api/v1/imports/jobs/${jobId}`);
+}
+
 export function confirmStatementReview(jobId: string, reason: string) {
   return request<ImportJob>(`/api/v1/imports/jobs/${jobId}/review-confirmation`, {
     method: "POST",
