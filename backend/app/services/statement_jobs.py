@@ -5,6 +5,7 @@ from __future__ import annotations
 import logging
 import time
 from datetime import UTC, datetime, timedelta
+from uuid import UUID
 
 from sqlalchemy import func, or_, select
 from sqlalchemy.orm import Session
@@ -138,8 +139,8 @@ def enqueue_statement_extraction(
     return job
 
 
-def process_next_statement_task() -> bool:
-    """Claim and process one task; database row locks prevent duplicate workers."""
+def process_next_statement_task(task_id: UUID | None = None) -> bool:
+    """Claim and process one task; optional task ID makes queue delivery idempotent."""
     with SessionLocal() as db:
         now = datetime.now(UTC)
         stale_before = now - timedelta(minutes=15)
@@ -169,19 +170,20 @@ def process_next_statement_task() -> bool:
                 }
             db.commit()
             return True
-        task = db.scalar(
-            select(StatementExtractionTask)
-            .where(
-                or_(
-                    StatementExtractionTask.status == "pending",
-                    (
-                        (StatementExtractionTask.status == "processing")
-                        & (StatementExtractionTask.claimed_at < stale_before)
-                        & (StatementExtractionTask.attempts < 3)
-                    ),
-                )
+        task_query = select(StatementExtractionTask).where(
+            or_(
+                StatementExtractionTask.status == "pending",
+                (
+                    (StatementExtractionTask.status == "processing")
+                    & (StatementExtractionTask.claimed_at < stale_before)
+                    & (StatementExtractionTask.attempts < 3)
+                ),
             )
-            .order_by(StatementExtractionTask.created_at)
+        )
+        if task_id is not None:
+            task_query = task_query.where(StatementExtractionTask.id == task_id)
+        task = db.scalar(
+            task_query.order_by(StatementExtractionTask.created_at)
             .with_for_update(skip_locked=True)
             .limit(1)
         )
