@@ -1,11 +1,10 @@
-import { DurableObject } from "cloudflare:workers";
-import { WorkflowEntrypoint } from "cloudflare:workers";
+import { DurableObject, WorkflowEntrypoint } from "cloudflare:workers";
 
 interface Env {
   STATEMENT_QUEUE: Queue<StatementQueueMessage>;
   STATEMENT_WORKFLOW: Workflow<StatementWorkflowParams>;
   STATEMENT_CONTAINER: DurableObjectNamespace<StatementContainer>;
-  BACKEND_URL: string;
+  DATABASE_URL: string;
   INTERNAL_API_SECRET: string;
 }
 
@@ -48,8 +47,9 @@ export class StatementContainer extends DurableObject<Env> {
         instance: "standard-1",
         env: {
           ENVIRONMENT: "production",
-          DATABASE_URL: this.env.INTERNAL_API_SECRET ? this.env.BACKEND_URL : "",
-          STATEMENT_CONTAINER_MODE: "true"
+          DATABASE_URL: this.env.DATABASE_URL,
+          INTERNAL_STATEMENT_WORKER_SECRET: this.env.INTERNAL_API_SECRET,
+          SEED_ON_START: "false"
         }
       });
     }
@@ -84,7 +84,7 @@ export class StatementWorkflow extends WorkflowEntrypoint<Env, StatementWorkflow
         const id = this.env.STATEMENT_CONTAINER.idFromName(taskId);
         const container = this.env.STATEMENT_CONTAINER.get(id);
         const response = await container.fetch(
-          new Request(`https://container/internal/statement-tasks/${encodeURIComponent(taskId)}/process`, {
+          new Request(`https://container/api/v1/imports/internal/statement-tasks/${encodeURIComponent(taskId)}/process`, {
             method: "POST",
             headers: { "X-Statement-Worker-Secret": this.env.INTERNAL_API_SECRET }
           })
