@@ -37,9 +37,9 @@
     {
       "class_name": "StatementContainer",
       "scheduling_policy": "durable_object",
-      "image": "../../backend/Dockerfile",
-      "instance_type": "standard-1",
-      "max_instances": 2
+      "images": {
+        "base": { "dockerfile": "../../backend/Dockerfile" }
+      }
     }
   ],
   "migrations": [
