@@ -66,3 +66,23 @@ class StatementExtractionTask(Base):
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now()
     )
+
+
+
+class StatementExtractionOutbox(Base):
+    """Transactional outbox guaranteeing accepted tasks are eventually dispatched."""
+
+    __tablename__ = "statement_extraction_outbox"
+
+    id: Mapped[uuid.UUID] = mapped_column(Uuid, primary_key=True, default=uuid.uuid4)
+    task_id: Mapped[uuid.UUID] = mapped_column(
+        Uuid, ForeignKey("statement_extraction_tasks.id", ondelete="CASCADE"),
+        unique=True, index=True
+    )
+    status: Mapped[str] = mapped_column(String(20), default="pending", index=True)
+    attempts: Mapped[int] = mapped_column(Integer, default=0)
+    last_error: Mapped[str | None] = mapped_column(String(500), nullable=True)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now()
+    )
+    dispatched_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
