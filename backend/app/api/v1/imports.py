@@ -20,7 +20,6 @@ from app.models.imports import (
     ImportJob,
     ImportMailbox,
     StatementExtractionOutbox,
-    StatementExtractionTask,
 )
 from app.models.transaction import Transaction
 from app.schemas.imports import ImportBody, ImportCommitBody, ImportJobOut, ImportPreviewBody
@@ -338,7 +337,7 @@ def list_statement_dispatch_outbox(
         .limit(50)
         .all()
     )
-    return {"items": [{"outbox_id": str(item.id), "task_id": str(item.task_id)} for item in entries]}
+    return {\n        "items": [\n            {"outbox_id": str(item.id), "task_id": str(item.task_id)}\n            for item in entries\n        ]\n    }
 
 
 @router.post("/internal/statement-queue/outbox/{outbox_id}/dispatched")
@@ -383,8 +382,6 @@ def process_statement_task_internal(
         configured, x_statement_worker_secret
     ):
         raise HTTPException(status_code=401, detail="Invalid statement worker credentials.")
-    from app.models.imports import StatementExtractionTask
-
     task = db.query(StatementExtractionTask).filter(
         StatementExtractionTask.id == task_id
     ).first()
