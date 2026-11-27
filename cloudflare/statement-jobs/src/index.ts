@@ -135,7 +135,7 @@ export default {
   },
   async scheduled(_event: ScheduledController, env: Env, ctx: ExecutionContext): Promise<void> {
     ctx.waitUntil((async () => {
-      const base = env.BACKEND_URL.replace(/\\/$/, "");
+      const base = env.BACKEND_URL.replace(/\/$/, "");
       const response = await fetch(`${base}/api/v1/imports/internal/statement-queue/outbox`, {
         headers: { "X-Statement-Worker-Secret": env.INTERNAL_API_SECRET }
       });
