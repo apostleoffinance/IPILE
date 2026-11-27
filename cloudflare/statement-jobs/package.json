@@ -1,0 +1,16 @@
+{
+  "name": "ipile-statement-jobs",
+  "private": true,
+  "version": "1.0.0",
+  "type": "module",
+  "scripts": {
+    "typecheck": "tsc --noEmit",
+    "deploy": "wrangler deploy",
+    "dev": "wrangler dev"
+  },
+  "devDependencies": {
+    "@cloudflare/workers-types": "^4.20261127.0",
+    "typescript": "^5.9.3",
+    "wrangler": "^4.50.0"
+  }
+}
